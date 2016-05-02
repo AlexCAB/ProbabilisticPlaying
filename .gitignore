@@ -1,0 +1,15 @@
+.idea/
+target/
+project/target/
+project/project/target/
+
+mathact/target/
+mathact/project/target/
+mathact/project/project/target/
+
+simulation/target/
+simulation/project/target/
+simulation/project/project/target/
+
+
+pacman/
