@@ -12,25 +12,38 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.tools
+package mathact.parts.plumbing
 
-import mathact.parts.plumbing.Pump
-import mathact.parts.{Fitting, Environment}
-
-
-/** Box class for placing of tools
-  * Created by CAB on 09.05.2016.
+/** Contains event handler.
+  * Created by CAB on 13.05.2016.
   */
 
-abstract class Workbench extends Fitting{
+trait Inlet[T] extends Pipe[T]{
 
-  protected implicit val environment = new Environment
+  protected def handler(value: T): Unit
 
-  private[mathact] val pump: Pump = new Pump(environment, this)
+  def connect(in:()⇒Flange[T]): Unit = {    //Значение должно считыватся только после полного конструирования (чтобы небыло NPE)
+
+
+//    println(in())
+
+//    in match{
+//      case o: Outlet[T] ⇒ //Подключнение
+//      case _ ⇒   //Ошибка
+
+
+}
 
 
 
-  def main(arg:Array[String]):Unit = {}
+
+
+//}
+  def disconnect(in:()⇒Flange[Double]): Unit = {
+
+  ???
+
+}
 
 
 }

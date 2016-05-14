@@ -12,25 +12,22 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.tools
-
-import mathact.parts.plumbing.Pump
-import mathact.parts.{Fitting, Environment}
+package mathact.parts.plumbing
 
 
-/** Box class for placing of tools
-  * Created by CAB on 09.05.2016.
+/** Event collector
+  * Created by CAB on 13.05.2016.
   */
 
-abstract class Workbench extends Fitting{
+trait Outlet[T] extends Flange[T] with Pipe[T]{
 
-  protected implicit val environment = new Environment
-
-  private[mathact] val pump: Pump = new Pump(environment, this)
+  protected def push(value: T): Unit = {
 
 
 
-  def main(arg:Array[String]):Unit = {}
 
+  }
 
 }
+
+

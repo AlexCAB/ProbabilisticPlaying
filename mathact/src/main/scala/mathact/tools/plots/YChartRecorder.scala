@@ -1,69 +1,60 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *\
+ * @                                                                             @ *
+ *           #          # #                                 #    (c) 2016 CAB      *
+ *          # #      # #                                  #  #                     *
+ *         #  #    #  #           # #     # #           #     #              # #   *
+ *        #   #  #   #             #       #          #        #              #    *
+ *       #     #    #   # # #    # # #    #         #           #   # # #   # # #  *
+ *      #          #         #   #       # # #     # # # # # # #  #    #    #      *
+ *     #          #   # # # #   #       #      #  #           #  #         #       *
+ *  # #          #   #     #   #    #  #      #  #           #  #         #    #   *
+ *   #          #     # # # #   # #   #      #  # #         #    # # #     # #     *
+ * @                                                                             @ *
+\* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 package mathact.tools.plots
-import java.awt.Color
-import mathact.utils.clockwork.VisualisationGear
-import mathact.utils.dsl.Colors
-import mathact.utils.ui.components.{BorderFrame,Chart,VariablesBar}
-import mathact.utils.{ToolHelper, Tool, Environment}
+import mathact.parts.{Environment, Tool}
+import mathact.parts.plumbing._
 
 
-/**
- * Simple chart recorder
- * Created by CAB on 16.03.2015.
- */
+/** Chart recorder by Y tool
+  * Created by CAB on 08.05.2016.
+  */
 
-abstract class YChartRecorder (
-  name:String = "",
-  minRange:Double = -1,
-  maxRange:Double = 1,
-  autoRange:Boolean = false,
-  autoUpdate:Boolean = false,
-  axisXName:String = "",
-  axisYName:String = "",
-  maxTraceSize:Int = 100,
-  screenX:Int = Int.MaxValue,
-  screenY:Int = Int.MaxValue,
-  screenW:Int = 600,
-  screenH:Int = 300)
-(implicit environment:Environment)
-extends Tool with Colors{
-  //Variables
-  private var traces = List[Trace]()
-  private var xCounter = .0
-  //Classes
-  protected case class Trace(name:Option[String], color:Color, proc:()⇒Double){
-    def of(proc: ⇒Double):Trace = {
-      val trace = Trace(name, color, ()⇒proc)
-      traces :+= trace
-      trace}}
-  //DSL Methods
-  def trace(name:String = "", color:Color = new Color(0,0,0)):Trace =
-    Trace(name match{case s if s == "" ⇒ None; case s ⇒ Some(s)}, color, () ⇒ 0.0)
-  def update() = {
-    val xys = traces.map{case Trace(_,_,data) ⇒ Some(xCounter, data())}
-    //Chart
-    chart.update(xys)
-    xCounter += 1
-    //VariablesBar
-    varBar.update(xys.map{case Some((_,y)) ⇒ y; case _ ⇒ Double.NaN})
-    updated()}
-  def updated() = {}
-  //Helpers
-  private val helper = new ToolHelper(this, name, "YChartRecorder")
-  //UI
-  private val chart = new Chart(environment.params.YChartRecorder, screenW, screenH, axisXName, axisYName, maxTraceSize)
-  private val varBar = new VariablesBar(environment.params.YChartRecorder)
-  private val frame = new BorderFrame(
-      environment.layout, environment.params.YChartRecorder, helper.toolName, south = Some(varBar), center = Some(chart)){
-    def closing() = {gear.endWork()}}
-  //Gear
-  private val gear:VisualisationGear = new VisualisationGear(environment.clockwork){
-    def start() = {
-      chart.setTraces(traces.map{case Trace(_,c,_) ⇒ c}, minRange, maxRange)
-      varBar.setVars(traces.zipWithIndex.map{
-        case (Trace(Some(n),c,_),_) ⇒ (n,c)
-        case (Trace(None,c,_),i) ⇒ ("T" + i,c)})
-      frame.show(screenX, screenY, Int.MaxValue, Int.MaxValue)}
-    def update() = if(autoUpdate){
-      helper.thisTool.update()}
-    def stop() = {
-      frame.hide()}}}
+abstract class YChartRecorder(implicit env: Environment) extends Tool(env, "YChartRecorder"){
+
+
+
+  protected class Line(name: String) extends Inlet[Double]{   //В этом случае имеется один обработчик, к которому может быть подключено несколько флянцев
+    //Если нужно несколько обработчиков для разных типов, можно внутири Line создать несколько Sink
+
+    protected def handler(v: Double): Unit = {println("Handle: " + v)}
+
+
+    def of(in: ⇒Flange[Double]): Unit = {
+
+      connect(() ⇒ in)
+
+
+
+
+
+    }
+
+  }
+
+  def line(name: String) = new Line(name)    //DSL для более простого подключниея входя и создания подинстумента
+
+
+
+
+
+  //??? Далее о том как реализовать внутреннюю мехнику передачи сообщений
+
+
+
+
+
+
+
+}

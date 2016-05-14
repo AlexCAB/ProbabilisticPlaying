@@ -12,25 +12,12 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.tools
+package mathact.parts
 
-import mathact.parts.plumbing.Pump
-import mathact.parts.{Fitting, Environment}
-
-
-/** Box class for placing of tools
-  * Created by CAB on 09.05.2016.
+/** Contain global services
+  * Created by CAB on 13.05.2016.
   */
 
-abstract class Workbench extends Fitting{
-
-  protected implicit val environment = new Environment
-
-  private[mathact] val pump: Pump = new Pump(environment, this)
-
-
-
-  def main(arg:Array[String]):Unit = {}
-
+class Environment {
 
 }

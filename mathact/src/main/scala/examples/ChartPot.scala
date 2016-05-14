@@ -12,43 +12,93 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.tools.pots
-import mathact.parts.{OnStart, OnStop, Environment, Tool}
+package examples
+
+import mathact.tools.Workbench
+import mathact.tools.plots.YChartRecorder
+import mathact.tools.pots.PotBoard
 
 
-/** Pot board tool
+/** Chart end pot example
   * Created by CAB on 08.05.2016.
   */
 
-abstract class PotBoard(implicit env: Environment) extends Tool(env, "PotBoard") with OnStart with OnStop{
+object ChartPot extends Workbench {
 
 
 
-  protected def onStart(): Unit = println("PotBoard.onStart")
-  protected def onStop(): Unit = println("PotBoard.onStop")
 
 
-  protected class Pot(from: Double, to: Double, in: Option[()⇒Flange[Double]]) extends Outlet[Double] with Inlet[Double]{    //Определение выхода
 
-    protected def handler(value: Double): Unit = {}
+  val pots = new PotBoard{      //Создание компонента с выходвми
+
+    val pot1 = Outlet(new Pot(1,2, None))    //Регистрация выхода
+
+    val pot2 = pot(2,3)               //егистрация выхода, вариант с DSL
 
 
-    in.foreach(e ⇒ connect(e))
+    pot(chart.out1)                  //Рекурсивное связание
 
-    def test():Unit = ???
 
-    //Здесь реализация
 
-    push(10)       //Посылка значения на выход
 
   }
 
 
 
-  def pot(from: Double, to: Double) = Outlet(new Pot(from,from, None))   //DSL для удобного создания выхода
+  val chart: YChartRecorder{val out1 : Outlet[Double]} = new YChartRecorder{    //Создание компоненеа с входами
 
 
-  def pot(in: ⇒Flange[Double]) = Outlet(new Pot(1,2, Some(()⇒in)))   //DSL для удобного создания выхода
+
+    line("line1").of(pots.pot1)    //Регистрация вход c DSL
+
+
+
+
+
+    val col1 = Collector(pots.pot1, pots.pot2) // Пример коллектора из нескольких выходов нв один
+
+
+    line("line1").of(col1)    //Работа так же как и с обычным выходом
+
+
+
+    val out1 = Outlet(new Outlet[Double]{})
+
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -12,25 +12,13 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.tools
-
-import mathact.parts.plumbing.Pump
-import mathact.parts.{Fitting, Environment}
+package mathact.parts
 
 
-/** Box class for placing of tools
-  * Created by CAB on 09.05.2016.
+/** Contain method to called on stop
+  * Created by CAB on 14.05.2016.
   */
 
-abstract class Workbench extends Fitting{
-
-  protected implicit val environment = new Environment
-
-  private[mathact] val pump: Pump = new Pump(environment, this)
-
-
-
-  def main(arg:Array[String]):Unit = {}
-
-
-}
+trait OnStop { _: Fitting ⇒
+  protected def onStop(): Unit
+  private[mathact] def doStop(): Unit = onStop()}
