@@ -14,6 +14,8 @@
 
 package mathact.parts
 
+import mathact.parts.plumbing.fitting.Fitting
+
 
 /** Contain method to called on stop
   * Created by CAB on 14.05.2016.

@@ -15,7 +15,8 @@
 package mathact.tools
 
 import mathact.parts.plumbing.Pump
-import mathact.parts.{Fitting, Environment}
+import mathact.parts.Environment
+import mathact.parts.plumbing.fitting.Fitting
 
 
 /** Box class for placing of tools
@@ -26,7 +27,7 @@ abstract class Workbench extends Fitting{
 
   protected implicit val environment = new Environment
 
-  private[mathact] val pump: Pump = new Pump(environment, this)
+  private[mathact] val pump: Pump = new Pump(environment, this, "Workbench")
 
 
 

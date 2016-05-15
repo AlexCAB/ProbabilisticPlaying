@@ -12,8 +12,7 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.plumbing
-
+package mathact.parts.plumbing.fitting
 
 /** Event collector
   * Created by CAB on 13.05.2016.

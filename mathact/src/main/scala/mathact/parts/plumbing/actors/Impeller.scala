@@ -12,35 +12,24 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts
+package mathact.parts.plumbing.actors
 
-import mathact.parts.plumbing.Pump
-import mathact.parts.plumbing.fitting.Fitting
-import mathact.tools.pots.PotBoard
+import akka.actor.{Props, Actor}
+import mathact.parts.plumbing.Events
 
 
-/** Base class for tall tools.
-  * Created by CAB on 07.05.2016.
+/** Events processor
+  * Created by CAB on 15.05.2016.
   */
 
-abstract class Tool(env: Environment, name: String) extends Fitting{
+class Impeller extends Actor{
 
-
-
-//  this match{
-//
-//
-//
-//    case s: PotBoard ⇒ println("PotBoard")
-//    case _ ⇒ println("Any")
-//  }
-
-
- private[mathact] val pump: Pump = new Pump(env, this, name)
+  def receive = {
 
 
 
 
-
+    case x ⇒ println("[Impeller] Receive: " + x)
+  }
 
 }

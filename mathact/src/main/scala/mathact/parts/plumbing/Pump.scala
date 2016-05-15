@@ -14,13 +14,31 @@
 
 package mathact.parts.plumbing
 
-import mathact.parts.{OnStart, OnStop, Fitting, Environment}
+import akka.actor.ActorRef
+import akka.pattern.ask
+import akka.util.Timeout
+import mathact.parts.plumbing.fitting.Fitting
+import mathact.parts.{OnStart, OnStop, Environment}
+import scala.concurrent.Await
+import scala.concurrent.duration._
+
 
 /** Process of tools communications
   * Created by CAB on 09.05.2016.
   */
 
-class Pump(env: Environment, tool: Fitting) { import env._   //Импорт сисемы акторов и прочего
+class Pump(env: Environment, tool: Fitting, toolName: String) {
+  //Parameters
+  private implicit val askTimeout = Timeout(5.seconds)
+  //Actors
+  private val drive: ActorRef =
+    Await.result(ask(env.pumping, Events.NewDrive(toolName)).mapTo[ActorRef], askTimeout.duration)
+  private val impeller: ActorRef =
+    Await.result(ask(drive, Events.NewImpeller(toolName)).mapTo[ActorRef], askTimeout.duration)
+
+
+
+
 
 
 
@@ -35,9 +53,6 @@ class Pump(env: Environment, tool: Fitting) { import env._   //Импорт си
   }
 
 
-
-
-//  val impeller: ActorRef = ???
 
     //Нужно добавиь ещё один актор который будет следить за нагрузкой impeller, и регулировать
     //влечену очереди (подход с обратным давлением)

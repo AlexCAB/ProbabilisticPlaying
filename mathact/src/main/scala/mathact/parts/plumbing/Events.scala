@@ -20,5 +20,9 @@ package mathact.parts.plumbing
   */
 
 object Events {
+  case class NewDrive(toolName: String)
+  case class NewImpeller(toolName: String)
+
+
 
 }

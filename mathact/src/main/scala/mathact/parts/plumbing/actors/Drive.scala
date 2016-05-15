@@ -12,11 +12,26 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.plumbing
+package mathact.parts.plumbing.actors
+
+import akka.actor.{Props, Actor}
+import mathact.parts.plumbing.Events
 
 
-/** Base class for Outlet and Sink
-  * Created by CAB on 09.05.2016.
+/** Manage impeller actor
+  * Created by CAB on 15.05.2016.
   */
 
-trait Pipe[T]
+class Drive extends Actor{
+
+  def receive = {
+
+    case Events.NewImpeller(toolName) ⇒
+
+      sender ! context.actorOf(Props[Pumping], "DriveOf" + toolName)
+
+
+    case x ⇒ println("[Drive] Receive: " + x)
+  }
+
+}

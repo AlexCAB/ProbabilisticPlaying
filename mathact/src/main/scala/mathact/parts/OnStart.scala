@@ -14,6 +14,8 @@
 
 package mathact.parts
 
+import mathact.parts.plumbing.fitting.Fitting
+
 
 /** Contain method to call on start
   * Created by CAB on 14.05.2016.

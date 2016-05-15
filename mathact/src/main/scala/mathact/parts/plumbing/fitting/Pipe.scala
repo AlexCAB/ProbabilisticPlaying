@@ -12,38 +12,10 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.plumbing
+package mathact.parts.plumbing.fitting
 
-/** Contains event handler.
-  * Created by CAB on 13.05.2016.
+/** Base class for Outlet and Sink
+  * Created by CAB on 09.05.2016.
   */
 
-trait Inlet[T] extends Pipe[T]{
-
-  protected def handler(value: T): Unit
-
-  def connect(in:()⇒Flange[T]): Unit = {    //Значение должно считыватся только после полного конструирования (чтобы небыло NPE)
-
-
-//    println(in())
-
-//    in match{
-//      case o: Outlet[T] ⇒ //Подключнение
-//      case _ ⇒   //Ошибка
-
-
-}
-
-
-
-
-
-//}
-  def disconnect(in:()⇒Flange[Double]): Unit = {
-
-  ???
-
-}
-
-
-}
+trait Pipe[T]

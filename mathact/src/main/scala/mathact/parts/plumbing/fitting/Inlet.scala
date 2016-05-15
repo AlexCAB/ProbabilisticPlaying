@@ -12,35 +12,38 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts
+package mathact.parts.plumbing.fitting
 
-import mathact.parts.plumbing.Pump
-import mathact.parts.plumbing.fitting.Fitting
-import mathact.tools.pots.PotBoard
-
-
-/** Base class for tall tools.
-  * Created by CAB on 07.05.2016.
+/** Contains event handler.
+  * Created by CAB on 13.05.2016.
   */
 
-abstract class Tool(env: Environment, name: String) extends Fitting{
+trait Inlet[T] extends Pipe[T]{
+
+  protected def handler(value: T): Unit
+
+  def connect(in:()⇒Flange[T]): Unit = {    //Значение должно считыватся только после полного конструирования (чтобы небыло NPE)
+
+
+//    println(in())
+
+//    in match{
+//      case o: Outlet[T] ⇒ //Подключнение
+//      case _ ⇒   //Ошибка
+
+
+}
 
 
 
-//  this match{
-//
-//
-//
-//    case s: PotBoard ⇒ println("PotBoard")
-//    case _ ⇒ println("Any")
-//  }
 
 
- private[mathact] val pump: Pump = new Pump(env, this, name)
+//}
+  def disconnect(in:()⇒Flange[Double]): Unit = {
 
+  ???
 
-
-
+}
 
 
 }
