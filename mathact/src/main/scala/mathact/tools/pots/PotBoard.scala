@@ -30,10 +30,22 @@ abstract class PotBoard(implicit env: Environment) extends Tool(env, "PotBoard")
 
   protected class Pot(from: Double, to: Double, in: Option[()⇒Flange[Double]]) extends Outlet[Double] with Inlet[Double]{    //Определение выхода
 
-    protected def handler(value: Double): Unit = {}
+    protected def pours(value: Double): Unit = push(value)    //Все полученые из in значения будут нередаватся на выход
 
 
-    in.foreach(e ⇒ connect(e))
+
+//
+
+
+    in.foreach(e ⇒ Inlet(this, e))       //Эамыкание входа на выход
+
+    in.foreach(e ⇒ new Inlet[Double]{    //Констуирование отдельного вхда
+
+      protected def pours(value: Double): Unit = { ??? }
+
+
+
+    })  //Эамыкание входа на выход
 
     def test():Unit = ???
 
@@ -45,7 +57,7 @@ abstract class PotBoard(implicit env: Environment) extends Tool(env, "PotBoard")
 
 
 
-  def pot(from: Double, to: Double) = Outlet(new Pot(from,from, None))   //DSL для удобного создания выхода
+  def pot(from: Double, to: Double) = Outlet(new Pot(from, from, None))   //DSL для удобного создания выхода
 
 
   def pot(in: ⇒Flange[Double]) = Outlet(new Pot(1,2, Some(()⇒in)))   //DSL для удобного создания выхода

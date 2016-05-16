@@ -29,7 +29,7 @@ trait Fitting {
   type Inlet[T] = fitting.Inlet[T]
 
 
-  protected object Collector{
+  protected object Collect{
     def apply[T](in: Flange[T]*): Flange[T] = {
 
 
@@ -38,17 +38,26 @@ trait Fitting {
 
   }
 
+  protected object Convert{
+    def apply[T,H](in: Flange[T])(transformer: T⇒H): Flange[H] = {     //Приобразователь типа событий
 
-  protected object Outlet{
-    def apply[T,H](v: T with Outlet[H]): T with Flange[H] = {
+        //!!!Нужна версия для нескольких входов, чтобы можно было агрегировать с их значения
+        //???Обдумать как синхронизоровать нескольхо входов (нужна проговая синхронизаия, и ваоление по каждому событию)
+        //Варианты синхронизации: 1) потоковая, 2) значения по умолчнию, 3) опциональные значения.
 
-      //Здесь  в Outlet должна инжектица Pump (можно росто добавить метод), который можно будет вызвать только раз
-      //Чтобы не переопределяли помпу
-      //И соответственно добавить медод получения помпы
-      v
+        //Convert это статическае связание входов и выходов, нужно ещё динамическоке (чтобы можно было добвлять и удалять входы)
+
+
+      ???
+
     }
+
   }
 
+
+
+  protected val Outlet = fitting.Outlet
+  protected val Inlet = fitting.Inlet
 
 
 

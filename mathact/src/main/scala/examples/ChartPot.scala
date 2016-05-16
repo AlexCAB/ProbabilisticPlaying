@@ -56,7 +56,7 @@ object ChartPot extends Workbench {
 
 
 
-    val col1 = Collector(pots.pot1, pots.pot2) // Пример коллектора из нескольких выходов нв один
+    val col1 = Collect(pots.pot1, pots.pot2) // Пример коллектора из нескольких выходов нв один
 
 
     line("line1").of(col1)    //Работа так же как и с обычным выходом
