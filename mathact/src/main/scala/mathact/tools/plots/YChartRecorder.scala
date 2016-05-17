@@ -36,7 +36,7 @@ abstract class YChartRecorder(implicit env: Environment) extends Tool(env, "YCha
     }
 
 
-    def of(in: ⇒Flange[Double]): Unit = {
+    def of(in: ⇒Plug[Double]): Unit = {
 
 
       val s = Inlet(this, () ⇒ in)
@@ -69,7 +69,7 @@ abstract class YChartRecorder(implicit env: Environment) extends Tool(env, "YCha
     }
 
 
-    def of(in1: ⇒Flange[Double], in2: ⇒Flange[String]): Unit = {
+    def of(in1: ⇒Plug[Double], in2: ⇒Plug[String]): Unit = {
 
 
       val s = Inlet(this, () ⇒ in1, () ⇒ in2)

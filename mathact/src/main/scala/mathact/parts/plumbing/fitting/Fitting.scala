@@ -24,13 +24,14 @@ trait Fitting {
 
   private[mathact] val pump: Pump
 
-  type Flange[T] = fitting.Flange[T]
+  type Plug[T] = fitting.Plug[T]
+  type Socket[T] = fitting.Socket[T]
   type Outlet[T] = fitting.Outlet[T]
   type Inlet[T] = fitting.Inlet[T]
 
 
   protected object Collect{
-    def apply[T](in: Flange[T]*): Flange[T] = {
+    def apply[T](in: Plug[T]*): Plug[T] = {
 
 
       in.head
@@ -39,7 +40,7 @@ trait Fitting {
   }
 
   protected object Convert{
-    def apply[T,H](in: Flange[T])(transformer: T⇒H): Flange[H] = {     //Приобразователь типа событий
+    def apply[T,H](in: Plug[T])(transformer: T⇒H): Plug[H] = {     //Приобразователь типа событий
 
         //!!!Нужна версия для нескольких входов, чтобы можно было агрегировать с их значения
         //???Обдумать как синхронизоровать нескольхо входов (нужна проговая синхронизаия, и ваоление по каждому событию)

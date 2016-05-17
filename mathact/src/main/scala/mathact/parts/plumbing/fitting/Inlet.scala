@@ -24,9 +24,9 @@ import scala.concurrent.Future
 object Inlet{
 
 
-  //!!! Возможно стоит перенести эти методы в Flange (или его скрытое расширение), и использовать как flange.connect(inlet)
-  //так же перенести в Flange disconnect
-  //Концептуально это будет правельно: Flange это штука которая соединяет/разьединяет Inlet и Outlet
+  //!!! Возможно стоит перенести эти методы в Connector (или его скрытое расширение), и использовать как flange.connect(inlet)
+  //так же перенести в Connector disconnect
+  //Концептуально это будет правельно: Connector это штука которая соединяет/разьединяет Inlet и Outlet
 
   //В целом стоит сделать MaleFlange к коотрому будет приводится Outlet FemaleFlange к которому будет приводится Inlet,
   //каждяй из интерфейсов будет иметь методы connect и disconnect, которые можно будет вызывать откуда угодно,
@@ -38,8 +38,9 @@ object Inlet{
   //гед они определены, в чатности помпу котрая буде процессировать обработку событий
 
 
-  //Простой медод без синхронизации (один Flange один Inlet)
-  def apply[Z, A](inlet: Z with Inlet[A], in: ()⇒Flange[A]): Z = {  //Связание Flange с Inlet
+  //Простой медод без синхронизации (один Connector один Inlet)
+  def apply[Z, A](inlet: Z with Inlet[A], in: ()⇒Plug[A]): Z with Socket[A] = {  //Связание Connector с Inlet
+
 
 
     in match{
@@ -54,7 +55,7 @@ object Inlet{
 
 
 
-  //Методы ниже принимают несколько Flange и компонуют их в один Inlet,
+  //Методы ниже принимают несколько Connector и компонуют их в один Inlet,
   //Нужно перерабоать их чтобы они поддержывали следующие виды компоновка:
   // 1) Барьерная - pours вызывается только когда на всех выходах есть значение, после вызова сохранённые значения сбрасывабтся
   // 2) Барьерная с сохраением - pours не вызыватся пока все значения не заполнятся, после заполения вызывается
@@ -70,9 +71,9 @@ object Inlet{
   //  class Line2(name: String) extends Inlet[(Double, String)]{
   //    def pours(v: (Double, String)): Unit = println("Handle: " + v)
   //
-  //    def of(in1: ⇒Flange[Double], in2: ⇒Flange[String]): Unit = {
+  //    def of(in1: ⇒Connector[Double], in2: ⇒Connector[String]): Unit = {
   //
-  //      connect(new Mixer(in1,in2))    //Mixer компонует два Flange[Double] в один Flange[Double], который подключается к Inlet
+  //      connect(new Mixer(in1,in2))    //Mixer компонует два Connector[Double] в один Connector[Double], который подключается к Inlet
   //
   //    }
   //
@@ -102,18 +103,23 @@ object Inlet{
   //  не наследующим FemaleFlange (чтобы с его помощью нельзя бвло создвать входы), и меть свой метод
   //  connect|disconnect которые и будут захватывать контекст и подключать вход.
   //  но с другой стороны можно инжектить контекст при создание нового экземпляра:
-  //   def line(name:string) = Inlet( new Line2(name) )    //Возвращает Line2 и далее можно вызывать def of,
+  //    def line(name:string) = Inlet( new Line2(name) )    //Возвращает Line2 и далее можно вызывать def of,
   //  что в целом эквиваленто внешнему подключению, но вход не торчит в наружу.
+  //  Тогда опредляемие внути входы будут создавтся так:
+  //    Inlet(new Inlet{ def pours(v) = ...})  //Т.е. возвращамое FemaleFlange заячение не используется, так как
+  //    функции def pours доступны все внурености класа
+  //
+  //
 
 
-  def apply[Z,A](inlet: Z with Inlet[A], in:(()⇒Flange[A])*): Z = { //Связание нескольких Flange с Inlet
+  def apply[Z,A](inlet: Z with Inlet[A], in:(()⇒Plug[A])*): Z = { //Связание нескольких Connector с Inlet
 
     ???
 
   }
 
 
-  def apply[Z,A,B]( inlet: Z with Inlet[(A,B)], in1: ()⇒Flange[A], in2: ()⇒Flange[B]): Z = { //Связание нескольких Flange разных типов с Inlet
+  def apply[Z,A,B](inlet: Z with Inlet[(A,B)], in1: ()⇒Plug[A], in2: ()⇒Plug[B]): Z = { //Связание нескольких Connector разных типов с Inlet
 
     ???
 
@@ -124,14 +130,14 @@ object Inlet{
 
 
 
-trait Inlet[T] extends Pipe[T]{   //Методы обьявдены protected чтобы из не вызывали из вне, но пользователь может реализовть свой методв и оставить его доступным из вне
+trait Inlet[T] extends Socket[T] with Pipe[T]{   //Методы обьявдены protected чтобы из не вызывали из вне, но пользователь может реализовть свой методв и оставить его доступным из вне
 
-  protected def pours(value: T): Unit    //Вызыватеся каждый раз при получении нового значения из Flange
+  protected def pours(value: T): Unit    //Вызыватеся каждый раз при получении нового значения из Connector
 
 
 
-//  protected def disconnect(flange: Flange[_]): Boolean = ???    //Отключение указаного Flange, true если было выполенео, false если не найдено
-//  protected def disconnectAll: Boolean = ???    //Отключение dct[ Flange, true если было выполенео, false если нет ни одного
+//  protected def disconnect(flange: Connector[_]): Boolean = ???    //Отключение указаного Connector, true если было выполенео, false если не найдено
+//  protected def disconnectAll: Boolean = ???    //Отключение dct[ Connector, true если было выполенео, false если нет ни одного
 
 
   protected def lastValue: Option[T] = ???      //Возвращает последнее полученое значение
@@ -151,7 +157,7 @@ trait Inlet[T] extends Pipe[T]{   //Методы обьявдены protected ч
 
 
 //}
-//  def disconnect(in:()⇒Flange[Double]): Unit = {
+//  def disconnect(in:()⇒Connector[Double]): Unit = {
 //
 //  ???
 //

@@ -14,10 +14,12 @@
 
 package mathact.parts.plumbing.fitting
 
-/** Used to connect Outlet and Sink(s).
-  * Created by CAB on 13.05.2016.
+
+/** Event receiver.
+  * Created by CAB on 17.05.2016.
   */
 
-trait Flange[T]{
+trait Socket[T] extends Connector[T] {
+
 
 }

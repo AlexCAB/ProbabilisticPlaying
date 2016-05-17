@@ -14,30 +14,12 @@
 
 package mathact.parts.plumbing.fitting
 
-/** Event collector
-  * Created by CAB on 13.05.2016.
+
+/** Source of events
+  * Created by CAB on 17.05.2016.
   */
 
+trait Plug[T] extends Connector[T] {
 
-object Outlet{
-  def apply[T,H](v: T with Outlet[H]): T with Plug[H] = {
-
-    //Здесь  в Outlet должна инжектица Pump (можно росто добавить метод), который можно будет вызвать только раз
-    //Чтобы не переопределяли помпу
-    //И соответственно добавить медод получения помпы
-    v
-  }
-}
-
-trait Outlet[T] extends Plug[T] with Pipe[T]{
-
-  protected def push(value: T): Unit = {     //Вталкивание событий
-
-    ???
-
-
-  }
 
 }
-
-
