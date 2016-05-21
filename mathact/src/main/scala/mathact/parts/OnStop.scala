@@ -14,7 +14,7 @@
 
 package mathact.parts
 
-import mathact.parts.plumbing.fitting.Fitting
+import mathact.parts.plumbing.Fitting
 
 
 /** Contain method to called on stop

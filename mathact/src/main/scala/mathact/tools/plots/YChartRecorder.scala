@@ -30,17 +30,19 @@ abstract class YChartRecorder(implicit env: Environment) extends Tool(env, "YCha
 
     protected def pours(v: Double): Unit = {
 
-
       println("Handle: " + v)
 
     }
 
 
-    def of(in: ⇒Plug[Double]): Unit = {
+    def of(out: ⇒Plug[Double]): Line with Socket[Double] = {
 
 
-      val s = Inlet(this, () ⇒ in)
+      val in = Inlet(this)
 
+      out.connect(in)
+
+      in
 
 
 //      connect(() ⇒ in)      //!!! Этот метод должен возвращать что-то из чего можно будет получить последнее значений
@@ -58,28 +60,28 @@ abstract class YChartRecorder(implicit env: Environment) extends Tool(env, "YCha
 
   }
 
-  protected class Line2(name: String) extends Inlet[(Double, String)]{ //Пример с обработчиком с двумя значениями разного типа
-
-
-    protected def pours(v: (Double, String)): Unit = {
-
-
-      println("Handle: " + v)
-
-    }
-
-
-    def of(in1: ⇒Plug[Double], in2: ⇒Plug[String]): Unit = {
-
-
-      val s = Inlet(this, () ⇒ in1, () ⇒ in2)
-
-
-
-
-    }
-
-  }
+//  protected class Line2(name: String) extends Inlet[(Double, String)]{ //Пример с обработчиком с двумя значениями разного типа
+//
+//
+//    protected def pours(v: (Double, String)): Unit = {
+//
+//
+//      println("Handle: " + v)
+//
+//    }
+//
+//
+//    def of(in1: ⇒Plug[Double], in2: ⇒Plug[String]): Unit = {
+//
+//
+//      val s = Inlet(this, () ⇒ in1, () ⇒ in2)
+//
+//
+//
+//
+//    }
+//
+//  }
 
 
 

@@ -21,5 +21,9 @@ package mathact.parts.plumbing.fitting
 
 trait Plug[T] extends Connector[T] {
 
+  def connect(socket: Socket[T]): Unit = {}
+
+  def disconnect(socket: Socket[T]): Unit = {}
+
 
 }

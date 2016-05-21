@@ -12,7 +12,8 @@ scalacOptions ++= Seq("-encoding", "UTF-8", s"-target:jvm-$jdkVersion", "-featur
 
 
 libraryDependencies  ++= Seq(
-  "com.typesafe.akka" %% "akka-actor" % "2.4.4"
+  "com.typesafe.akka" %% "akka-actor" % "2.4.4",
+  "org.scalafx" %% "scalafx" % "8.0.92-R10"
 )
 
 

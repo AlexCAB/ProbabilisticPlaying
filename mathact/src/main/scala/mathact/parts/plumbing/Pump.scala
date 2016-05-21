@@ -17,7 +17,6 @@ package mathact.parts.plumbing
 import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
-import mathact.parts.plumbing.fitting.Fitting
 import mathact.parts.{OnStart, OnStop, Environment}
 import scala.concurrent.Await
 import scala.concurrent.duration._

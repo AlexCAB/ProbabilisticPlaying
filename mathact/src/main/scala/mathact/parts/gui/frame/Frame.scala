@@ -12,30 +12,12 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.plumbing.actors
+package mathact.parts.gui.frame
 
-import akka.actor.{Props, Actor}
-import akka.event.Logging
-import mathact.parts.plumbing.Events
-
-
-/** Manage impeller actor
-  * Created by CAB on 15.05.2016.
+/** Root (window) GIU component
+  * Created by CAB on 21.05.2016.
   */
 
-class Drive extends Actor{
-
-
-  val log = Logging.getLogger(context.system, this)
-
-  def receive = {
-
-    case Events.NewImpeller(toolName) ⇒
-
-      sender ! context.actorOf(Props[Pumping], "DriveOf" + toolName)
-
-
-    case x ⇒ println("[Drive] Receive: " + x)
-  }
+class Frame {
 
 }

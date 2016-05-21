@@ -20,6 +20,7 @@ package mathact.parts.plumbing
   */
 
 object Events {
+  case object DoStart
   case class NewDrive(toolName: String)
   case class NewImpeller(toolName: String)
 

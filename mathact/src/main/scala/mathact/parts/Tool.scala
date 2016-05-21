@@ -14,8 +14,7 @@
 
 package mathact.parts
 
-import mathact.parts.plumbing.Pump
-import mathact.parts.plumbing.fitting.Fitting
+import mathact.parts.plumbing.{Fitting, Pump}
 import mathact.tools.pots.PotBoard
 
 

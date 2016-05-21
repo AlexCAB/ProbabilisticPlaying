@@ -21,7 +21,12 @@ import scala.concurrent.Future
   * Created by CAB on 13.05.2016.
   */
 
-object Inlet{
+
+
+
+
+
+
 
 
   //!!! Возможно стоит перенести эти методы в Connector (или его скрытое расширение), и использовать как flange.connect(inlet)
@@ -38,20 +43,20 @@ object Inlet{
   //гед они определены, в чатности помпу котрая буде процессировать обработку событий
 
 
-  //Простой медод без синхронизации (один Connector один Inlet)
-  def apply[Z, A](inlet: Z with Inlet[A], in: ()⇒Plug[A]): Z with Socket[A] = {  //Связание Connector с Inlet
-
-
-
-    in match{
-      case o: Outlet[_] ⇒      //Подключнение (чтобы достать помпу из Outlet)
-      case _ ⇒}   //Ошибка
-
-
-
-    ???
-
-  }
+//  //Простой медод без синхронизации (один Connector один Inlet)
+//  def apply[Z, A](inlet: Z with Inlet[A], in: ()⇒Plug[A]): Z with Socket[A] = {  //Связание Connector с Inlet
+//
+//
+//
+//    in match{
+//      case o: Outlet[_] ⇒      //Подключнение (чтобы достать помпу из Outlet)
+//      case _ ⇒}   //Ошибка
+//
+//
+//
+//    ???
+//
+//  }
 
 
 
@@ -111,22 +116,22 @@ object Inlet{
   //
   //
 
+//
+//  def apply[Z,A](inlet: Z with Inlet[A], in:(()⇒Plug[A])*): Z = { //Связание нескольких Connector с Inlet
+//
+//    ???
+//
+//  }
+//
+//
+//  def apply[Z,A,B](inlet: Z with Inlet[(A,B)], in1: ()⇒Plug[A], in2: ()⇒Plug[B]): Z = { //Связание нескольких Connector разных типов с Inlet
+//
+//    ???
+//
+//  }
 
-  def apply[Z,A](inlet: Z with Inlet[A], in:(()⇒Plug[A])*): Z = { //Связание нескольких Connector с Inlet
-
-    ???
-
-  }
 
 
-  def apply[Z,A,B](inlet: Z with Inlet[(A,B)], in1: ()⇒Plug[A], in2: ()⇒Plug[B]): Z = { //Связание нескольких Connector разных типов с Inlet
-
-    ???
-
-  }
-
-
-}
 
 
 

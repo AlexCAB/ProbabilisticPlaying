@@ -32,12 +32,12 @@ object ChartPot extends Workbench {
 
   val pots = new PotBoard{      //Создание компонента с выходвми
 
-    val pot1 = Outlet(new Pot(1,2, None))    //Регистрация выхода
+//    val pot1 = Outlet(new Pot(1,2, None))    //Регистрация выхода
 
     val pot2 = pot(2,3)               //егистрация выхода, вариант с DSL
 
 
-    pot(chart.out1)                  //Рекурсивное связание
+//    pot(chart.out1)                  //Рекурсивное связание
 
 
 
@@ -50,20 +50,21 @@ object ChartPot extends Workbench {
 
 
 
-    line("line1").of(pots.pot1)    //Регистрация вход c DSL
+    line("line1").of(pots.pot2)    //Регистрация вход c DSL
 
 
 
 
 
-    val col1 = Collect(pots.pot1, pots.pot2) // Пример коллектора из нескольких выходов нв один
-
-
-    line("line1").of(col1)    //Работа так же как и с обычным выходом
-
-
-
+//    val col1 = Collect(pots.pot1, pots.pot2) // Пример коллектора из нескольких выходов нв один
+//
+//
+//    line("line1").of(col1)    //Работа так же как и с обычным выходом
+//
+//
+//
     val out1 = Outlet(new Outlet[Double]{})
+
 
   }
 
