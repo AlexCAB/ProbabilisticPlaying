@@ -14,7 +14,7 @@
 
 package mathact.tools
 
-import mathact.parts.plumbing.{Fitting, Pump}
+import mathact.parts.plumbing.{Events, Fitting, Pump}
 import mathact.parts.Environment
 import scalafx.application.JFXApp
 import scalafx.application.JFXApp.PrimaryStage
@@ -43,43 +43,7 @@ abstract class Workbench extends Fitting{
 
 
 
-
-
-
-
-
-
-//  stage = new PrimaryStage {
-//    title = "ScalaFX Hello World"
-//    scene = new Scene {
-//      fill = Black
-//      content = new HBox {
-//        padding = Insets(20)
-//        children = Seq(
-//          new Text {
-//            text = "Hello "
-//            style = "-fx-font-size: 48pt"
-//            fill = new LinearGradient(
-//              endX = 0,
-//              stops = Stops(PaleGreen, SeaGreen))
-//          },
-//          new Text {
-//            text = "World!!!"
-//            style = "-fx-font-size: 48pt"
-//            fill = new LinearGradient(
-//              endX = 0,
-//              stops = Stops(Cyan, DodgerBlue)
-//            )
-//            effect = new DropShadow {
-//              color = DodgerBlue
-//              radius = 25
-//              spread = 0.25
-//            }
-//          }
-//        )
-//      }
-//    }
-//  }
+  def terminate(): Unit = ???      //Разрушает инструмент или соединетель, предварительно отключив все трубы
 
 
 
@@ -89,10 +53,12 @@ abstract class Workbench extends Fitting{
 
 
   def main(arg:Array[String]):Unit = {
+    //Starting of main controller
+    environment.controller ! Events.DoStart
 
 
-    //До вызова этого метода акторы могут обмениватся только конструкционными сообщениями (NewDrive, NewImpeller)
-    environment.start(arg)
+     //До вызова этого метода акторы могут обмениватся только конструкционными сообщениями (NewDrive, NewImpeller)
+
 
 
   }

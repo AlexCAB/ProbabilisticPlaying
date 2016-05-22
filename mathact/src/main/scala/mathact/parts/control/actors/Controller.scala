@@ -17,6 +17,8 @@ package mathact.parts.control.actors
 import javafx.stage.{Stage => jStage}
 
 import akka.actor.{ActorRef, Actor}
+import akka.event.Logging
+import mathact.parts.gui.frame.Frame
 import mathact.parts.plumbing.Events
 
 import scalafx.application.Platform
@@ -34,7 +36,12 @@ import scalafx.stage.Stage
   */
 
 class Controller(pumping: ActorRef) extends Actor{
+  //Log
+  private val log = Logging.getLogger(context.system, this)
   //Definitions
+
+
+  //!!!! Вынести в отделйний файл
   private class MainWindowStage extends Stage {
     title = "ScalaFX Hello World"
     scene = new Scene {
@@ -67,13 +74,14 @@ class Controller(pumping: ActorRef) extends Actor{
     }
   }
 
-
+  //Messages handling
   def receive = {
 
     case Events.DoStart ⇒
 
 
-      //Далее здесь должна выполнятся создание UI и иницализация инсрументов.
+      //Далее здесь должна выполнятся создание UI и иницализация инсрументов. И вынести MainWindowStage в наружу.
+      //Нужно найти способ как просто взаимодействаовать с Stage-им.
 
       println("[Controller] Receive: DoStart")
 
