@@ -16,10 +16,12 @@ package mathact.parts.control.actors
 
 import javafx.stage.{Stage => jStage}
 
-import akka.actor.{ActorRef, Actor}
+import akka.actor.{PoisonPill, ActorRef, Actor}
 import akka.event.Logging
+import mathact.parts.control.CtrlEvents
+import mathact.parts.gui.MainWindow
 import mathact.parts.gui.frame.Frame
-import mathact.parts.plumbing.Events
+import mathact.parts.plumbing.PumpEvents
 
 import scalafx.application.Platform
 import scalafx.geometry.Insets
@@ -35,49 +37,16 @@ import scalafx.stage.Stage
   * Created by CAB on 21.05.2016.
   */
 
-class Controller(pumping: ActorRef) extends Actor{
-  //Log
+class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor{
+  //Objects
   private val log = Logging.getLogger(context.system, this)
-  //Definitions
+  private val frame = new MainWindow(log, self){}
 
-
-  //!!!! Вынести в отделйний файл
-  private class MainWindowStage extends Stage {
-    title = "ScalaFX Hello World"
-    scene = new Scene {
-      fill = Black
-      content = new HBox {
-        padding = Insets(20)
-        children = Seq(
-          new Text {
-            text = "Hello "
-            style = "-fx-font-size: 48pt"
-            fill = new LinearGradient(
-              endX = 0,
-              stops = Stops(PaleGreen, SeaGreen))
-          },
-          new Text {
-            text = "World!!!"
-            style = "-fx-font-size: 48pt"
-            fill = new LinearGradient(
-              endX = 0,
-              stops = Stops(Cyan, DodgerBlue)
-            )
-            effect = new DropShadow {
-              color = DodgerBlue
-              radius = 25
-              spread = 0.25
-            }
-          }
-        )
-      }
-    }
-  }
 
   //Messages handling
   def receive = {
 
-    case Events.DoStart ⇒
+    case CtrlEvents.DoStart ⇒
 
 
       //Далее здесь должна выполнятся создание UI и иницализация инсрументов. И вынести MainWindowStage в наружу.
@@ -85,15 +54,25 @@ class Controller(pumping: ActorRef) extends Actor{
 
       println("[Controller] Receive: DoStart")
 
-      Platform.runLater{
+//      Platform.runLater{
+//
+//        val w = new MainWindowStage
+//
+//        w.show()
+//
+//      }
 
-        val w = new MainWindowStage
-
-        w.show()
-
-      }
+      frame.init()
 
 
+
+    case CtrlEvents.DoStop ⇒
+
+      println("[Controller] Receive: DoStop")
+
+      //Здесь остановка насосв, вызов процедур завершения инструментов и выход
+
+      self ! PoisonPill
 
 
 
@@ -115,7 +94,5 @@ class Controller(pumping: ActorRef) extends Actor{
 //
 //  }
 
-
-
-
-}
+  //On stop
+  override def postStop(): Unit = doStop(1)}  //Exit code 1

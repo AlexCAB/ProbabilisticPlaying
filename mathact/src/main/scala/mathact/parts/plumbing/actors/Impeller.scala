@@ -15,10 +15,10 @@
 package mathact.parts.plumbing.actors
 
 import akka.actor.{Props, Actor}
-import mathact.parts.plumbing.Events
+import mathact.parts.plumbing.PumpEvents
 
 
-/** Events processor
+/** PumpEvents processor
   * Created by CAB on 15.05.2016.
   */
 

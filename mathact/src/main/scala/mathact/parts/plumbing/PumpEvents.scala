@@ -12,30 +12,18 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.plumbing.actors
-
-import akka.actor.{Props, Actor}
-import akka.event.Logging
-import mathact.parts.plumbing.PumpEvents
+package mathact.parts.plumbing
 
 
-/** Manage impeller actor
-  * Created by CAB on 15.05.2016.
+/** Set of akka messages, used for internal interaction
+  * Created by CAB on 09.05.2016.
   */
 
-class Drive extends Actor{
+private[mathact] object PumpEvents {
+
+  case class NewDrive(toolName: String)
+  case class NewImpeller(toolName: String)
 
 
-  val log = Logging.getLogger(context.system, this)
-
-  def receive = {
-
-    case PumpEvents.NewImpeller(toolName) ⇒
-
-      sender ! context.actorOf(Props[Pumping], "DriveOf" + toolName)
-
-
-    case x ⇒ println("[Drive] Receive: " + x)
-  }
 
 }

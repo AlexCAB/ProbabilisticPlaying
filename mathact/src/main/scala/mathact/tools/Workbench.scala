@@ -14,7 +14,8 @@
 
 package mathact.tools
 
-import mathact.parts.plumbing.{Events, Fitting, Pump}
+import mathact.parts.control.CtrlEvents
+import mathact.parts.plumbing.{PumpEvents, Fitting, Pump}
 import mathact.parts.Environment
 import scalafx.application.JFXApp
 import scalafx.application.JFXApp.PrimaryStage
@@ -54,7 +55,7 @@ abstract class Workbench extends Fitting{
 
   def main(arg:Array[String]):Unit = {
     //Starting of main controller
-    environment.controller ! Events.DoStart
+    environment.controller ! CtrlEvents.DoStart
 
 
      //До вызова этого метода акторы могут обмениватся только конструкционными сообщениями (NewDrive, NewImpeller)

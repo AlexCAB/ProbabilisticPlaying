@@ -15,7 +15,7 @@
 package mathact.parts.plumbing.actors
 
 import akka.actor.{Props, Actor}
-import mathact.parts.plumbing.Events
+import mathact.parts.plumbing.PumpEvents
 
 
 /** Supervisor for all Pump actors
@@ -25,7 +25,7 @@ import mathact.parts.plumbing.Events
 class Pumping extends Actor{
 
   def receive = {
-    case Events.NewDrive(toolName) ⇒
+    case PumpEvents.NewDrive(toolName) ⇒
 
       sender ! context.actorOf(Props[Drive], "DriveOf" + toolName)
 

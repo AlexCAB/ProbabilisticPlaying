@@ -12,17 +12,16 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.plumbing
+package mathact.parts.control
 
 
-/** Set of akka messages, used for internal interaction
-  * Created by CAB on 09.05.2016.
+/** Set of actor control messages
+  * Created by CAB on 23.05.2016.
   */
 
-object Events {
+private[mathact]  object CtrlEvents {
   case object DoStart
-  case class NewDrive(toolName: String)
-  case class NewImpeller(toolName: String)
+  case object DoStop
 
 
 
