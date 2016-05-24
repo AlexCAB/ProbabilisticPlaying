@@ -18,11 +18,12 @@ import javafx.stage.{Stage => jStage}
 
 import akka.actor.{PoisonPill, ActorRef, Actor}
 import akka.event.Logging
-import mathact.parts.control.CtrlEvents
+import mathact.parts.control.{ControlActor, CtrlEvents}
 import mathact.parts.gui.MainWindow
 import mathact.parts.gui.frame.Frame
 import mathact.parts.plumbing.PumpEvents
 
+import scala.util.Try
 import scalafx.application.Platform
 import scalafx.geometry.Insets
 import scalafx.scene.Scene
@@ -37,12 +38,22 @@ import scalafx.stage.Stage
   * Created by CAB on 21.05.2016.
   */
 
-class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor{
+class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends ControlActor{
   //Objects
-  private val log = Logging.getLogger(context.system, this)
-  private val frame = new MainWindow(log, self){}
-
-
+  val log = Logging.getLogger(context.system, this)
+  val frame = new MainWindow(log){
+    def doStop(): Unit = {self ! CtrlEvents.DoStop}
+    def hitRun(): Unit = {???}
+    def hitStop(): Unit = {???}
+    def hitStep(): Unit = {???}
+    def setSpeed(value: Double) = {???}
+    def switchMode(newMode: Int) = {???}}
+  //Variables
+  var exitCode = 0
+  //Functions
+  def doTerminate(exitCode: Int): Unit = {
+    this.exitCode = exitCode
+    self ! PoisonPill}
   //Messages handling
   def receive = {
 
@@ -62,7 +73,8 @@ class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor{
 //
 //      }
 
-      frame.init()
+      tryToRun{frame.init()}.getOrElse{doTerminate(exitCode = -1)}
+
 
 
 
@@ -72,7 +84,7 @@ class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor{
 
       //Здесь остановка насосв, вызов процедур завершения инструментов и выход
 
-      self ! PoisonPill
+      doTerminate(exitCode = 0)
 
 
 
@@ -95,4 +107,6 @@ class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor{
 //  }
 
   //On stop
-  override def postStop(): Unit = doStop(1)}  //Exit code 1
+  override def postStop(): Unit = {
+    log.info(s"[Controller.postStop] Call doStop with exit code: $exitCode")
+    doStop(exitCode)}}

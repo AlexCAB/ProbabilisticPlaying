@@ -14,6 +14,7 @@
 
 package mathact.parts.gui
 
+import scala.concurrent.ExecutionException
 import scalafx.application.Platform
 
 
@@ -34,16 +35,21 @@ trait JFXInteraction {
   def runAndWait(block: ⇒ Unit): Unit = {
     //Variables
     @volatile var isDome = false
+    @volatile var error: Option[Throwable] = None
     var count = runBlockTimeout
     //Run block
     Platform.runLater{
-      block
-      isDome = true}
+      try{
+        block
+        isDome = true}
+      catch{case t: Throwable ⇒
+        error = Some(t)}}
     //Wait for result
-    while (! isDome && count > 0){
+    while (! isDome && error.isEmpty && count > 0){
       Thread.sleep(1)
       count -= 1}
     //Check of result
+    error.foreach(t ⇒ throw throw new ExecutionException(t))
     isDome match{
       case false ⇒ throw new IllegalStateException(
         s"[JFXInteraction.runAndWait] Block not executed in $runBlockTimeout milliseconds.")
@@ -55,14 +61,17 @@ trait JFXInteraction {
   def runNow[T](block: ⇒ T): T = {
     //Variables
     @volatile var result: Option[T] = None
+    @volatile var error: Option[Throwable] = None
     var count = runBlockTimeout
     //Run block
-    Platform.runLater{ result = Some(block) }
+    Platform.runLater{
+      try{result = Some(block)}catch{case t: Throwable ⇒ error = Some(t)}}
     //Wait for result
-    while (result.isEmpty && count > 0){
+    while (result.isEmpty && error.isEmpty && count > 0){
       Thread.sleep(1)
       count -= 1}
     //Check of result
+    error.foreach(t ⇒ throw new ExecutionException(t))
     result.isEmpty match{
       case true ⇒ throw new IllegalStateException(
         s"[JFXInteraction.runNow] Block not executed in $runBlockTimeout milliseconds.")
