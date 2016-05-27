@@ -17,24 +17,21 @@ package mathact.parts.gui
 import javafx.event.EventHandler
 import javafx.stage.WindowEvent
 
-import akka.actor.ActorRef
 import akka.event.LoggingAdapter
-import mathact.parts.control.CtrlEvents
+import mathact.parts.control.actors.Controller.StepMode
 
-import scalafx.beans.property.ObjectProperty
-import scalafx.event.ActionEvent
-import scalafx.geometry.Insets
+import scalafx.collections.ObservableBuffer
+import scalafx.geometry.{Pos, Insets}
 import scalafx.scene.Scene
-import scalafx.scene.control.Button
-import scalafx.scene.effect.DropShadow
+import scalafx.scene.control.{ComboBox, Slider, Button}
 import scalafx.scene.image.{ImageView, Image}
 import scalafx.scene.layout._
-import scalafx.Includes._
 import scalafx.scene.paint.Color._
-import scalafx.scene.paint.{Stops, LinearGradient}
 import scalafx.scene.text.Text
 import scalafx.stage.Stage
 import scalafx.Includes._
+import javafx.beans.value.ObservableValue
+
 
 
 /** The main (workbench) window
@@ -42,23 +39,34 @@ import scalafx.Includes._
   */
 
 abstract class MainWindow(log: LoggingAdapter) extends JFXInteraction {
+  //Parameters
+  val speedSliderDiapason = 100.0
+  val speedSliderInit = 10.0
+  val speedSliderStep = 0.5
+  val buttonsSize = 25
+  val sliderWidth = 200
   //Callbacks
   def doStop(): Unit
-  def hitRun(): Unit
+  def hitStart(): Unit
   def hitStop(): Unit
   def hitStep(): Unit
   def setSpeed(value: Double): Unit
-  def switchMode(newMode: Int): Unit
+  def switchMode(newMode: StepMode): Unit
   //Definitions
   private class MainWindowStage extends Stage {
     //Definitions
     class MWButton(eImgName: String, dImgName: String)(action: ⇒Unit) extends Button{
+      //Function
+      def loadImg(path: String): ImageView =
+        new ImageView{image =  new Image(path, buttonsSize, buttonsSize, true, true)}
       //Images
-      val eImg = new ImageView{image = new Image(eImgName)}
-      val dImg = new ImageView{image = new Image(dImgName)}
+      val eImg = loadImg(eImgName)
+      val dImg = loadImg(dImgName)
       //Config
       graphic = dImg
       disable = true
+      prefHeight = buttonsSize
+      prefWidth = buttonsSize
       onAction = handle{action}
       //Methods
       def setEnabled(isEnabled: Boolean): Unit = isEnabled match{
@@ -68,6 +76,8 @@ abstract class MainWindow(log: LoggingAdapter) extends JFXInteraction {
         case false ⇒
           graphic = dImg
           disable = true}}
+    //Variables
+    private var oldSliderPos = speedSliderInit
     //Close operation
     delegate.setOnCloseRequest(new EventHandler[WindowEvent]{
       def handle(event: WindowEvent): Unit = {
@@ -75,121 +85,103 @@ abstract class MainWindow(log: LoggingAdapter) extends JFXInteraction {
         doStop()
         event.consume()}})
     //UI Components
-    private val startBtn = new MWButton("start_e.png", "start_d.png")(println("$$$$$ startBtn"))
-    private val stopBtn = new MWButton("stop_e.png", "stop_d.png")(println("$$$$$ stopBtn"))
-    private val stepBtn = new MWButton("step_e.png", "step_d.png")(println("$$$$$ stepBtn"))
-
-
-     //Далее здесь: Workbench IU, три кнопки слайдер и перключатель режима работы, строка состояния
-
+    val startBtn = new MWButton("start_e.png", "start_d.png")(hitStart())
+    val stopBtn = new MWButton("stop_e.png", "stop_d.png")(hitStop())
+    val stepBtn = new MWButton("step_e.png", "step_d.png")(hitStep())
+    val speedSlider = new Slider{
+      min = 0
+      max = speedSliderDiapason
+      value = speedSliderInit
+      showTickLabels = true
+      showTickMarks = true
+      majorTickUnit = 20
+      minorTickCount = 2
+      blockIncrement = speedSliderDiapason / 10
+      prefHeight = buttonsSize
+      prefWidth = sliderWidth
+      disable = true
+      delegate.valueProperty.addListener{ (o: ObservableValue[_ <: Number], ov: Number, newVal: Number) ⇒
+        val rVal = (newVal.doubleValue() / speedSliderStep).toInt * speedSliderStep
+        rVal != oldSliderPos match{
+          case true ⇒
+            oldSliderPos = rVal
+            setSpeed(rVal)
+          case false ⇒}}}
+    val stepMode = new ComboBox[String]{
+      val options = ObservableBuffer(
+        "Asynchronously",
+        "Soft synchronization",
+        "Hard synchronization")
+      prefWidth = 170
+      prefHeight = buttonsSize
+      items = options
+      disable = true
+      delegate.getSelectionModel.select(options(0))
+      onAction = handle{
+        switchMode(StepMode(delegate.getSelectionModel.getSelectedIndex))}}
+     val stateString = new Text {
+      text = "Starting..."
+      style = "-fx-font-size: 11pt;"}
     //UI
     title = "MathAct - Workbench"
-    height = 140
-    width = 300
-
-
-
-
-
       scene = new Scene {
       fill = White
-
-
-
-
-
-
       content = new BorderPane{
-
-
-
-
         top = new HBox {
-
-          children = Seq(startBtn, stopBtn, stepBtn)
-
-
-        }
-
-        bottom = new Text {
-
-          text = "Starting..."
-
-
-
-
-        }
-
-
-
-
-      }
-
-//      content = new HBox {
-//        padding = Insets(20)
-//        children = Seq(
-//          new Text {
-//            text = "Hello "
-//            style = "-fx-font-size: 48pt"
-//            fill = new LinearGradient(
-//              endX = 0,
-//              stops = Stops(PaleGreen, SeaGreen))
-//          },
-//          new Text {
-//            text = "World!!!"
-//            style = "-fx-font-size: 48pt"
-//            fill = new LinearGradient(
-//              endX = 0,
-//              stops = Stops(Cyan, DodgerBlue)
-//            )
-//            effect = new DropShadow {
-//              color = DodgerBlue
-//              radius = 25
-//              spread = 0.25
-//            }
-//          }
-//        )
-//      }
-
-
-
-
-    }
-  }
+          alignment = Pos.Center
+          children = Seq(
+            new HBox(2) {
+              alignment = Pos.Center
+              prefHeight = buttonsSize
+              prefWidth = buttonsSize * 3
+              padding = Insets(8.0, 4.0, 4.0, 4.0)
+             children = Seq(startBtn, stopBtn, stepBtn)},
+            new HBox {
+              alignment = Pos.Center
+              padding = Insets(8.0, 4.0, 4.0, 4.0)
+              children = stepMode},
+            new HBox {
+              padding = Insets(8.0, 4.0, 4.0, 4.0)
+              alignment = Pos.Center
+              children = speedSlider})}
+        bottom = new HBox {
+          style = "-fx-border-color: #808080; -fx-border-width: 1px; -fx-border-radius: 3.0; " +
+            "-fx-border-insets: 2.0 2.0 2.0 2.0;"
+          prefHeight
+          padding = Insets(1.0)
+          children = stateString}}}}
   //Variables
   private var stage: Option[MainWindowStage] = None
   //Methods
   def init(): Unit = {
-
     stage = Some(runNow{
       val stg = new MainWindowStage
+      stg.resizable = false
+      stg.sizeToScene()
       stg.show()
-      stg})
+      stg})}
+  def setRun(isRan: Boolean): Unit = runAndWait{ stage.foreach{ stg ⇒ isRan match {
+    case true ⇒
+      stg.startBtn.setEnabled(false)
+      stg.stopBtn.setEnabled(true)
+      stg.stepBtn.setEnabled(false)
+    case false ⇒
+      stg.startBtn.setEnabled(true)
+      stg.stopBtn.setEnabled(false)
+      stg.stepBtn.setEnabled(true)}}}
+  def setEnabled(isEnabled: Boolean): Unit = runAndWait{ stage.foreach{ stg ⇒ isEnabled match {
+    case true ⇒
+      stg.speedSlider.disable = false
+      stg.stepMode.disable = false
+      stg.startBtn.setEnabled(true)
+      stg.stopBtn.setEnabled(false)
+      stg.stepBtn.setEnabled(true)
+    case false ⇒
+      stg.speedSlider.disable = true
+      stg.stepMode.disable = true
+      stg.startBtn.setEnabled(false)
+      stg.stopBtn.setEnabled(false)
+      stg.stepBtn.setEnabled(false)}}}
+  def setStatus(status: String): Unit = runAndWait{ stage.foreach{ stg ⇒
+    stg.stateString.text = status}}}
 
-
-
-  }
-  def setRan(isRan: Boolean): Unit = {    //При true делает стоп активным остальные те активными, при false стоп не активен остальные активны.
-
-    ???
-
-  }
-
-  def setEnabled(isEnabled: Boolean): Unit = {    //При true разрешает интерфейс
-
-    ???
-
-  }
-
-  def setStatus(status: String): Unit = {
-
-    ???
-
-  }
-
-
-
-
-
-
-}

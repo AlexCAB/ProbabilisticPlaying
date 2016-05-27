@@ -18,6 +18,7 @@ import javafx.stage.{Stage => jStage}
 
 import akka.actor.{PoisonPill, ActorRef, Actor}
 import akka.event.Logging
+import mathact.parts.control.actors.Controller.StepMode
 import mathact.parts.control.{ControlActor, CtrlEvents}
 import mathact.parts.gui.MainWindow
 import mathact.parts.gui.frame.Frame
@@ -38,16 +39,23 @@ import scalafx.stage.Stage
   * Created by CAB on 21.05.2016.
   */
 
+object Controller{
+  //Enums
+  object StepMode extends Enumeration {
+    val Asynchronously, SoftSynchronization, HardSynchronization = Value}
+  type StepMode = StepMode.Value}
+
+
 class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends ControlActor{
   //Objects
   val log = Logging.getLogger(context.system, this)
-  val frame = new MainWindow(log){
+  val uiFrame = new MainWindow(log){
     def doStop(): Unit = {self ! CtrlEvents.DoStop}
-    def hitRun(): Unit = {???}
-    def hitStop(): Unit = {???}
-    def hitStep(): Unit = {???}
-    def setSpeed(value: Double) = {???}
-    def switchMode(newMode: Int) = {???}}
+    def hitStart(): Unit = {println("hitStart")}
+    def hitStop(): Unit = {println("hitStep")}
+    def hitStep(): Unit = {println("hitStep")}
+    def setSpeed(value: Double) = {println("setSpeed: " + value)}
+    def switchMode(newMode: StepMode) = {println("newMode: " + newMode)}}
   //Variables
   var exitCode = 0
   //Functions
@@ -73,7 +81,15 @@ class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends ControlActor{
 //
 //      }
 
-      tryToRun{frame.init()}.getOrElse{doTerminate(exitCode = -1)}
+      tryToRun{uiFrame.init()}.getOrElse{doTerminate(exitCode = -1)}
+
+
+
+      //После иницализации
+
+      Thread.sleep(1000)
+
+      uiFrame.setEnabled(true)
 
 
 
@@ -83,6 +99,11 @@ class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends ControlActor{
       println("[Controller] Receive: DoStop")
 
       //Здесь остановка насосв, вызов процедур завершения инструментов и выход
+
+      uiFrame.setEnabled(false)
+
+
+      uiFrame.setStatus("Stopping...")
 
       doTerminate(exitCode = 0)
 
