@@ -22,6 +22,7 @@ package mathact.parts.control
 private[mathact]  object CtrlEvents {
   case object DoStart
   case object DoStop
+  case class FatalError(message: String)
 
 
 

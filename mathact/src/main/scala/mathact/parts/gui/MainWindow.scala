@@ -45,6 +45,7 @@ abstract class MainWindow(log: LoggingAdapter) extends JFXInteraction {
   val speedSliderStep = 0.5
   val buttonsSize = 25
   val sliderWidth = 200
+  val defaultStepMode = 0 // 0 → Asynchronously, 1 → Soft synchronization, 2 → Hard synchronization
   //Callbacks
   def doStop(): Unit
   def hitStart(): Unit
@@ -116,7 +117,7 @@ abstract class MainWindow(log: LoggingAdapter) extends JFXInteraction {
       prefHeight = buttonsSize
       items = options
       disable = true
-      delegate.getSelectionModel.select(options(0))
+      delegate.getSelectionModel.select(options(defaultStepMode))
       onAction = handle{
         switchMode(StepMode(delegate.getSelectionModel.getSelectedIndex))}}
      val stateString = new Text {

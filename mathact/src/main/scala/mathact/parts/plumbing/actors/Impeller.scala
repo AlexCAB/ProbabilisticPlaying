@@ -14,7 +14,7 @@
 
 package mathact.parts.plumbing.actors
 
-import akka.actor.{Props, Actor}
+import akka.actor.{ActorRef, Props, Actor}
 import mathact.parts.plumbing.PumpEvents
 
 
@@ -22,7 +22,7 @@ import mathact.parts.plumbing.PumpEvents
   * Created by CAB on 15.05.2016.
   */
 
-class Impeller extends Actor{
+class Impeller(drive: ActorRef) extends Actor{
 
   def receive = {
 

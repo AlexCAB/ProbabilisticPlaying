@@ -18,8 +18,9 @@ import javafx.stage.{Stage => jStage}
 
 import akka.actor.{PoisonPill, ActorRef, Actor}
 import akka.event.Logging
+import mathact.parts.ActorUtils
 import mathact.parts.control.actors.Controller.StepMode
-import mathact.parts.control.{ControlActor, CtrlEvents}
+import mathact.parts.control.CtrlEvents
 import mathact.parts.gui.MainWindow
 import mathact.parts.gui.frame.Frame
 import mathact.parts.plumbing.PumpEvents
@@ -42,11 +43,11 @@ import scalafx.stage.Stage
 object Controller{
   //Enums
   object StepMode extends Enumeration {
-    val Asynchronously, SoftSynchronization, HardSynchronization = Value}
+    val Asynchronously, SoftSynchronization, HardSynchronization, None = Value}
   type StepMode = StepMode.Value}
 
 
-class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends ControlActor{
+class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor with ActorUtils{
   //Objects
   val log = Logging.getLogger(context.system, this)
   val uiFrame = new MainWindow(log){
@@ -66,6 +67,20 @@ class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends ControlActor{
   def receive = {
 
     case CtrlEvents.DoStart ⇒
+      logMsgD("Controller.DoStart", "Starting...")
+      //Create main window
+      tryToRun{uiFrame.init()}.getOrElse{doTerminate(exitCode = -1)}
+      //Run pumping
+      pumping ! PumpEvents.PlumbingInit(StepMode(uiFrame.defaultStepMode))
+
+    case PumpEvents.PlumbingStarted ⇒
+      logMsgD("Controller.PlumbingStarted", "")
+
+      uiFrame.setStatus("Ready to go!")
+      uiFrame.setEnabled(true)
+
+
+
 
 
       //Далее здесь должна выполнятся создание UI и иницализация инсрументов. И вынести MainWindowStage в наружу.
@@ -81,15 +96,19 @@ class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends ControlActor{
 //
 //      }
 
-      tryToRun{uiFrame.init()}.getOrElse{doTerminate(exitCode = -1)}
 
 
 
-      //После иницализации
 
-      Thread.sleep(1000)
 
-      uiFrame.setEnabled(true)
+    case CtrlEvents.FatalError(message) ⇒
+
+      uiFrame.setStatus("Fatal error: " + message)
+
+      uiFrame.setEnabled(false)
+
+      //Здесь отображение сообщения и если пользователь выбрал завершение работы, то штатное заваершение,
+      // иначе ничего не даелать
 
 
 
@@ -99,6 +118,10 @@ class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends ControlActor{
       println("[Controller] Receive: DoStop")
 
       //Здесь остановка насосв, вызов процедур завершения инструментов и выход
+
+
+      println()
+
 
       uiFrame.setEnabled(false)
 

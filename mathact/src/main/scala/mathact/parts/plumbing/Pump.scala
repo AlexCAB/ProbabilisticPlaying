@@ -31,7 +31,7 @@ class Pump(env: Environment, tool: Fitting, toolName: String) {
   private implicit val askTimeout = Timeout(5.seconds)
   //Actors
   private val drive: ActorRef =
-    Await.result(ask(env.pumping, PumpEvents.NewDrive(toolName)).mapTo[ActorRef], askTimeout.duration)
+    Await.result(ask(env.pumping, PumpEvents.NewDrive(toolName, None)).mapTo[ActorRef], askTimeout.duration)
   private val impeller: ActorRef =
     Await.result(ask(drive, PumpEvents.NewImpeller(toolName)).mapTo[ActorRef], askTimeout.duration)
 
