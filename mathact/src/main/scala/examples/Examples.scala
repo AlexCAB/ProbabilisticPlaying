@@ -12,18 +12,23 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.plumbing.fitting
+package examples
+
+import mathact.Application
 
 
-/** Event receiver.
-  * Created by CAB on 17.05.2016.
+/** List of Examples
+  * Created by CAB on 18.06.2016.
   */
 
-trait Socket[T] extends Connector[T] {
+object Examples extends Application{
 
-  def connect(plug: Plug[T]): Unit = {}
+  sketchOf[ChartPotExample]
 
-  def disconnect(plug: Plug[T]): Unit = {}
+  sketch of[PotPotExample] "Pot to pot connection example"
+
+
+
 
 
 }

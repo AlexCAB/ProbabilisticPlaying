@@ -47,6 +47,9 @@ object Controller{
   type StepMode = StepMode.Value}
 
 
+//TODO !!! Удалить object Controlle, StepMode не нужен, управление будет выполнятся специальным сообщениями
+//TODO в частности "запуск на асихронное выпоение", "остановка асихроного выполения" и "шаг" для жосткого и мягкого синхронного выполения.
+
 class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor with ActorUtils{
   //Objects
   val log = Logging.getLogger(context.system, this)
@@ -57,17 +60,52 @@ class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor with Actor
     def hitStep(): Unit = {println("hitStep")}
     def setSpeed(value: Double) = {println("setSpeed: " + value)}
     def switchMode(newMode: StepMode) = {println("newMode: " + newMode)}}
+  case object StartTimeOut
   //Variables
   var exitCode = 0
   //Functions
   def doTerminate(exitCode: Int): Unit = {
     this.exitCode = exitCode
     self ! PoisonPill}
+  //Run start timeout
+
   //Messages handling
   def receive = {
 
-    case CtrlEvents.DoStart ⇒
-      logMsgD("Controller.DoStart", "Starting...")
+    case CtrlEvents.DoStart(sketches) ⇒
+      logMsgD("Controller.DoStart", s"Starting, sketches: $sketches")
+
+
+
+
+      //Далее здесь:
+      //1) Отображение списка скечей
+      //2) По выбору запуск скеча
+      //3) По закрытию диалога MainWindow (переименовать в SketchControlWindow) остановка скетчи, и возврат к списку
+      //   где пользователь может выбрать другой скетч.
+
+
+
+
+
+
+
+      //    println("main")
+      //
+      //    val clazz = sketchList.head
+      //
+      //    val name = clazz.getName
+      //
+      //    println(name)
+      //
+      //
+      //    val const = clazz.getConstructors()(0)
+      //
+      //
+      //    val instance = const.newInstance().asInstanceOf[Workbench]
+
+
+
       //Create main window
       tryToRun{uiFrame.init()}.getOrElse{doTerminate(exitCode = -1)}
       //Run pumping

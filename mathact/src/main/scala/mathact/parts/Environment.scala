@@ -33,8 +33,8 @@ class Environment {
   //Parameters
   val beforeTerminateTimeout = 1000 //In milliseconds
   //Actor system
-  implicit val system = ActorSystem("MathActActorSystem")
-  private val log = Logging.getLogger(system, this)
+  val system = ActorSystem("MathActActorSystem")
+  val log = Logging.getLogger(system, this)
   //Stop proc
   def doStop(exitCode: Int): Unit = Future{
     log.debug(s"[Environment.doStop] Stopping of program, terminate timeout: $beforeTerminateTimeout milliseconds.")
@@ -43,12 +43,4 @@ class Environment {
     system.terminate().onComplete{_ ⇒ System.exit(exitCode)}}
   //Actors
   val pumping: ActorRef = system.actorOf(Props[Pumping], "PumpingActor")
-  val controller: ActorRef = system.actorOf(Props(new Controller(pumping, doStop)), "MainControllerActor")
-  //Java FX Application
-  try{
-    JFXApplication.init(Array(), log)
-    Platform.implicitExit = false}
-  catch{ case e: Throwable ⇒
-    log.error(s"[Environment.start] Error on start UI: $e, terminate ActorSystem.")
-    doStop(-1)
-    throw e}}
+  val controller: ActorRef = system.actorOf(Props(new Controller(pumping, doStop)), "MainControllerActor")}

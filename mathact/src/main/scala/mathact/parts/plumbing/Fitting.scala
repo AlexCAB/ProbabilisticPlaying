@@ -64,6 +64,22 @@ trait Fitting {
   protected object Outlet{
     def apply[T,H](v: T with Outlet[H]): T with Plug[H] = {
 
+throw new Exception("Ops!!!")
+
+
+      pump match{
+      case null ⇒
+      case p ⇒}
+
+        //Проверка зарегестрирован ли уже Outlet, если зарегистрирован ничего не делать
+
+        pump.log.debug("[Fitting.Outlet.apply]")
+
+
+
+
+
+
       //Здесь  в Outlet должна инжектица Pump (можно росто добавить метод), который можно будет вызвать только раз
       //Чтобы не переопределяли помпу
       //И соответственно добавить медод получения помпы
@@ -78,6 +94,8 @@ trait Fitting {
 
 
       //Здесь регистрируется новый Inlet
+
+      //!!! Нужно проверять, зарегистрирован ли уже данный Inlet, иесли да ничего не деллать
 
 
       v

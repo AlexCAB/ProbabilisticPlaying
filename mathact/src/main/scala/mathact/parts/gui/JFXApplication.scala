@@ -32,7 +32,7 @@ private [mathact] object JFXApplication{
   //Parameters
   val appRunTimeout: Int = 5000  //In milliseconds
   //Variables
-  @volatile private  var primaryStage: Option[Stage] = None
+  @volatile private var primaryStage: Option[Stage] = None
   //Methods
   /** Do run of Java FX
     * @param args - Array[String], application arguments from def main()

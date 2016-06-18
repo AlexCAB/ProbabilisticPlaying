@@ -20,7 +20,7 @@ package mathact.parts.control
   */
 
 private[mathact]  object CtrlEvents {
-  case object DoStart
+  case class DoStart(sketches: List[(Class[_], String)])
   case object DoStop
   case class FatalError(message: String)
 

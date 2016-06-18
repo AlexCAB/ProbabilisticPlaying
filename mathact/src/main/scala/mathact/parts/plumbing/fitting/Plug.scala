@@ -19,7 +19,7 @@ package mathact.parts.plumbing.fitting
   * Created by CAB on 17.05.2016.
   */
 
-trait Plug[T] extends Connector[T] {
+trait Plug[T] extends Connector[T] { self: Outlet[T] ⇒
 
   def connect(socket: Socket[T]): Unit = {}
 

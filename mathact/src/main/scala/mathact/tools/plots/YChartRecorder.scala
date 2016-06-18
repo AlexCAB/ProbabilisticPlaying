@@ -35,10 +35,14 @@ abstract class YChartRecorder(implicit env: Environment) extends Tool(env, "YCha
     }
 
 
-    def of(out: ⇒Plug[Double]): Line with Socket[Double] = {
+    def of(out: Plug[Double]): Line with Socket[Double] = {
+
 
 
       val in = Inlet(this)
+
+
+
 
       out.connect(in)
 
