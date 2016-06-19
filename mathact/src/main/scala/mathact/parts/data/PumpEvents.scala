@@ -12,7 +12,7 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.plumbing
+package mathact.parts.data
 
 import mathact.parts.control.actors.Controller.StepMode
 

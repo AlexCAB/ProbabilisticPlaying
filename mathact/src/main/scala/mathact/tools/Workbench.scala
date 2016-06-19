@@ -14,8 +14,9 @@
 
 package mathact.tools
 
-import mathact.parts.control.CtrlEvents
-import mathact.parts.plumbing.{PumpEvents, Fitting, Pump}
+import mathact.Application
+import mathact.parts.data.CtrlEvents
+import mathact.parts.plumbing.{Fitting, Pump}
 import mathact.parts.{Tool, Environment}
 import scalafx.application.JFXApp
 import scalafx.application.JFXApp.PrimaryStage
@@ -33,6 +34,10 @@ import scalafx.scene.text.Text
   */
 
 abstract class Workbench { //extends Fitting{
+  //Get of environment
+  private val environment = Application.getEnvironment.getOrElse{
+    throw new IllegalStateException("[Workbench] No environment returned from Application")}
+
 
 
   //Здесь нижно получить environment из сервиса Applicati, если уже зарегестироват, логировать оштбку

@@ -18,8 +18,8 @@ import akka.actor.SupervisorStrategy.Resume
 import akka.actor._
 import akka.event.Logging
 import mathact.parts.ActorUtils
-import mathact.parts.control.CtrlEvents
-import mathact.parts.plumbing.PumpEvents._
+import mathact.parts.data.{PumpEvents, CtrlEvents}
+import PumpEvents._
 import collection.mutable.{Map ⇒ MutMap}
 import scalafx.scene.image.Image
 import scala.concurrent.duration._

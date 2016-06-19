@@ -19,8 +19,8 @@ import akka.actor._
 import akka.event.Logging
 import mathact.parts.ActorUtils
 import mathact.parts.control.actors.Controller.StepMode
-import mathact.parts.plumbing.PumpEvents
-import mathact.parts.plumbing.PumpEvents.{Steady, Ready}
+import mathact.parts.data.PumpEvents
+import PumpEvents.{Steady, Ready}
 
 
 /** Manage impeller actor

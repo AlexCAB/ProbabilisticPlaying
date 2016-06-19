@@ -12,18 +12,10 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.control
+package mathact.parts.data
 
-
-/** Set of actor control messages
-  * Created by CAB on 23.05.2016.
+/** Sketch data
+  * Created by CAB on 19.06.2016.
   */
 
-private[mathact]  object CtrlEvents {
-  case class DoStart(sketches: List[(Class[_], String)])
-  case object DoStop
-  case class FatalError(message: String)
-
-
-
-}
+case class Sketch(clazz: Class[_], sName: Option[String], sDesc: Option[String], isAutorun: Boolean)

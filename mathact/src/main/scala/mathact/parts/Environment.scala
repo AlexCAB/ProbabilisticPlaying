@@ -16,8 +16,8 @@ package mathact.parts
 import akka.actor.{Props, ActorRef, ActorSystem}
 import akka.event.Logging
 import mathact.parts.control.actors.Controller
+import mathact.parts.data.PumpEvents
 import mathact.parts.gui.JFXApplication
-import mathact.parts.plumbing.PumpEvents
 import mathact.parts.plumbing.actors.Pumping
 
 import scala.concurrent.Future

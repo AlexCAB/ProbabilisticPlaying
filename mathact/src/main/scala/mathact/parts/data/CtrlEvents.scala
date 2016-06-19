@@ -12,24 +12,17 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.plumbing.actors
+package mathact.parts.data
 
-import akka.actor.{ActorRef, Props, Actor}
-import mathact.parts.data.PumpEvents
-
-
-/** PumpEvents processor
-  * Created by CAB on 15.05.2016.
+/** Set of actor control messages
+  * Created by CAB on 23.05.2016.
   */
 
-class Impeller(drive: ActorRef) extends Actor{
+private[mathact]  object CtrlEvents {
+  case class DoStart(sketches: List[Sketch])
+  case object DoStop
+  case class FatalError(message: String)
 
-  def receive = {
 
-
-
-
-    case x ⇒ println("[Impeller] Receive: " + x)
-  }
 
 }

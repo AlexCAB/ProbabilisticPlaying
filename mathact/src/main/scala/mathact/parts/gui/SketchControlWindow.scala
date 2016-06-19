@@ -34,11 +34,11 @@ import javafx.beans.value.ObservableValue
 
 
 
-/** The main (workbench) window
+/** The sketch (workbench) window
   * Created by CAB on 23.05.2016.
   */
 
-abstract class MainWindow(log: LoggingAdapter) extends JFXInteraction {
+abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
   //Parameters
   val speedSliderDiapason = 100.0
   val speedSliderInit = 10.0
@@ -47,7 +47,7 @@ abstract class MainWindow(log: LoggingAdapter) extends JFXInteraction {
   val sliderWidth = 200
   val defaultStepMode = 0 // 0 → Asynchronously, 1 → Soft synchronization, 2 → Hard synchronization
   //Callbacks
-  def doStop(): Unit
+  def windowClosed(): Unit
   def hitStart(): Unit
   def hitStop(): Unit
   def hitStep(): Unit
@@ -82,8 +82,8 @@ abstract class MainWindow(log: LoggingAdapter) extends JFXInteraction {
     //Close operation
     delegate.setOnCloseRequest(new EventHandler[WindowEvent]{
       def handle(event: WindowEvent): Unit = {
-        log.debug("[MainWindow.onCloseRequest] Close is hit, call doStop.")
-        doStop()
+        log.debug("[SketchControlWindow.onCloseRequest] Close is hit, call windowClosed.")
+        windowClosed()
         event.consume()}})
     //UI Components
     val startBtn = new MWButton("start_e.png", "start_d.png")(hitStart())

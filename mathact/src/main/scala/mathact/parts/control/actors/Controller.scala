@@ -20,10 +20,9 @@ import akka.actor.{PoisonPill, ActorRef, Actor}
 import akka.event.Logging
 import mathact.parts.ActorUtils
 import mathact.parts.control.actors.Controller.StepMode
-import mathact.parts.control.CtrlEvents
-import mathact.parts.gui.MainWindow
+import mathact.parts.data.{PumpEvents, CtrlEvents}
+import mathact.parts.gui.{SelectSketchWindow, SketchControlWindow}
 import mathact.parts.gui.frame.Frame
-import mathact.parts.plumbing.PumpEvents
 
 import scala.util.Try
 import scalafx.application.Platform
@@ -53,13 +52,6 @@ object Controller{
 class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor with ActorUtils{
   //Objects
   val log = Logging.getLogger(context.system, this)
-  val uiFrame = new MainWindow(log){
-    def doStop(): Unit = {self ! CtrlEvents.DoStop}
-    def hitStart(): Unit = {println("hitStart")}
-    def hitStop(): Unit = {println("hitStep")}
-    def hitStep(): Unit = {println("hitStep")}
-    def setSpeed(value: Double) = {println("setSpeed: " + value)}
-    def switchMode(newMode: StepMode) = {println("newMode: " + newMode)}}
   case object StartTimeOut
   //Variables
   var exitCode = 0
@@ -67,21 +59,41 @@ class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor with Actor
   def doTerminate(exitCode: Int): Unit = {
     this.exitCode = exitCode
     self ! PoisonPill}
+  //UI definitions
+  val uiSelectSketch = new SelectSketchWindow(log){
+    def sketchSelected(index: Int): Unit = {
+
+      //!!! Может быть вызван более чем один раз
+
+      println("hitsSketchSelected")}
+    def windowClosed(): Unit = {self ! CtrlEvents.DoStop}
+  }
+
+
+  val uiSketchControl = new SketchControlWindow(log){
+    def windowClosed(): Unit = {println("hitWindowClosed")}
+    def hitStart(): Unit = {println("hitStart")}
+    def hitStop(): Unit = {println("hitStep")}
+    def hitStep(): Unit = {println("hitStep")}
+    def setSpeed(value: Double) = {println("setSpeed: " + value)}
+    def switchMode(newMode: StepMode) = {println("newMode: " + newMode)}}
   //Run start timeout
 
   //Messages handling
   def receive = {
-
+    //Handling of starting
     case CtrlEvents.DoStart(sketches) ⇒
       logMsgD("Controller.DoStart", s"Starting, sketches: $sketches")
+      //Show select sketch UI
 
+      //!!! Если гдето утановлен флажок автозапуска, список скетчей не отображается, выполняетс я сразу запуск омеченого скетча.
 
-
+      tryToRun{uiSelectSketch.show(sketches)}.getOrElse{doTerminate(exitCode = -1)}
 
       //Далее здесь:
       //1) Отображение списка скечей
-      //2) По выбору запуск скеча
-      //3) По закрытию диалога MainWindow (переименовать в SketchControlWindow) остановка скетчи, и возврат к списку
+      //2) По выбору запуск скеча (создаётся обьект класса скетчи из переданого списка)
+      //3) По закрытию диалога SketchControlWindow (переименовать в SketchControlWindow) остановка скетчи, и возврат к списку
       //   где пользователь может выбрать другой скетч.
 
 
@@ -107,15 +119,15 @@ class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor with Actor
 
 
       //Create main window
-      tryToRun{uiFrame.init()}.getOrElse{doTerminate(exitCode = -1)}
+      //tryToRun{uiSketchControl.init()}.getOrElse{doTerminate(exitCode = -1)}
       //Run pumping
-      pumping ! PumpEvents.PlumbingInit(StepMode(uiFrame.defaultStepMode))
+      pumping ! PumpEvents.PlumbingInit(StepMode(uiSketchControl.defaultStepMode))
 
     case PumpEvents.PlumbingStarted ⇒
       logMsgD("Controller.PlumbingStarted", "")
 
-      uiFrame.setStatus("Ready to go!")
-      uiFrame.setEnabled(true)
+      uiSketchControl.setStatus("Ready to go!")
+      uiSketchControl.setEnabled(true)
 
 
 
@@ -141,9 +153,9 @@ class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor with Actor
 
     case CtrlEvents.FatalError(message) ⇒
 
-      uiFrame.setStatus("Fatal error: " + message)
+      uiSketchControl.setStatus("Fatal error: " + message)
 
-      uiFrame.setEnabled(false)
+      uiSketchControl.setEnabled(false)
 
       //Здесь отображение сообщения и если пользователь выбрал завершение работы, то штатное заваершение,
       // иначе ничего не даелать
@@ -161,10 +173,10 @@ class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor with Actor
       println()
 
 
-      uiFrame.setEnabled(false)
+      uiSketchControl.setEnabled(false)
 
 
-      uiFrame.setStatus("Stopping...")
+      uiSketchControl.setStatus("Stopping...")
 
       doTerminate(exitCode = 0)
 

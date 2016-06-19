@@ -23,12 +23,9 @@ import mathact.Application
 
 object Examples extends Application{
 
-  sketchOf[ChartPotExample]
+  sketchOf[ChartPotExample] name "Pot to chart" description "Pot and chart connection example" autorun
 
-  sketch of[PotPotExample] "Pot to pot connection example"
-
-
-
+  sketchOf[PotPotExample]
 
 
 }
