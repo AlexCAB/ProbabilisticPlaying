@@ -14,14 +14,21 @@
 
 package mathact
 
-import mathact.parts.Environment
+import akka.actor.{PoisonPill, Props, ActorRef, ActorSystem}
+import akka.event.Logging
+import akka.util.Timeout
+import mathact.parts.WorkbenchContext
+import mathact.parts.control.actors.MainController
 import mathact.parts.data.{Sketch, CtrlEvents}
 import mathact.parts.gui.JFXApplication
 import mathact.tools.Workbench
 import scala.collection.mutable.{ArrayBuffer ⇒ MutList}
+import scala.concurrent.{Await, Future}
 import scala.reflect.ClassTag
 import scala.reflect._
 import scalafx.application.Platform
+import akka.pattern.ask
+import scala.concurrent.duration._
 
 
 /** Root application object and class
@@ -29,30 +36,74 @@ import scalafx.application.Platform
   */
 
 private [mathact] object Application{
+  //Parameters
+  private val beforeTerminateTimeout = 1.seconds
+  private val creatingWorkbenchContextTimeout = 5.seconds
+  //Enums
+  object State extends Enumeration { val Starting, Work, Stopping = Value }
   //Variables
-  private var environment: Option[Environment] = None
+  private var state: State.Value = State.Starting
+  //Actor system
+  private val system = ActorSystem("MathActActorSystem")
+  private implicit val execContext = system.dispatcher
+  private val log = Logging.getLogger(system, this)
+  log.info(s"[Application] Starting of program...")
+  //Main controller
+  private val mainController: ActorRef = system.actorOf(Props(new MainController(doStop)), "MainControllerActor")
+  //Stop proc
+  private def doStop(exitCode: Int): Unit = Future{
+    state = State.Stopping
+    log.debug(s"[Application.doStop] Stopping of program, terminate timeout: $beforeTerminateTimeout milliseconds.")
+    Thread.sleep(beforeTerminateTimeout.toMillis)
+    Platform.exit()
+    system.terminate().onComplete{_ ⇒ System.exit(exitCode)}}
+  private def doTerminate(): Unit = {
+    log.error(s"[Application.doStop] Application, terminated.")
+    mainController ! PoisonPill
+    doStop(-1)}
   //Methods
   /** Starting of application
     * @param sketches - List[(class of sketch, name of sketch)]
     * @param args - App arguments */
-  def start(sketches: List[Sketch], args: Array[String]): Unit = {
-    //Create Environment
-    val env = new Environment
-    environment = Some(env)
-    //Java FX Application
+  def start(sketches: List[Sketch], args: Array[String]): Unit =
     try{
-      JFXApplication.init(args, env.log)
-      Platform.implicitExit = false}
-    catch{ case e: Throwable ⇒
-      env.log.error(s"[Application.start] Error on start UI: $e, terminate ActorSystem.")
-      env.doStop(-1)
+      //Check state
+      state match{
+        case State.Starting ⇒
+          //Run Java FX Application
+          JFXApplication.init(args, log)
+          Platform.implicitExit = false
+          log.debug(s"[Application.start] JFXApplication created, starting application.")
+          mainController ! CtrlEvents.DoStart(sketches)
+        case st ⇒
+          throw new IllegalStateException(
+            s"[Application.start] This method can be called only if App in Starting state, current state: $st")}}
+    catch { case e: Throwable ⇒
+      log.error(s"[Application.start] Error on start: $e, terminate ActorSystem.")
+      doTerminate()
       throw e}
-    //Start
-    env.log.debug(s"[Application.start] Environment and JFXApplication created, starting application.")
-    env.controller ! CtrlEvents.DoStart(sketches)}
-  /** Get of environment
-    * @return - Some(Environment) if it exist, None if some error */
-  def getEnvironment: Option[Environment] = environment}
+  /** Get of WorkbenchContext for new Workbench
+    * @param workbench - Workbench
+    * @return - MainController ActorRef or thrown exception */
+  def getWorkbenchContext(workbench: Workbench): WorkbenchContext = state match{
+    case State.Work ⇒
+      log.debug(s"[Application.getWorkbenchContext] Try to create WorkbenchContext for ${workbench.getClass.getName}.")
+      //Ask for new context
+      val askTimeout = Timeout(creatingWorkbenchContextTimeout).duration
+      Await
+        .result(
+          ask(mainController, CtrlEvents.NewWorkbenchContext(workbench))(askTimeout).mapTo[Either[Exception,WorkbenchContext]],
+          askTimeout)
+        .fold(
+          e ⇒ {
+            log.debug(s"[Application.getWorkbenchContext] Error on ask for ${workbench.getClass.getName}, err: $e.")
+            throw e},
+          wc ⇒ {
+            log.debug(s"[Application.getWorkbenchContext] WorkbenchContext created for ${workbench.getClass.getName}.")
+            wc})
+    case st ⇒
+      throw new IllegalStateException(
+        s"[Application.getWorkbenchContext] This method can be called only if App in Work state, current state: $st")}}
 
 
 class Application {

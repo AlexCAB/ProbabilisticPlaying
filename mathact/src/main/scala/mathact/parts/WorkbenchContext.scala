@@ -12,19 +12,12 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.data
+package mathact.parts
 
-import mathact.tools.Workbench
-
-/** Set of actor control messages
-  * Created by CAB on 23.05.2016.
+/** Provide support and management of Workbench
+  * Created by CAB on 20.06.2016.
   */
 
-private[mathact]  object CtrlEvents {
-  case class DoStart(sketches: List[Sketch])
-  case class NewWorkbenchContext(workbench: Workbench)
-  case class WorkbenchError(workbench: Workbench, exception: Throwable)
-
-
+class WorkbenchContext {
 
 }

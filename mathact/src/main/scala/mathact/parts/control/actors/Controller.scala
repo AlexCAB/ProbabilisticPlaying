@@ -60,14 +60,14 @@ class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor with Actor
     this.exitCode = exitCode
     self ! PoisonPill}
   //UI definitions
-  val uiSelectSketch = new SelectSketchWindow(log){
-    def sketchSelected(index: Int): Unit = {
-
-      //!!! Может быть вызван более чем один раз
-
-      println("hitsSketchSelected")}
-    def windowClosed(): Unit = {self ! CtrlEvents.DoStop}
-  }
+//  val uiSelectSketch = new SelectSketchWindow(log){
+//    def sketchSelected(index: Int): Unit = {
+//
+//      //!!! Может быть вызван более чем один раз
+//
+//      println("hitsSketchSelected")}
+//    def windowClosed(): Unit = {self ! CtrlEvents.DoStop}
+//  }
 
 
   val uiSketchControl = new SketchControlWindow(log){
@@ -88,7 +88,7 @@ class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor with Actor
 
       //!!! Если гдето утановлен флажок автозапуска, список скетчей не отображается, выполняетс я сразу запуск омеченого скетча.
 
-      tryToRun{uiSelectSketch.show(sketches)}.getOrElse{doTerminate(exitCode = -1)}
+//      tryToRun{uiSelectSketch.show(sketches)}.getOrElse{doTerminate(exitCode = -1)}
 
       //Далее здесь:
       //1) Отображение списка скечей
@@ -150,12 +150,12 @@ class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor with Actor
 
 
 
-
-    case CtrlEvents.FatalError(message) ⇒
-
-      uiSketchControl.setStatus("Fatal error: " + message)
-
-      uiSketchControl.setEnabled(false)
+//
+//    case CtrlEvents.FatalError(message) ⇒
+//
+//      uiSketchControl.setStatus("Fatal error: " + message)
+//
+//      uiSketchControl.setEnabled(false)
 
       //Здесь отображение сообщения и если пользователь выбрал завершение работы, то штатное заваершение,
       // иначе ничего не даелать
@@ -163,22 +163,22 @@ class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor with Actor
 
 
 
-    case CtrlEvents.DoStop ⇒
-
-      println("[Controller] Receive: DoStop")
-
-      //Здесь остановка насосв, вызов процедур завершения инструментов и выход
-
-
-      println()
-
-
-      uiSketchControl.setEnabled(false)
-
-
-      uiSketchControl.setStatus("Stopping...")
-
-      doTerminate(exitCode = 0)
+//    case CtrlEvents.DoStop ⇒
+//
+//      println("[Controller] Receive: DoStop")
+//
+//      //Здесь остановка насосв, вызов процедур завершения инструментов и выход
+//
+//
+//      println()
+//
+//
+//      uiSketchControl.setEnabled(false)
+//
+//
+//      uiSketchControl.setStatus("Stopping...")
+//
+//      doTerminate(exitCode = 0)
 
 
 

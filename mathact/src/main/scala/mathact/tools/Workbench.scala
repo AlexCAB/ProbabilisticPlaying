@@ -34,9 +34,13 @@ import scalafx.scene.text.Text
   */
 
 abstract class Workbench { //extends Fitting{
-  //Get of environment
-  private val environment = Application.getEnvironment.getOrElse{
-    throw new IllegalStateException("[Workbench] No environment returned from Application")}
+  //Get of WorkbenchContext
+  private val context = Application.getWorkbenchContext(this)
+
+
+  //!!! Workbench должен зарегистировать себя и получить свой собсвенный controller и pumping
+
+
 
 
 

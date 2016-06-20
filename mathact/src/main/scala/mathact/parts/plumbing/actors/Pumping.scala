@@ -89,14 +89,14 @@ class Pumping extends Actor with ActorUtils{
 
 
 
-    case StartTimeOut ⇒
-      logMsgD("Pumping.StartTimeOut", s"Timeout: $pumpStartingTimeout", state)
-      state match{
-        case WorkMode.Creating | WorkMode.Starting ⇒
-          logMsgE("Pumping.StartTimeOut", s"Pumping not started in: $pumpStartingTimeout", state)
-          //Send error to controller
-          controller.foreach(_ ! CtrlEvents.FatalError(s"The system not ready in $pumpStartingTimeout"))
-        case _ ⇒}
+//    case StartTimeOut ⇒
+//      logMsgD("Pumping.StartTimeOut", s"Timeout: $pumpStartingTimeout", state)
+//      state match{
+//        case WorkMode.Creating | WorkMode.Starting ⇒
+//          logMsgE("Pumping.StartTimeOut", s"Pumping not started in: $pumpStartingTimeout", state)
+//          //Send error to controller
+//          controller.foreach(_ ! CtrlEvents.FatalError(s"The system not ready in $pumpStartingTimeout"))
+//        case _ ⇒}
     case Terminated(actor) ⇒
       logMsgD("Pumping.Terminated", s"Terminated actor: $actor", state)
       //Check if in list
