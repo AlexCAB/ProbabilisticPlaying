@@ -19,7 +19,7 @@ import akka.event.Logging
 import akka.util.Timeout
 import mathact.parts.WorkbenchContext
 import mathact.parts.control.actors.MainController
-import mathact.parts.data.{Sketch, CtrlEvents}
+import mathact.parts.data.{SketchStatus, Sketch, CtrlEvents}
 import mathact.parts.gui.JFXApplication
 import mathact.tools.Workbench
 import scala.collection.mutable.{ArrayBuffer ⇒ MutList}
@@ -114,8 +114,8 @@ class Application {
     //Add to list
     sketchList += this
     //Methods
-    def name(n: String): SketchDsl = new SketchDsl(clazz, n match{case "" ⇒ None case _ ⇒ Some(n)}, sDesc, isAutorun)
-    def description(s: String): SketchDsl = new SketchDsl(clazz, sName, s match{case "" ⇒ None case _ ⇒ Some(s)}, isAutorun)
+    def name(n: String): SketchDsl = new SketchDsl(clazz, n match{case "" ⇒ None ;case _ ⇒ Some(n)}, sDesc, isAutorun)
+    def description(s: String): SketchDsl = new SketchDsl(clazz, sName, s match{case "" ⇒ None; case _ ⇒ Some(s)}, isAutorun)
     def autorun:  SketchDsl = new SketchDsl(clazz, sName, sDesc, true)
     private[mathact] def getData:(Class[_],Option[String],Option[String],Boolean) = (clazz,sName,sDesc,isAutorun)}
   def sketchOf[T <: Workbench : ClassTag]: SketchDsl = new SketchDsl(classTag[T].runtimeClass,None,None,false)
@@ -127,6 +127,6 @@ class Application {
       .map(_.getData)
       .foldRight(List[Sketch]()){
         case (s,l) if l.exists(_.clazz.getCanonicalName == s._1.getCanonicalName) ⇒ l
-        case ((c, n, d, a),l) ⇒ Sketch(c, n, d, a) +: l}
+        case ((c, n, d, a),l) ⇒ Sketch(c, n, d, a match{case true ⇒ SketchStatus.Autorun; case _ ⇒ SketchStatus.Ready}) +: l}
     //Construct Application
     Application.start(sketches, arg)}}

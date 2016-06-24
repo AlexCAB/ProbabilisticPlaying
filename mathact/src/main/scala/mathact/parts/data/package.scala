@@ -12,20 +12,17 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.plumbing.fitting
+package mathact.parts
 
-
-/** Source of events
-  * Created by CAB on 17.05.2016.
+/** Contains common enums
+  * Created by CAB on 24.06.2016.
   */
 
-trait Plug[T] extends Connector[T] { self: Outlet[T] ⇒
+package object data {
+  //SketchStatus
+  object SketchStatus extends Enumeration {val Autorun, Ready, Ended, Failed = Value}
+  type SketchStatus = SketchStatus.Value
 
-  //!!! Аргубенты должны быть как socket: ⇒Socket[T], для поддержки перехрёстного связания инструментов
-
-  def connect(socket: Socket[T]): Unit = {}
-
-  def disconnect(socket: Socket[T]): Unit = {}
-
+//TODO Add more
 
 }

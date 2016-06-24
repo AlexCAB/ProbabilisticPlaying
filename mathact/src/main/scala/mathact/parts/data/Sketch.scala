@@ -18,4 +18,5 @@ package mathact.parts.data
   * Created by CAB on 19.06.2016.
   */
 
-case class Sketch(clazz: Class[_], sName: Option[String], sDesc: Option[String], isAutorun: Boolean)
+case class Sketch(clazz: Class[_], sName: Option[String], sDesc: Option[String], status: SketchStatus){
+  def withStatus (newStatus: SketchStatus): Sketch = Sketch(clazz, sName, sDesc, newStatus)}

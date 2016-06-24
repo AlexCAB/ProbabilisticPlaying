@@ -14,24 +14,21 @@
 
 package mathact.parts.gui
 
-import javafx.beans.value.ObservableValue
 import javafx.event.EventHandler
 import javafx.stage.WindowEvent
 
 import akka.event.LoggingAdapter
-import mathact.parts.control.actors.Controller._
-import mathact.parts.data.Sketch
+import mathact.parts.data.{SketchStatus, Sketch}
 
 import scalafx.Includes._
-import scalafx.beans.property.StringProperty
+import scalafx.beans.property.{ObjectProperty, StringProperty}
 import scalafx.collections.ObservableBuffer
-import scalafx.geometry.{Insets, Pos}
+import scalafx.geometry.Pos
 import scalafx.scene.Scene
 import scalafx.scene.control._
 import scalafx.scene.image.{Image, ImageView}
-import scalafx.scene.layout.{HBox, BorderPane}
+import scalafx.scene.layout.VBox
 import scalafx.scene.paint.Color._
-import scalafx.scene.text.Text
 import scalafx.stage.Stage
 
 
@@ -39,92 +36,99 @@ import scalafx.stage.Stage
   * Created by CAB on 19.06.2016.
   */
 
+//TODO Make window resizable (not work on Windows 7)
 abstract class SelectSketchWindow(log: LoggingAdapter) extends JFXInteraction {
   //Parameters
-
+  val buttonsSize = 20
   //Callbacks
-  def sketchSelected(index: Int): Unit
+  def sketchSelected(sketchClassName: String): Unit
   def windowClosed(): Unit
-
-
   //Definitions
   private class MainWindowStage(sketches: List[Sketch]) extends Stage {
+    //Components
+    val startBtnDImg = new Image("sketch_start_d.png", buttonsSize, buttonsSize, true, true)
+    val startBtnEImg =  new Image("sketch_start_e.png", buttonsSize, buttonsSize, true, true)
     //Definitions
-
-
+    class SketchData(sketch: Sketch, onHit: String⇒Unit){
+      val className = sketch.clazz.getCanonicalName
+      val name = sketch.sName.getOrElse(className)
+      val description = sketch.sDesc.getOrElse("---")
+      val status = sketch.status match{
+        case SketchStatus.Autorun ⇒ "autorun"
+        case SketchStatus.Ready ⇒ "ready"
+        case SketchStatus.Ended ⇒ "ended"
+        case SketchStatus.Failed ⇒ "failed"
+        case _ ⇒ "unknown"}
+      val runBtn = new Button{
+        //Parameters
+        graphic = new ImageView{image = startBtnEImg}
+        prefHeight = buttonsSize
+        prefWidth = buttonsSize
+        onAction = handle{onHit(className)}
+        //Methods
+        def setEnabled(isEnabled: Boolean): Unit = isEnabled match{
+          case true ⇒
+            graphic = new ImageView{image = startBtnEImg}
+            disable = false
+          case false ⇒
+            graphic = new ImageView{image = startBtnDImg}
+            disable = true}}}
+    //Preparing
+    val sketchRows: List[SketchData] = sketches.map(d ⇒ new SketchData(d, className ⇒ {
+      //Disable rest os sketches
+      sketchRows.foreach{
+        case s if s.className != className ⇒ s.runBtn.setEnabled(false)
+        case _ ⇒}
+      //Call selected
+      sketchSelected(className)}))
     //UI
     title = "MathAct - Sketches"
     scene = new Scene {
       fill = White
-      content = new BorderPane{
-        top = new Label("Hello, select an of next sketches to run:")
-        center = sketches match{
-          case Nil ⇒
-            new Label("No sketches found.")
-          case sks ⇒ new TableView[Sketch](ObservableBuffer(sks)){
-            //Columns
-            val nameColumn = new TableColumn[Sketch, String] {
-              text = "Name"
-              prefWidth = 150
-              cellValueFactory = { d ⇒
-                new StringProperty(d.value, "name",  d.value.sName.getOrElse(d.value.clazz.getSimpleName))}}
-            val descriptionColumn = new TableColumn[Sketch, String] {
-              text = "Description"
-              prefWidth = 250
-              cellValueFactory = { d ⇒
-                new StringProperty(d.value, "description",  d.value.sDesc.getOrElse("---"))}}
-            val autorunColumn = new TableColumn[Sketch, String] {
-              text = "Autorun"
-              prefWidth = 60
-              cellValueFactory = { d ⇒
-                new StringProperty(d.value, "autorun",  d.value.isAutorun match{case true ⇒ "YES" case _ ⇒ "NO"})}}
-
-            val runBtnColumn = new TableColumn[Sketch, Button] {
-              text = "Run"
-              prefWidth = 60
-
-
-              cellFactory = { _ ⇒
-
-                new TableCell[Sketch, Button] {
-                  graphic = new Button("Test")
-
-                }
-
-
-                //Далее здесь:
-                //1) Кнопка должна быть в виде картинки '>'
-                //2) Исправить ресайзинг (таблица должна изменятся с окном) и исправить вид (размтку, шрифты т.п.)
-                //   так же проверить для случая когда нет ни одноо скетча
-                //3) Добавть Button вызов sketchSelected
-                //4) По нажатию одного Button остальные должны бить сделаны не активными, но нажатый должен остатся активным,
-                //   и повторное нажатие должно слать слать повторное сообжение актору, на всякий случай.
-
-
-
-              }
-
-
-              }
-
-            columns ++= Seq(nameColumn, descriptionColumn, autorunColumn, runBtnColumn)
-            //On selected
-
-
-
-          }
-        }
-
-
-
-
-
-
-      }
-
-    }
-
-
+      content = sketches match{
+        case Nil ⇒ new Label{
+          text =
+            """
+              | No sketches found.
+              | Please define some sketch like:
+              |   object MySketch extends Application{
+              |     sketchOf[MySketchClass] name "Example" description "My first Sketch" autorun
+              |   }
+            """.stripMargin
+          style = "-fx-font-size: 14; -fx-font-weight: bold; -fx-alignment: CENTER-LEFT;"
+          prefWidth = 600}
+        case sks ⇒ new VBox{
+          alignment = Pos.Center
+          children = Seq(
+            new Label{
+              text = "Hello, select one of next sketches to run:"
+              style = "-fx-font-size: 16; -fx-font-weight: bold; -fx-alignment: CENTER-LEFT;"},
+            new TableView[SketchData](ObservableBuffer(sketchRows)){
+              columnResizePolicy = TableView.UnconstrainedResizePolicy
+              val nameColumn = new TableColumn[SketchData, String] {
+                text = "Name"
+                prefWidth = 180
+                style = "-fx-font-size: 13; -fx-font-weight: bold; -fx-alignment: CENTER-LEFT;"
+                cellValueFactory = { d ⇒ new StringProperty(d.value, "name",  d.value.name)}}
+              val descriptionColumn = new TableColumn[SketchData, String] {
+                text = "Description"
+                prefWidth = 300
+                style = "-fx-font-size: 12; -fx-alignment: CENTER-LEFT;"
+                cellValueFactory = { d ⇒ new StringProperty(d.value, "description",  d.value.description)}}
+              val statusColumn = new TableColumn[SketchData, String] {
+                text = "Status"
+                prefWidth = 60
+                style = "-fx-font-size: 12; -fx-font-weight: bold; -fx-alignment: CENTER;"
+                cellValueFactory = { d ⇒ new StringProperty(d.value, "status",  d.value.status)}}
+              val runBtnColumn = new TableColumn[SketchData, Button] {
+                text = "Run"
+                prefWidth = 42
+                style = "-fx-alignment: CENTER;"
+                cellValueFactory = { d ⇒ new ObjectProperty(d.value, "runBtn", d.value.runBtn)}
+                cellFactory = { d ⇒ new TableCell[SketchData, Button] {
+                  contentDisplay = ContentDisplay.GraphicOnly
+                  item.onChange{ (_,_,b) ⇒ graphic = b}}}}
+              columns ++= Seq(nameColumn, descriptionColumn, statusColumn, runBtnColumn)})}}}
     //Close operation
     delegate.setOnCloseRequest(new EventHandler[WindowEvent]{
       def handle(event: WindowEvent): Unit = {
@@ -135,22 +139,15 @@ abstract class SelectSketchWindow(log: LoggingAdapter) extends JFXInteraction {
   private var stage: Option[MainWindowStage] = None
   //Methods
   def show(sketches: List[Sketch]): Unit = {
+    //Close old is exist
+    stage.foreach(stg ⇒ runAndWait(stg.close()))
+    //Create new
     stage = Some(runNow{
       val stg = new MainWindowStage(sketches)
-      stg.resizable = true
+      stg.resizable = false
       stg.sizeToScene()
       stg.show()
       stg})}
   def hide(): Unit = stage.foreach{ stg ⇒
     runAndWait(stg.close())
-    stage = None}
-
-
-
-
-
-
-
-
-
-}
+    stage = None}}
