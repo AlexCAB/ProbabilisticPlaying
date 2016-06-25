@@ -22,6 +22,9 @@ package object data {
   //SketchStatus
   object SketchStatus extends Enumeration {val Autorun, Ready, Ended, Failed = Value}
   type SketchStatus = SketchStatus.Value
+  //StepMode
+  object StepMode extends Enumeration {val Asynchronously, SoftSynchronization, HardSynchronization, None = Value}
+  type StepMode = StepMode.Value
 
 //TODO Add more
 

@@ -18,7 +18,7 @@ import javafx.event.EventHandler
 import javafx.stage.WindowEvent
 
 import akka.event.LoggingAdapter
-import mathact.parts.control.actors.Controller.StepMode
+import mathact.parts.data.StepMode
 
 import scalafx.collections.ObservableBuffer
 import scalafx.geometry.{Pos, Insets}

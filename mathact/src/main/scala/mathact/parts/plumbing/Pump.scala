@@ -19,7 +19,7 @@ import akka.event.Logging
 import akka.pattern.ask
 import akka.util.Timeout
 import mathact.parts.data.PumpEvents
-import mathact.parts.{OnStart, OnStop, Environment}
+import mathact.parts.{WorkbenchContext, OnStart, OnStop}
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -28,27 +28,27 @@ import scala.concurrent.duration._
   * Created by CAB on 09.05.2016.
   */
 
-class Pump(env: Environment, tool: Fitting, toolName: String) {
+class Pump(context: WorkbenchContext, tool: Fitting, toolName: String) {
   //Parameters
   private implicit val askTimeout = Timeout(5.seconds)
   //Logging
-  private val loger = Logging.getLogger(env.system, this)
-  object log {
-    def debug(msg: String): Unit = loger.debug(s"[$toolName] $msg")
-    def info(msg: String): Unit = loger.info(s"[$toolName] $msg")
-    def warning(msg: String): Unit = loger.warning(s"[$toolName] $msg")
-    def error(msg: String): Unit = loger.error(s"[$toolName] $msg")  }
-  //Actors
-  private val drive: ActorRef =
-    Await.result(ask(env.pumping, PumpEvents.NewDrive(toolName, None)).mapTo[ActorRef], askTimeout.duration)
-  private val impeller: ActorRef =
-    Await.result(ask(drive, PumpEvents.NewImpeller(toolName)).mapTo[ActorRef], askTimeout.duration)
-
-
-
-
-
-
+//  private val loger = Logging.getLogger(context.system, this)
+//  object log {
+//    def debug(msg: String): Unit = loger.debug(s"[$toolName] $msg")
+//    def info(msg: String): Unit = loger.info(s"[$toolName] $msg")
+//    def warning(msg: String): Unit = loger.warning(s"[$toolName] $msg")
+//    def error(msg: String): Unit = loger.error(s"[$toolName] $msg")  }
+//  //Actors
+//  private val drive: ActorRef =
+//    Await.result(ask(context.pumping, PumpEvents.NewDrive(toolName, None)).mapTo[ActorRef], askTimeout.duration)
+//  private val impeller: ActorRef =
+//    Await.result(ask(drive, PumpEvents.NewImpeller(toolName)).mapTo[ActorRef], askTimeout.duration)
+//
+//
+//
+//
+//
+//
 
 
   tool match{             //Должно выполнятся при инициализации инструмента

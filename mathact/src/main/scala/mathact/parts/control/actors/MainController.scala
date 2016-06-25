@@ -14,27 +14,17 @@
 
 package mathact.parts.control.actors
 
-import javafx.stage.{Stage => jStage}
+import java.util.concurrent.ExecutionException
 
-import akka.actor.{PoisonPill, ActorRef, Actor}
+import akka.actor._
 import akka.event.Logging
-import mathact.parts.ActorUtils
-import mathact.parts.control.actors.Controller.StepMode
-import mathact.parts.data.{SketchStatus, Sketch, PumpEvents, CtrlEvents}
-import mathact.parts.gui.{SelectSketchWindow, SketchControlWindow}
-import mathact.parts.gui.frame.Frame
+import mathact.parts.{WorkbenchContext, ActorUtils}
+import mathact.parts.data.{SketchStatus, Sketch, CtrlEvents}
+import mathact.parts.gui.SelectSketchWindow
+import mathact.tools.Workbench
 
-import scala.util.{Failure, Success, Try}
-import scala.collection.mutable.{ListBuffer ⇒ MutList}
-import scalafx.application.Platform
-import scalafx.geometry.Insets
-import scalafx.scene.Scene
-import scalafx.scene.effect.DropShadow
-import scalafx.scene.layout.HBox
-import scalafx.scene.paint.Color._
-import scalafx.scene.paint.{LinearGradient, Stops}
-import scalafx.scene.text.Text
-import scalafx.stage.Stage
+import scala.concurrent.Future
+import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 
 
@@ -50,30 +40,40 @@ class MainController(doStop: Int⇒Unit) extends Actor with ActorUtils{
   //Messages
   case object ShowUI
   case class RunSketch(className: String)
-  case object SketchStartTimeout
+  case class SketchStarted(className: String)
+  case class SketchStartTimeout(className: String)
   case object DoStop                     //Normal stop
   case object DoErrorStop                //Stop by error
   case class DoTerminate(exitCode: Int)  //Free resources and terminate
+  //Holders
+  case class CurrentSketch(sketch: Sketch, isWorking: Boolean, controller: Option[ActorRef]){
+    def started(): CurrentSketch = CurrentSketch(sketch, isWorking = true, controller)
+    def withController(controller: ActorRef): CurrentSketch = CurrentSketch(sketch, isWorking, Some(controller))}
   //UI definitions
   val uiSelectSketch = new SelectSketchWindow(log){
     def sketchSelected(sketchClassName: String): Unit = {self ! RunSketch(sketchClassName)}
     def windowClosed(): Unit = {self ! DoStop}}
   //Variables
   var sketches = List[Sketch]()
-  var currentSketch: Option[(Sketch, Boolean)] = None  //(Sketch, isStarted)
+  var currentSketch: Option[CurrentSketch] = None
   //Functions
-
-
+  def setCurrentSketchState(newStat: SketchStatus): Unit = currentSketch.foreach{ cs ⇒
+    sketches = sketches.map{
+      case s if s.className == cs.sketch.className ⇒ s.withStatus(newStat)
+      case s ⇒ s}}
+  def cleanCurrentSketch(): Unit = {
+    currentSketch.foreach(_.controller.foreach(_ ! CtrlEvents.StopWorkbenchController))
+    currentSketch = None}
   //Messages handling
   def receive = {
     //Handling of starting
-    case CtrlEvents.DoStart(sketchList) ⇒
-      logMsgD("MainController.DoStart", s"Starting, sketchList: $sketchList")
+    case CtrlEvents.MainControllerStart(sketchList) ⇒
+      logMsgD("MainController.MainControllerStart", s"Starting, sketchList: $sketchList")
       sketches = sketchList
       //Check if there is autoruned
       sketchList.find(_.status == SketchStatus.Autorun) match{
         case Some(sketch) ⇒
-          self ! RunSketch(sketch.clazz.getCanonicalName)
+          self ! RunSketch(sketch.className)
         case None ⇒
           self ! ShowUI}
     //Display UI
@@ -81,100 +81,100 @@ class MainController(doStop: Int⇒Unit) extends Actor with ActorUtils{
       logMsgD("MainController.ShowUI", s"Sketches: $sketches")
       tryToRun{uiSelectSketch.show(sketches)} match{
         case Success(_) ⇒
-          logMsgD("MainController.DoStart", "UI is created.")
+          logMsgD("MainController.MainControllerStart", "UI is created.")
         case Failure(_) ⇒
           self ! DoErrorStop}
     //Run selected sketch
     case RunSketch(className) ⇒
       logMsgD("MainController.RunSketch", s"className: $className, currentSketch: $currentSketch")
-      (currentSketch, sketches.find(_.clazz.getCanonicalName == className)) match{
+      (currentSketch, sketches.find(_.className == className)) match{
         case (None, Some(sketch)) ⇒
-          currentSketch = Some((sketch, false))
+          currentSketch = Some(CurrentSketch(sketch, isWorking = false, None))
           //Start creating timeout
-          context.system.scheduler.scheduleOnce(sketchStartTimeout, self, SketchStartTimeout)
+          context.system.scheduler.scheduleOnce(sketchStartTimeout, self, SketchStartTimeout(className))
           //Hid UI
           tryToRun{uiSelectSketch.hide()}
-          //
-
-          //!!! Далее здесь:
-          // 1) Конструирование скетча в отдельном Future
-          // 2) По завершении конструирования, currentSketch. isStarted == true
-          // 3) Конструироване WorkbenchContext по запросу
-          // 4) В случае ошибки констрирования сообщение об ошибке, котрое должно очистить ресурсы.
-          // 5) В случае таймаута или ошибки WorkbenchContext должен быть разрушен и тображено
-
-
-
-
-        case (Some((curSketch,_)), _) if curSketch.clazz.getCanonicalName != className ⇒
+          //Create Workbench instance
+          Future{sketch.clazz.newInstance()}
+            .map{ _ ⇒ self ! SketchStarted(className)}
+            .recover{
+              case t: ExecutionException ⇒ self ! CtrlEvents.SketchError(className, t.getCause)
+              case t: Throwable ⇒ self ! CtrlEvents.SketchError(className, t)}
+        case (Some(curSketch), _) if curSketch.sketch.className != className ⇒
           logMsgW("MainController.RunSketch", s"Current sketch $curSketch not ended.")
         case (_, None) ⇒
           logMsgE("MainController.RunSketch", s"Not found sketch for className: $className")
         case _ ⇒}
+    //Creating of new WorkbenchContext instance, return Either[Exception,WorkbenchContext]
+    case CtrlEvents.NewWorkbenchContext(workbench: Workbench) ⇒
+      logMsgD(
+        "MainController.NewWorkbenchContext",
+        s"workbench: $workbench, class: ${workbench.getClass.getCanonicalName}, currentSketch: $currentSketch")
+      (currentSketch, Option(workbench.getClass.getCanonicalName)) match {
+        case (Some(s), Some(cn)) if s.sketch.className == cn ⇒
+          //Create WorkbenchContext
+          val controller = context.actorOf(
+            Props(new WorkbenchController(s.sketch)),
+            "WorkbenchControllerActor_" + s.sketch.className)
+          context.watch(controller)
+          currentSketch = currentSketch.map(_.withController(controller))
+          //Return
+          sender ! Right(new WorkbenchContext(context.system, controller))
+        case (_, cn) ⇒ Left(new Exception(
+          s"[MainController.NewWorkbenchContext] Workbench class $cn not match a current sketch: $currentSketch"))}
+    //Sketch started
+    case SketchStarted(className) ⇒
+      logMsgD("MainController.SketchStarted", s"className: $className, currentSketch: $currentSketch")
+      currentSketch.filter(_.sketch.className == className).foreach{
+        case s if s.controller.nonEmpty ⇒
+          s.controller.foreach(_ ! CtrlEvents.WorkbenchControllerStart)
+          currentSketch = currentSketch.map(_.started())
+        case s ⇒
+          self ! CtrlEvents.SketchError(className, new Exception(
+            s"[MainController.SketchStarted] Workbench controller not created, current sketch: $currentSketch"))}
+    //Normal end of sketch
+    case CtrlEvents.SketchDone(className) ⇒
+      logMsgD("MainController.SketchDone", s"className: $className, currentSketch: $currentSketch")
+      currentSketch.filter(_.sketch.className == className).foreach{ _ ⇒
+        logMsgI("MainController.SketchDone", s"Current sketch: $currentSketch")
+        setCurrentSketchState(SketchStatus.Ended)
+        cleanCurrentSketch()
+        self ! ShowUI}
+    //Failure end of sketch
+    case CtrlEvents.SketchError(className, error) ⇒
+      logMsgD("MainController.SketchError", s"className: $className, error: $error, currentSketch: $currentSketch")
+      currentSketch.filter(_.sketch.className == className).foreach{ _ ⇒
+        logMsgE(
+          "MainController.SketchError",
+          s"Error: $error currentSketch: $currentSketch, StackTrace: \n ${error.getStackTrace.mkString("\n")}")
+        setCurrentSketchState(SketchStatus.Failed)
+        cleanCurrentSketch()
+        self ! ShowUI}
     //Sketch start timeout
-    case SketchStartTimeout ⇒
+    case SketchStartTimeout(className) ⇒
       logMsgD("MainController.SketchStartTimeout", s"Timeout: $sketchStartTimeout, currentSketch: $currentSketch")
-      currentSketch match{
-        case Some((sketch, false)) ⇒
-          logMsgE("MainController.SketchStartTimeout", s"Sketch $sketch not started in $sketchStartTimeout")
-
-          //!!! Перенести код ниже в отдельное сообщение, будет отрабатывть для всех случаев завершения работы скетча.
-
-          //Set Failed status and clear current sketch
-          sketches = sketches.map{
-            case `sketch` ⇒ sketch.withStatus(SketchStatus.Failed)
-            case s ⇒ s}
-
-          //??? Здесь посылка сообщения о разрушении WorkbenchContext'у
-
-          currentSketch = None
-          //Show UI
-          self ! ShowUI
-
-        case _ ⇒}
-
-
-
-
-
-
-
-
-
-
-
-
-
-      //!!! Далее здесь:
-      // 1) Логика выбора и конструирования екзкмпляра Workbench.
-      // 2) Конструирование WorkbenchContext по запросу NewWorkbenchContext
-      // 3) Лгика завершения работы Workbench, и подготовка к запуску нового Workbench.
-
-
-
-
-
-    //Handling of Workbench errors
-    case CtrlEvents.WorkbenchError(workbench, exception) ⇒
-      logMsgE("MainController.WorkbenchError", s"Fatal error of ${workbench.getClass.getName}, exception: $exception")
-
-      // Вызывается в случае ощибки конструирования Workbench (если было сконструировано,
-      // то обработка ошибок выполняется контроллером Workbench)
-      // Здесь логика разрушения Workbench и очистки ресурсов, и отобрадения списка скетчей
-      // !!!Можно подсветить сбойный скетч красным в списке
-
-    //Handling of stopping
+      currentSketch.filter(cs ⇒ cs.sketch.className == className && (! cs.isWorking)).foreach{ s ⇒
+        logMsgE("MainController.SketchStartTimeout", s"Timeout: $sketchStartTimeout, currentSketch: $currentSketch")
+        setCurrentSketchState(SketchStatus.Failed)
+        cleanCurrentSketch()
+        self ! ShowUI}
+    //Terminated of current sketch
+    case Terminated(actor) ⇒
+      logMsgD("MainController.Terminated", s"Terminated actor: $actor, currentSketch: $currentSketch")
+      currentSketch.filter(_.controller.contains(actor)).foreach{ _ ⇒
+        logMsgE("MainController.SketchStartTimeout", s"Timeout: $sketchStartTimeout, currentSketch: $currentSketch")
+        setCurrentSketchState(SketchStatus.Failed)
+        currentSketch = None
+        self ! ShowUI}
+    //Self normal stopping
     case DoStop ⇒
       logMsgD("MainController.DoStop", "Stopping of application.")
-
-      //Здесь логика завершения работы активного Workbench, и очистка ресурсов.\
-
+      cleanCurrentSketch()
       self ! DoTerminate(0)
+    //Error normal stopping
     case DoErrorStop ⇒
       logMsgE("MainController.DoErrorStop", "Error of application.")
-
-      //Здесь логика аварийной остановки
-
+      cleanCurrentSketch()
       self ! DoTerminate(-1)
     case DoTerminate(exitCode) ⇒
       logMsgD("MainController.DoTerminate", s"Terminate of application, exitCode: $exitCode.")

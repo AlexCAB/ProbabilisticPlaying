@@ -13,7 +13,7 @@
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 package mathact.tools.plots
-import mathact.parts.{Environment, Tool}
+import mathact.parts.{WorkbenchContext, Tool}
 import mathact.parts.plumbing._
 
 
@@ -21,7 +21,7 @@ import mathact.parts.plumbing._
   * Created by CAB on 08.05.2016.
   */
 
-abstract class YChartRecorder(implicit env: Environment) extends Tool(env, "YChartRecorder"){
+abstract class YChartRecorder(implicit context: WorkbenchContext) extends Tool(context, "YChartRecorder"){
 
 
 

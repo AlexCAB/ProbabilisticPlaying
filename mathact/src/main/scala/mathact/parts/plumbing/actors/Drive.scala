@@ -18,8 +18,7 @@ import akka.actor.SupervisorStrategy.Resume
 import akka.actor._
 import akka.event.Logging
 import mathact.parts.ActorUtils
-import mathact.parts.control.actors.Controller.StepMode
-import mathact.parts.data.PumpEvents
+import mathact.parts.data.{StepMode, PumpEvents}
 import PumpEvents.{Steady, Ready}
 
 

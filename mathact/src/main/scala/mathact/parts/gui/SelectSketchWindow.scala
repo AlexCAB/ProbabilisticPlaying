@@ -50,7 +50,7 @@ abstract class SelectSketchWindow(log: LoggingAdapter) extends JFXInteraction {
     val startBtnEImg =  new Image("sketch_start_e.png", buttonsSize, buttonsSize, true, true)
     //Definitions
     class SketchData(sketch: Sketch, onHit: String⇒Unit){
-      val className = sketch.clazz.getCanonicalName
+      val className = sketch.className
       val name = sketch.sName.getOrElse(className)
       val description = sketch.sDesc.getOrElse("---")
       val status = sketch.status match{

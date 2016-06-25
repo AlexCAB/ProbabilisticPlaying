@@ -13,9 +13,6 @@
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 package mathact.parts.data
-
-import mathact.parts.control.actors.Controller.StepMode
-
 import scalafx.scene.image.Image
 
 

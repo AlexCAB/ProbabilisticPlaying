@@ -21,9 +21,12 @@ import mathact.tools.Workbench
   */
 
 private[mathact]  object CtrlEvents {
-  case class DoStart(sketches: List[Sketch])
+  case class MainControllerStart(sketches: List[Sketch])
   case class NewWorkbenchContext(workbench: Workbench)
-  case class WorkbenchError(workbench: Workbench, exception: Throwable)
+  case object WorkbenchControllerStart
+  case object StopWorkbenchController
+  case class SketchDone(className: String)
+  case class SketchError(className: String, error: Throwable)
 
 
 

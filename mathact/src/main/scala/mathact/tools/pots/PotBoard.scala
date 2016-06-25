@@ -13,7 +13,7 @@
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 package mathact.tools.pots
-import mathact.parts.{OnStart, OnStop, Environment, Tool}
+import mathact.parts.{WorkbenchContext, OnStart, OnStop, Tool}
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -23,7 +23,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
   * Created by CAB on 08.05.2016.
   */
 
-abstract class PotBoard(implicit env: Environment) extends Tool(env, "PotBoard") with OnStart with OnStop{
+abstract class PotBoard(implicit  context: WorkbenchContext) extends Tool(context, "PotBoard") with OnStart with OnStop{
 
   protected def onStart(): Unit = println("PotBoard.onStart")
   protected def onStop(): Unit = println("PotBoard.onStop")

@@ -22,7 +22,7 @@ import mathact.tools.pots.PotBoard
   * Created by CAB on 07.05.2016.
   */
 
-abstract class Tool(env: Environment, name: String) extends Fitting{
+abstract class Tool(context: WorkbenchContext, name: String) extends Fitting{
 
 
 
@@ -35,7 +35,7 @@ abstract class Tool(env: Environment, name: String) extends Fitting{
 //  }
 
 
- private[mathact] val pump: Pump = new Pump(env, this, name)
+ private[mathact] val pump: Pump = new Pump(context, this, name)
 
 
 

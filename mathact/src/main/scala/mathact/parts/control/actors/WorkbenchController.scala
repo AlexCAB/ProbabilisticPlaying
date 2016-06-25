@@ -19,8 +19,7 @@ import javafx.stage.{Stage => jStage}
 import akka.actor.{PoisonPill, ActorRef, Actor}
 import akka.event.Logging
 import mathact.parts.ActorUtils
-import mathact.parts.control.actors.Controller.StepMode
-import mathact.parts.data.{PumpEvents, CtrlEvents}
+import mathact.parts.data.{Sketch, StepMode, PumpEvents, CtrlEvents}
 import mathact.parts.gui.{SelectSketchWindow, SketchControlWindow}
 import mathact.parts.gui.frame.Frame
 
@@ -39,26 +38,28 @@ import scalafx.stage.Stage
   * Created by CAB on 21.05.2016.
   */
 
-object Controller{
-  //Enums
-  object StepMode extends Enumeration {
-    val Asynchronously, SoftSynchronization, HardSynchronization, None = Value}
-  type StepMode = StepMode.Value}
+//object Controller{
+//  //Enums
+//  object StepMode extends Enumeration {
+//    val Asynchronously, SoftSynchronization, HardSynchronization, None = Value}
+//  type StepMode = StepMode.Value}
 
 
 //TODO !!! Удалить object Controlle, StepMode не нужен, управление будет выполнятся специальным сообщениями
 //TODO в частности "запуск на асихронное выпоение", "остановка асихроного выполения" и "шаг" для жосткого и мягкого синхронного выполения.
 
-class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor with ActorUtils{
+class WorkbenchController(sketch: Sketch) extends Actor with ActorUtils{
   //Objects
   val log = Logging.getLogger(context.system, this)
-  case object StartTimeOut
-  //Variables
-  var exitCode = 0
-  //Functions
-  def doTerminate(exitCode: Int): Unit = {
-    this.exitCode = exitCode
-    self ! PoisonPill}
+
+
+//  case object StartTimeOut
+//  //Variables
+//  var exitCode = 0
+//  //Functions
+//  def doTerminate(exitCode: Int): Unit = {
+//    this.exitCode = exitCode
+//    self ! PoisonPill}
   //UI definitions
 //  val uiSelectSketch = new SelectSketchWindow(log){
 //    def sketchSelected(index: Int): Unit = {
@@ -77,20 +78,31 @@ class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor with Actor
     def hitStep(): Unit = {println("hitStep")}
     def setSpeed(value: Double) = {println("setSpeed: " + value)}
     def switchMode(newMode: StepMode) = {println("newMode: " + newMode)}}
-  //Run start timeout
+
 
   //Messages handling
   def receive = {
+
+    //!!! Далее здесь:
+    // 1) Перечитать и удалить старый код и заметки
+    // 2) Получение Pumping актора для WorkbenchContext (создаётся заранее при конструировани, здесь только получение)
+    // 3) Нбаор состояний скетча, описаный в заметках, и алгоримт из обработки
+    // 4) Управление выполением пользовательского алгоримта выполянется в Pumping, WorkbenchController только
+    //    передаёт ему события UI.
+
+
+
+
     //Handling of starting
-    case CtrlEvents.DoStart(sketches) ⇒
-      logMsgD("Controller.DoStart", s"Starting, sketches: $sketches")
+    case CtrlEvents.WorkbenchControllerStart ⇒
+      logMsgD("Controller.WorkbenchControllerStart", s"Starting...")
       //Show select sketch UI
 
       //!!! Если гдето утановлен флажок автозапуска, список скетчей не отображается, выполняетс я сразу запуск омеченого скетча.
 
 //      tryToRun{uiSelectSketch.show(sketches)}.getOrElse{doTerminate(exitCode = -1)}
 
-      //Далее здесь:
+
       //1) Отображение списка скечей
       //2) По выбору запуск скеча (создаётся обьект класса скетчи из переданого списка)
       //3) По закрытию диалога SketchControlWindow (переименовать в SketchControlWindow) остановка скетчи, и возврат к списку
@@ -119,24 +131,24 @@ class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor with Actor
 
 
       //Create main window
-      //tryToRun{uiSketchControl.init()}.getOrElse{doTerminate(exitCode = -1)}
+      tryToRun{uiSketchControl.init()}.getOrElse{ ??? }
       //Run pumping
-      pumping ! PumpEvents.PlumbingInit(StepMode(uiSketchControl.defaultStepMode))
-
-    case PumpEvents.PlumbingStarted ⇒
-      logMsgD("Controller.PlumbingStarted", "")
-
-      uiSketchControl.setStatus("Ready to go!")
-      uiSketchControl.setEnabled(true)
-
-
-
-
-
-      //Далее здесь должна выполнятся создание UI и иницализация инсрументов. И вынести MainWindowStage в наружу.
-      //Нужно найти способ как просто взаимодействаовать с Stage-им.
-
-      println("[Controller] Receive: DoStart")
+//      pumping ! PumpEvents.PlumbingInit(StepMode(uiSketchControl.defaultStepMode))
+//
+//    case PumpEvents.PlumbingStarted ⇒
+//      logMsgD("Controller.PlumbingStarted", "")
+//
+//      uiSketchControl.setStatus("Ready to go!")
+//      uiSketchControl.setEnabled(true)
+//
+//
+//
+//
+//
+//      //Далее здесь должна выполнятся создание UI и иницализация инсрументов. И вынести MainWindowStage в наружу.
+//      //Нужно найти способ как просто взаимодействаовать с Stage-им.
+//
+//      println("[Controller] Receive: MainControllerStart")
 
 //      Platform.runLater{
 //
@@ -182,8 +194,9 @@ class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor with Actor
 
 
 
-    case x ⇒ println("[Controller] Receive: " + x)
-  }
+    //Unknown message
+    case x ⇒
+      logMsgW("MainController", "Receive unknown message: " + x)}
 
 
 
@@ -201,6 +214,8 @@ class Controller(pumping: ActorRef, doStop: Int⇒Unit) extends Actor with Actor
 //  }
 
   //On stop
-  override def postStop(): Unit = {
-    log.info(s"[Controller.postStop] Call doStop with exit code: $exitCode")
-    doStop(exitCode)}}
+//  override def postStop(): Unit = {
+//    log.info(s"[Controller.postStop] Call doStop with exit code: $exitCode")
+//    doStop(exitCode)}
+
+}

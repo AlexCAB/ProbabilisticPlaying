@@ -39,11 +39,11 @@ class ChartPotExample extends Workbench{
 
 
 
-  new Workbench{
-
-  println("Workbench init")
-
-  }
+//  new Workbench{
+//
+//  println("Workbench init")
+//
+//  }
 }
 
 

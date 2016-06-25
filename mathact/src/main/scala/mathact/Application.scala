@@ -74,7 +74,8 @@ private [mathact] object Application{
           JFXApplication.init(args, log)
           Platform.implicitExit = false
           log.debug(s"[Application.start] JFXApplication created, starting application.")
-          mainController ! CtrlEvents.DoStart(sketches)
+          mainController ! CtrlEvents.MainControllerStart(sketches)
+          state = State.Work
         case st ⇒
           throw new IllegalStateException(
             s"[Application.start] This method can be called only if App in Starting state, current state: $st")}}
@@ -87,20 +88,30 @@ private [mathact] object Application{
     * @return - MainController ActorRef or thrown exception */
   def getWorkbenchContext(workbench: Workbench): WorkbenchContext = state match{
     case State.Work ⇒
-      log.debug(s"[Application.getWorkbenchContext] Try to create WorkbenchContext for ${workbench.getClass.getName}.")
-      //Ask for new context
+      val opClassName = Option(workbench.getClass.getCanonicalName)
       val askTimeout = Timeout(creatingWorkbenchContextTimeout).duration
-      Await
-        .result(
-          ask(mainController, CtrlEvents.NewWorkbenchContext(workbench))(askTimeout).mapTo[Either[Exception,WorkbenchContext]],
-          askTimeout)
-        .fold(
-          e ⇒ {
-            log.debug(s"[Application.getWorkbenchContext] Error on ask for ${workbench.getClass.getName}, err: $e.")
-            throw e},
-          wc ⇒ {
-            log.debug(s"[Application.getWorkbenchContext] WorkbenchContext created for ${workbench.getClass.getName}.")
-            wc})
+      log.debug(
+        s"[Application.getWorkbenchContext] Try to create WorkbenchContext for workbench $workbench, " +
+        s"class name: $opClassName, askTimeout: $askTimeout.")
+      //Check className
+      opClassName match{
+        case Some(className) ⇒
+          //Ask for new context
+          Await
+            .result(
+              ask(mainController, CtrlEvents.NewWorkbenchContext(workbench))(askTimeout).mapTo[Either[Exception,WorkbenchContext]],
+              askTimeout)
+            .fold(
+              e ⇒ {
+                log.debug(s"[Application.getWorkbenchContext] Error on ask for ${workbench.getClass.getName}, err: $e.")
+                throw e},
+              wc ⇒ {
+                log.debug(s"[Application.getWorkbenchContext] WorkbenchContext created for ${workbench.getClass.getName}.")
+                wc})
+        case None ⇒
+          throw new IllegalArgumentException(
+            s"[Application.getWorkbenchContext] No canonical name of workbench class $workbench")}
+
     case st ⇒
       throw new IllegalStateException(
         s"[Application.getWorkbenchContext] This method can be called only if App in Work state, current state: $st")}}
@@ -117,7 +128,8 @@ class Application {
     def name(n: String): SketchDsl = new SketchDsl(clazz, n match{case "" ⇒ None ;case _ ⇒ Some(n)}, sDesc, isAutorun)
     def description(s: String): SketchDsl = new SketchDsl(clazz, sName, s match{case "" ⇒ None; case _ ⇒ Some(s)}, isAutorun)
     def autorun:  SketchDsl = new SketchDsl(clazz, sName, sDesc, true)
-    private[mathact] def getData:(Class[_],Option[String],Option[String],Boolean) = (clazz,sName,sDesc,isAutorun)}
+    private[mathact] def getData:(Class[_],Option[String],Option[String],Option[String],Boolean) =
+      (clazz, Option(clazz.getCanonicalName), sName, sDesc, isAutorun)}
   def sketchOf[T <: Workbench : ClassTag]: SketchDsl = new SketchDsl(classTag[T].runtimeClass,None,None,false)
   //Main
   def main(arg: Array[String]):Unit = {
@@ -126,7 +138,11 @@ class Application {
       .toList
       .map(_.getData)
       .foldRight(List[Sketch]()){
-        case (s,l) if l.exists(_.clazz.getCanonicalName == s._1.getCanonicalName) ⇒ l
-        case ((c, n, d, a),l) ⇒ Sketch(c, n, d, a match{case true ⇒ SketchStatus.Autorun; case _ ⇒ SketchStatus.Ready}) +: l}
+        case (s,l) if s._2.isEmpty ⇒
+          throw new IllegalArgumentException(s"[Application.main] No canonical class name for: $s" )
+        case (s,l) if l.exists(_.clazz.getCanonicalName == s._1.getCanonicalName) ⇒
+          l
+        case ((c, Some(cn), n, d, a), l) ⇒
+          Sketch(c, cn, n, d, a match{case true ⇒ SketchStatus.Autorun; case _ ⇒ SketchStatus.Ready}) +: l}
     //Construct Application
     Application.start(sketches, arg)}}
