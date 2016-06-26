@@ -16,8 +16,7 @@ package mathact.parts.plumbing.actors
 
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor._
-import akka.event.Logging
-import mathact.parts.ActorUtils
+import mathact.parts.BaseActor
 import mathact.parts.data.{StepMode, PumpEvents}
 import PumpEvents.{Steady, Ready}
 
@@ -26,9 +25,10 @@ import PumpEvents.{Steady, Ready}
   * Created by CAB on 15.05.2016.
   */
 
-class Drive(pumping: ActorRef) extends Actor with ActorUtils{
-  //Objects
-  val log = Logging.getLogger(context.system, this)
+class Drive(pumping: ActorRef) extends BaseActor{
+   //Supervisor strategy
+  override val supervisorStrategy = OneForOneStrategy(){
+    case _: Exception ⇒ Resume}
   //Definitions
   private object WorkMode extends Enumeration {val Creating, Starting, Work, Stopping = Value}
   //Variables
@@ -36,9 +36,8 @@ class Drive(pumping: ActorRef) extends Actor with ActorUtils{
   private var stepMode = StepMode.None
   private var state = WorkMode.Creating
   //Messages handling
-  def receive = {
+  reaction(state){
     case PumpEvents.NewImpeller(componentName) ⇒
-      logMsgD("Drive.PumpEvents", s"Creating impeller for: $componentName",state)
       //Create actor
       val impl = context.actorOf(Props(new Impeller(self)), "ImpellerOf" + componentName)
       context.watch(impl)
@@ -46,7 +45,6 @@ class Drive(pumping: ActorRef) extends Actor with ActorUtils{
       //Response
       sender ! impl
     case Ready(initStepMode) ⇒
-      logMsgD("Drive.Ready", s"Preparing to start...",state)
       //Set values
       stepMode = initStepMode
       state = WorkMode.Starting
@@ -79,12 +77,8 @@ class Drive(pumping: ActorRef) extends Actor with ActorUtils{
 
 
     case Terminated(actor) ⇒
-      logMsgD("Drive.Terminated", s"Terminated actor: $actor", state)
 
       //Если это импелер, нужно завершыть работу
 
-    case x ⇒
-      logMsgW("Drive", "Receive unknown message: " + x, state)}
-  //Supervisor strategy
-  override val supervisorStrategy = OneForOneStrategy(){
-    case _: Exception ⇒ Resume}}
+        }
+  }

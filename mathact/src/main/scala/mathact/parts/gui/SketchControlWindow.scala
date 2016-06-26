@@ -47,12 +47,12 @@ abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
   val sliderWidth = 200
   val defaultStepMode = 0 // 0 → Asynchronously, 1 → Soft synchronization, 2 → Hard synchronization
   //Callbacks
-  def windowClosed(): Unit
   def hitStart(): Unit
   def hitStop(): Unit
   def hitStep(): Unit
   def setSpeed(value: Double): Unit
   def switchMode(newMode: StepMode): Unit
+  def windowClosed(): Unit
   //Definitions
   private class MainWindowStage extends Stage {
     //Definitions
@@ -155,12 +155,18 @@ abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
   private var stage: Option[MainWindowStage] = None
   //Methods
   def init(): Unit = {
+    //Close old is exist
+    stage.foreach(stg ⇒ runAndWait(stg.close()))
+    //Create new
     stage = Some(runNow{
       val stg = new MainWindowStage
       stg.resizable = false
       stg.sizeToScene()
       stg.show()
       stg})}
+  def hide(): Unit = stage.foreach{ stg ⇒
+    runAndWait(stg.close())
+    stage = None}
   def setRun(isRan: Boolean): Unit = runAndWait{ stage.foreach{ stg ⇒ isRan match {
     case true ⇒
       stg.startBtn.setEnabled(false)

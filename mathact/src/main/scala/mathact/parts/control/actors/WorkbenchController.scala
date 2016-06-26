@@ -16,14 +16,16 @@ package mathact.parts.control.actors
 
 import javafx.stage.{Stage => jStage}
 
-import akka.actor.{PoisonPill, ActorRef, Actor}
+import akka.actor._
 import akka.event.Logging
-import mathact.parts.ActorUtils
+import mathact.parts.BaseActor
+import mathact.parts.data.CtrlEvents.GetPumpingActor
 import mathact.parts.data.{Sketch, StepMode, PumpEvents, CtrlEvents}
 import mathact.parts.gui.{SelectSketchWindow, SketchControlWindow}
 import mathact.parts.gui.frame.Frame
+import mathact.parts.plumbing.actors.Pumping
 
-import scala.util.Try
+import scala.util.{Success, Failure}
 import scalafx.application.Platform
 import scalafx.geometry.Insets
 import scalafx.scene.Scene
@@ -34,109 +36,123 @@ import scalafx.scene.paint.{LinearGradient, Stops}
 import scalafx.scene.text.Text
 import scalafx.stage.Stage
 
-/** Main application controller
+/** Workbench application controller
   * Created by CAB on 21.05.2016.
   */
 
-//object Controller{
-//  //Enums
-//  object StepMode extends Enumeration {
-//    val Asynchronously, SoftSynchronization, HardSynchronization, None = Value}
-//  type StepMode = StepMode.Value}
+class WorkbenchController(sketch: Sketch, mainController: ActorRef) extends BaseActor{
+  //Enums
+  object State extends Enumeration {val Creating, Starting, Work, Stopping, Failing, Ended  = Value}
+  //Messages
+  case object HitWindowClose
+  case class ErrorStop(error: Throwable)
+  //Variables
+  var state: State.Value = State.Creating
 
-
-//TODO !!! Удалить object Controlle, StepMode не нужен, управление будет выполнятся специальным сообщениями
-//TODO в частности "запуск на асихронное выпоение", "остановка асихроного выполения" и "шаг" для жосткого и мягкого синхронного выполения.
-
-class WorkbenchController(sketch: Sketch) extends Actor with ActorUtils{
-  //Objects
-  val log = Logging.getLogger(context.system, this)
-
-
-//  case object StartTimeOut
-//  //Variables
-//  var exitCode = 0
-//  //Functions
-//  def doTerminate(exitCode: Int): Unit = {
-//    this.exitCode = exitCode
-//    self ! PoisonPill}
   //UI definitions
-//  val uiSelectSketch = new SelectSketchWindow(log){
-//    def sketchSelected(index: Int): Unit = {
-//
-//      //!!! Может быть вызван более чем один раз
-//
-//      println("hitsSketchSelected")}
-//    def windowClosed(): Unit = {self ! CtrlEvents.DoStop}
-//  }
-
-
   val uiSketchControl = new SketchControlWindow(log){
-    def windowClosed(): Unit = {println("hitWindowClosed")}
-    def hitStart(): Unit = {println("hitStart")}
-    def hitStop(): Unit = {println("hitStep")}
-    def hitStep(): Unit = {println("hitStep")}
-    def setSpeed(value: Double) = {println("setSpeed: " + value)}
-    def switchMode(newMode: StepMode) = {println("newMode: " + newMode)}}
-
-
+    def hitStart(): Unit = {self ! CtrlEvents.HitStart}
+    def hitStop(): Unit = {self ! CtrlEvents.HitStop}
+    def hitStep(): Unit = {self ! CtrlEvents.HitStep}
+    def setSpeed(value: Double) = {self ! CtrlEvents.SetSpeed(value)}
+    def switchMode(newMode: StepMode) = {self ! CtrlEvents.SwitchMode(newMode)}
+    def windowClosed(): Unit = {self ! HitWindowClose}}
+  //Actors
+  val pumping = context.actorOf(Props(new Pumping(self)), "Pumping_" + sketch.className)
+  context.watch(pumping)
   //Messages handling
-  def receive = {
-
-    //!!! Далее здесь:
-    // 1) Перечитать и удалить старый код и заметки
-    // 2) Получение Pumping актора для WorkbenchContext (создаётся заранее при конструировани, здесь только получение)
-    // 3) Нбаор состояний скетча, описаный в заметках, и алгоримт из обработки
-    // 4) Управление выполением пользовательского алгоримта выполянется в Pumping, WorkbenchController только
-    //    передаёт ему события UI.
-
-
-
-
+  reaction(state){
+    //Return of Pumping
+    case GetPumpingActor ⇒
+      sender ! pumping
     //Handling of starting
-    case CtrlEvents.WorkbenchControllerStart ⇒
-      logMsgD("Controller.WorkbenchControllerStart", s"Starting...")
-      //Show select sketch UI
-
-      //!!! Если гдето утановлен флажок автозапуска, список скетчей не отображается, выполняетс я сразу запуск омеченого скетча.
-
-//      tryToRun{uiSelectSketch.show(sketches)}.getOrElse{doTerminate(exitCode = -1)}
-
-
-      //1) Отображение списка скечей
-      //2) По выбору запуск скеча (создаётся обьект класса скетчи из переданого списка)
-      //3) По закрытию диалога SketchControlWindow (переименовать в SketchControlWindow) остановка скетчи, и возврат к списку
-      //   где пользователь может выбрать другой скетч.
+    case CtrlEvents.WorkbenchControllerStart if state == State.Creating ⇒
+      //Show sketch UI
+      tryToRun{uiSketchControl.init()} match{
+        case Success(_) ⇒
+          //Starting of Pumping
+          pumping ! CtrlEvents.PumpingStart
+          state = State.Starting
+        case Failure(e) ⇒
+          //Fail on create UI
+          self ! ErrorStop(e)}
 
 
-
-
-
-
-
-      //    println("main")
-      //
-      //    val clazz = sketchList.head
-      //
-      //    val name = clazz.getName
-      //
-      //    println(name)
-      //
-      //
-      //    val const = clazz.getConstructors()(0)
-      //
-      //
-      //    val instance = const.newInstance().asInstanceOf[Workbench]
+       //!!!Далее здесь,
+       // 1) Сообщение о готовности от Pumping
+       // 2) Активизация UI.
+       // 3) Если автозапуск установлен, посилка сообщения CtrlEvents.HitStart
+       // 4) Обработка ошибок и завершения работы pumping-га
 
 
 
-      //Create main window
-      tryToRun{uiSketchControl.init()}.getOrElse{ ??? }
+    //UI events passed to Pumping
+    case CtrlEvents.HitStart if state == State.Work ⇒
+      pumping ! CtrlEvents.HitStart
+    case CtrlEvents.HitStop if state == State.Work ⇒
+      pumping ! CtrlEvents.HitStop
+    case CtrlEvents.HitStep if state == State.Work ⇒
+      pumping ! CtrlEvents.HitStep
+    case CtrlEvents.SetSpeed(v) if state == State.Work ⇒
+      pumping ! CtrlEvents.SetSpeed
+    case CtrlEvents.SwitchMode(v) if state == State.Work ⇒
+      pumping ! CtrlEvents.SwitchMode
+    //PumpingError(error: Throwable)
+    case CtrlEvents.PumpingError(error) ⇒
+
+      //!!! Здесь обработка ошибки Pumping
+
+
+    //Window closing
+    case HitWindowClose ⇒
+      state = State.Stopping
+
+      //!!! Здесь код для случая нормаьлного завершения
+
+      mainController ! CtrlEvents.SketchDone(sketch.className)
+    //Error stop
+    case ErrorStop(error) ⇒
+      state = State.Failing
+
+      //!!! Здесь код для случая аварийного завершения
+
+      mainController ! CtrlEvents.SketchError(sketch.className, error)
+
+    //Stop workbench controller
+    case CtrlEvents.StopWorkbenchController ⇒
+      state = State.Ended
+
+      //!!! Здесь освобожение ресурсов, в зависимости от состояния
+
+      tryToRun{uiSketchControl.hide()}
+      self ! PoisonPill
+
+
+
+    //Terminated of Pumping
+    case Terminated(actor) ⇒
+
+
+//      logMsgD("CtrlEvents.Terminated", s"Terminated actor: $actor", state)
+//      (pumping == actor, state) match{
+//        case true ⇒ self ! ErrorStop(new Exception("[CtrlEvents.Terminated] Pumping actor "))
+//
+//      }
+//      currentSketch.filter(_.controller.contains(actor)).foreach{ _ ⇒
+//        logMsgE("MainController.SketchStartTimeout", s"Timeout: $sketchStartTimeout, currentSketch: $currentSketch")
+//        setCurrentSketchState(SketchStatus.Failed)
+//        currentSketch = None
+//        self ! ShowUI}
+
+
+
+
+
       //Run pumping
 //      pumping ! PumpEvents.PlumbingInit(StepMode(uiSketchControl.defaultStepMode))
 //
 //    case PumpEvents.PlumbingStarted ⇒
-//      logMsgD("Controller.PlumbingStarted", "")
+//      logMsgD("WorkbenchController.PlumbingStarted", "")
 //
 //      uiSketchControl.setStatus("Ready to go!")
 //      uiSketchControl.setEnabled(true)
@@ -148,7 +164,7 @@ class WorkbenchController(sketch: Sketch) extends Actor with ActorUtils{
 //      //Далее здесь должна выполнятся создание UI и иницализация инсрументов. И вынести MainWindowStage в наружу.
 //      //Нужно найти способ как просто взаимодействаовать с Stage-им.
 //
-//      println("[Controller] Receive: MainControllerStart")
+//      println("[WorkbenchController] Receive: MainControllerStart")
 
 //      Platform.runLater{
 //
@@ -177,7 +193,7 @@ class WorkbenchController(sketch: Sketch) extends Actor with ActorUtils{
 
 //    case CtrlEvents.DoStop ⇒
 //
-//      println("[Controller] Receive: DoStop")
+//      println("[WorkbenchController] Receive: DoStop")
 //
 //      //Здесь остановка насосв, вызов процедур завершения инструментов и выход
 //
@@ -194,9 +210,10 @@ class WorkbenchController(sketch: Sketch) extends Actor with ActorUtils{
 
 
 
-    //Unknown message
-    case x ⇒
-      logMsgW("MainController", "Receive unknown message: " + x)}
+
+
+
+  }
 
 
 
@@ -215,7 +232,7 @@ class WorkbenchController(sketch: Sketch) extends Actor with ActorUtils{
 
   //On stop
 //  override def postStop(): Unit = {
-//    log.info(s"[Controller.postStop] Call doStop with exit code: $exitCode")
+//    log.info(s"[WorkbenchController.postStop] Call doStop with exit code: $exitCode")
 //    doStop(exitCode)}
 
 }

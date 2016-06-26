@@ -17,22 +17,21 @@ package mathact.parts
 import java.io.{PrintWriter, StringWriter}
 
 import akka.actor.{ActorRef, Actor}
-import akka.event.LoggingAdapter
+import akka.event.{Logging, LoggingAdapter}
 
 import scala.util.Try
 
 
-/** Actor helpers
+/** Base actor
   * Created by CAB on 24.05.2016.
   */
 
-trait ActorUtils { _: Actor ⇒
+abstract class BaseActor extends Actor{
   //Objects
-  val log: LoggingAdapter
+  val log: LoggingAdapter = Logging.getLogger(context.system, this)
   implicit val execContext = context.system.dispatcher
-  //Functions
-  private def buildLogMessage(title: String, msg: String, state: Any): String =
-    s"MESSAGE: [$title, sender: ${sender.path}${state match{case "" ⇒ ""; case s ⇒ ", state: " + s.toString}}] $msg"
+  //Variables
+  private var msgHandler: Option[(Option[()⇒Any], PartialFunction[Any, Unit])] = None
   //Helpers
   /** Run block and log error
     * @param block - code to run
@@ -41,18 +40,20 @@ trait ActorUtils { _: Actor ⇒
     .recover{case t: Throwable ⇒
       val sw = new StringWriter
       t.printStackTrace(new PrintWriter(sw))
-      log.error(s"[ActorUtils.tryToRun] Error: ${sw.toString}")
+      log.error(s"[BaseActor.tryToRun] Error: ${sw.toString}")
       t.printStackTrace()
       throw t}
-
-  /** Debug log of actor message
-    * @param title - String, which will in [< msg >]
-    * @param msg - Log message
-    * @param state - Actor state */
-  def logMsgD(title: String, msg: String = "", state: Any = ""): Unit = log.debug(buildLogMessage(title, msg, state))
-  def logMsgI(title: String, msg: String = "", state: Any = ""): Unit = log.info(buildLogMessage(title, msg, state))
-  def logMsgW(title: String, msg: String = "", state: Any = ""): Unit = log.warning(buildLogMessage(title, msg, state))
-  def logMsgE(title: String, msg: String = "", state: Any = ""): Unit = log.error(buildLogMessage(title, msg, state))
+  //Messages handling with logging
+  def reaction(state: ⇒ Any)(handling: PartialFunction[Any, Unit]): Unit = {
+    msgHandler = Some(Tuple2(Some(()⇒state), handling))}
+  def reaction()(handling: PartialFunction[Any, Unit]): Unit = {
+    msgHandler = Some(Tuple2(None, handling))}
+  final def receive: PartialFunction[Any, Unit] = {
+    case m ⇒ msgHandler match{
+      case Some((state, handling)) ⇒
+        log.debug(state.map(s ⇒ s"STATE: ${s()}, ").getOrElse("") + "MESSAGE: " + m)
+        handling.applyOrElse[Any, Unit](m, _ ⇒ log.warning("NOT HANDLED MESSAGE: " + m))
+      case None ⇒  log.error(s"Message handler not setup, message: $m")}}
 
 
   //TODO Add more

@@ -17,9 +17,8 @@ package mathact.parts.plumbing.actors
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor._
 import akka.event.Logging
-import mathact.parts.ActorUtils
+import mathact.parts.BaseActor
 import mathact.parts.data.{PumpEvents, CtrlEvents}
-import PumpEvents._
 import collection.mutable.{Map ⇒ MutMap}
 import scalafx.scene.image.Image
 import scala.concurrent.duration._
@@ -29,21 +28,26 @@ import scala.concurrent.duration._
   * Created by CAB on 15.05.2016.
   */
 
-class Pumping extends Actor with ActorUtils{
+class Pumping(controller: ActorRef) extends BaseActor{
   //Parameters
   val pumpStartingTimeout = 10.second
+  //Supervisor strategy
+  override val supervisorStrategy = OneForOneStrategy(){case _: Exception ⇒ Resume}
   //Objects
-  val log = Logging.getLogger(context.system, this)
-  //Definitions
-  private object WorkMode extends Enumeration {val Creating, Starting, Work, Stopping = Value}
-  private object PumpState extends Enumeration {val Created, Ready, Destroyed = Value}
-  private case class PumpData(actor: ActorRef, name: String, image: Option[Image], var state: PumpState.Value)
-  private case object StartTimeOut
+//  val log = Logging.getLogger(context.system, this)
+  //Enums
+  object WorkMode extends Enumeration {val Creating, Starting, Work, Stopping = Value}
+
+
+//  object WorkMode extends Enumeration {val Creating, Starting, Work, Stopping = Value}
+//  object PumpState extends Enumeration {val Created, Ready, Destroyed = Value}
+//  case class PumpData(actor: ActorRef, name: String, image: Option[Image], var state: PumpState.Value)
+//  case object StartTimeOut
 
   //Variables
-  private var state = WorkMode.Creating
-  private var controller: Option[ActorRef] = None
-  private val drives = MutMap[ActorRef, PumpData]()
+  var state = WorkMode.Creating
+//  var controller: Option[ActorRef] = None
+//  val drives = MutMap[ActorRef, PumpData]()
 
 
 
@@ -52,24 +56,34 @@ class Pumping extends Actor with ActorUtils{
 
 
   //Messages handling
-  def receive = {
-
-
-
-
-
-//    case NewDrive(name, image) ⇒
-//      logMsgD("Pumping.NewDrive", s"New drive with name: $name, image: $image", state)
-//      //New actor
-//      val drive = context.actorOf(Props(new Drive(self)), "DriveOf" + name)
-//      context.watch(drive)
+  reaction(state){
+    //Creating of new drive actor
+    case PumpEvents.NewDrive(name, image) ⇒
+      //New actor
+      val drive = context.actorOf(Props(new Drive(self)), "DriveOf" + name)
+      context.watch(drive)
 //      drives += (drive → PumpData(drive, name, image, PumpState.Created))
 //      //Do init if pumping in started or in work mode
-//
-//      //TODO
-//
-//      //Response
-//      sender ! drive
+
+      //TODO
+
+      //Response
+      sender ! drive
+    //Starting
+    case CtrlEvents.PumpingStart(initSpeed, initStepMode) ⇒
+
+
+      //!!!Далее здесь
+      // 1) Двух этапный, синхронный запуск всех зарегестрированых Drive (конструирование и инициализация)
+      // 2) Посылка сообщения контроллеру о готовности
+      // 3) Обработка завершения работы и ошибок.
+
+
+
+
+
+
+
 //    case PlumbingInit(stepMode) ⇒
 //      logMsgD("Pumping.PlumbingInit", s"Init, stepMode: $stepMode, created drives: $drives", state)
 //      state = WorkMode.Starting
@@ -115,8 +129,4 @@ class Pumping extends Actor with ActorUtils{
 //          //Remove from list
 //          drives -= actor
 //        case _ ⇒}
-    case x ⇒
-      logMsgW("Pumping", "Receive unknown message: " + x, state)}
-  //Supervisor strategy
-  override val supervisorStrategy = OneForOneStrategy(){
-    case _: Exception ⇒ Resume}}
+  }}
