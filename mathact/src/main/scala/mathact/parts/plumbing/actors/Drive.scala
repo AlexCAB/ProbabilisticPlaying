@@ -17,8 +17,7 @@ package mathact.parts.plumbing.actors
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor._
 import mathact.parts.BaseActor
-import mathact.parts.data.{StepMode, PumpEvents}
-import PumpEvents.{Steady, Ready}
+import mathact.parts.data.Msg
 
 
 /** Manage impeller actor
@@ -33,21 +32,43 @@ class Drive(pumping: ActorRef) extends BaseActor{
   private object WorkMode extends Enumeration {val Creating, Starting, Work, Stopping = Value}
   //Variables
   private var impeller: Option[ActorRef] = None
-  private var stepMode = StepMode.None
+//  private var stepMode = StepMode.None
   private var state = WorkMode.Creating
   //Messages handling
   reaction(state){
-    case PumpEvents.NewImpeller(componentName) ⇒
+    //Creating of new impeller
+    case Msg.NewImpeller(componentName) ⇒
       //Create actor
       val impl = context.actorOf(Props(new Impeller(self)), "ImpellerOf" + componentName)
       context.watch(impl)
       impeller = Some(impl)
       //Response
       sender ! impl
-    case Ready(initStepMode) ⇒
-      //Set values
-      stepMode = initStepMode
-      state = WorkMode.Starting
+    //Building
+    case Msg.BuildDrive ⇒
+
+      //TODO
+
+      sender ! Msg.DriveBuilt
+    //Starting
+    case Msg.StartDrive ⇒
+
+      //TODO
+
+      sender ! Msg.DriveStarted
+
+
+
+
+
+
+
+
+
+//    case Ready(initStepMode) ⇒
+//      //Set values
+//      stepMode = initStepMode
+//      state = WorkMode.Starting
       //
 
       //TODO ???
@@ -69,14 +90,15 @@ class Drive(pumping: ActorRef) extends BaseActor{
       // посланы сообщения но доставлены будут толко когда отработает инит адресата). Так же сообщения престают
       // отпаралятся сразу перед отработкой стоп функции.
 
-      Thread.sleep(1000)
-
-
-      pumping ! Steady
-
-
-
-    case Terminated(actor) ⇒
+//      Thread.sleep(1000)
+//
+//
+//      pumping ! Steady
+//
+//
+//
+//    case Terminated(actor) ⇒
+    case x ⇒ println("[Drive] Unknown message " + x)
 
       //Если это импелер, нужно завершыть работу
 

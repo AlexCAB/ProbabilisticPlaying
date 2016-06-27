@@ -15,7 +15,7 @@
 package mathact.tools
 
 import mathact.Application
-import mathact.parts.data.CtrlEvents
+import mathact.parts.data.Msg
 import mathact.parts.plumbing.{Fitting, Pump}
 import mathact.parts.Tool
 import scalafx.application.JFXApp
@@ -35,7 +35,7 @@ import scalafx.scene.text.Text
 
 abstract class Workbench { //extends Fitting{
   //Get of WorkbenchContext
-  private val context = Application.getWorkbenchContext(this)
+  protected implicit val context = Application.getWorkbenchContext(this)
 
 
   //!!! Workbench должен зарегистировать себя и получить свой собсвенный controller и pumping
@@ -76,7 +76,7 @@ abstract class Workbench { //extends Fitting{
 ////
 ////  def main(arg:Array[String]):Unit = {
 ////    //Starting of main controller
-////    environment.controller ! CtrlEvents.MainControllerStart
+////    environment.controller ! Msg.MainControllerStart
 ////
 ////
 ////     //До вызова этого метода акторы могут обмениватся только конструкционными сообщениями (NewDrive, NewImpeller)

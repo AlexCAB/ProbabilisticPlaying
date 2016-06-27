@@ -16,7 +16,7 @@ package mathact.parts
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.util.Timeout
-import mathact.parts.data.CtrlEvents
+import mathact.parts.data.Msg
 import scala.concurrent.duration._
 import scala.concurrent.Await
 import akka.pattern.ask
@@ -31,7 +31,7 @@ class WorkbenchContext(val system: ActorSystem, val controller: ActorRef) {
   private implicit val askTimeout = Timeout(5.seconds)
   //Get pumping actor
   val pumping: ActorRef = Await
-    .result(ask(controller, CtrlEvents.GetPumpingActor).mapTo[ActorRef], askTimeout.duration)
+    .result(ask(controller, Msg.GetPumpingActor).mapTo[ActorRef], askTimeout.duration)
 
   println(pumping)
 

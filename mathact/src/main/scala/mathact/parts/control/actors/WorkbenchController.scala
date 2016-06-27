@@ -19,8 +19,8 @@ import javafx.stage.{Stage => jStage}
 import akka.actor._
 import akka.event.Logging
 import mathact.parts.BaseActor
-import mathact.parts.data.CtrlEvents.GetPumpingActor
-import mathact.parts.data.{Sketch, StepMode, PumpEvents, CtrlEvents}
+import mathact.parts.data.Msg.GetPumpingActor
+import mathact.parts.data.{Sketch, StepMode, Msg}
 import mathact.parts.gui.{SelectSketchWindow, SketchControlWindow}
 import mathact.parts.gui.frame.Frame
 import mathact.parts.plumbing.actors.Pumping
@@ -51,14 +51,14 @@ class WorkbenchController(sketch: Sketch, mainController: ActorRef) extends Base
 
   //UI definitions
   val uiSketchControl = new SketchControlWindow(log){
-    def hitStart(): Unit = {self ! CtrlEvents.HitStart}
-    def hitStop(): Unit = {self ! CtrlEvents.HitStop}
-    def hitStep(): Unit = {self ! CtrlEvents.HitStep}
-    def setSpeed(value: Double) = {self ! CtrlEvents.SetSpeed(value)}
-    def switchMode(newMode: StepMode) = {self ! CtrlEvents.SwitchMode(newMode)}
+    def hitStart(): Unit = {self ! Msg.HitStart}
+    def hitStop(): Unit = {self ! Msg.HitStop}
+    def hitStep(): Unit = {self ! Msg.HitStep}
+    def setSpeed(value: Double) = {self ! Msg.SetSpeed(value)}
+    def switchMode(newMode: StepMode) = {self ! Msg.SwitchMode(newMode)}
     def windowClosed(): Unit = {self ! HitWindowClose}}
   //Actors
-  val pumping = context.actorOf(Props(new Pumping(self)), "Pumping_" + sketch.className)
+  val pumping = context.actorOf(Props(new Pumping(self, sketch)), "Pumping_" + sketch.className)
   context.watch(pumping)
   //Messages handling
   reaction(state){
@@ -66,39 +66,57 @@ class WorkbenchController(sketch: Sketch, mainController: ActorRef) extends Base
     case GetPumpingActor ⇒
       sender ! pumping
     //Handling of starting
-    case CtrlEvents.WorkbenchControllerStart if state == State.Creating ⇒
+    case Msg.WorkbenchControllerStart if state == State.Creating ⇒
       //Show sketch UI
       tryToRun{uiSketchControl.init()} match{
         case Success(_) ⇒
           //Starting of Pumping
-          pumping ! CtrlEvents.PumpingStart
+          pumping ! Msg.StartPumping(uiSketchControl.getInitSpeed, uiSketchControl.getInitStepMode)
           state = State.Starting
         case Failure(e) ⇒
           //Fail on create UI
           self ! ErrorStop(e)}
+    //Pumping is ready
+    case Msg.PumpingStarted if state == State.Starting ⇒
+      //Enable UI
+      tryToRun{uiSketchControl.setEnabled(true)} match{
+        case Success(_) ⇒
+          //If autorun then start Pumping
+
+          //TODO Добавить autorun метод в Workbench DSL и получать его знаение, если аквтозапуск то посылка Msg.HitStart
+
+          //Update state
+          state = State.Work
+        case Failure(e) ⇒
+          self ! ErrorStop(e)}
+
 
 
        //!!!Далее здесь,
-       // 1) Сообщение о готовности от Pumping
-       // 2) Активизация UI.
-       // 3) Если автозапуск установлен, посилка сообщения CtrlEvents.HitStart
-       // 4) Обработка ошибок и завершения работы pumping-га
-
+       // 1) Если автозапуск установлен, посилка сообщения Msg.HitStart
+       // 2) Обработка ошибок и завершения работы pumping-га
+       //    Нормальное завершение это саморазрушение (детектится по Terminated) в состоянии Stopping,
+       //    иначе аварийное завршение.
+       //    Аварийное завршение pumping-га приводи только к соответсвующему сообщению в UI логе. Для завершения
+       //    пользоватль всегда нажымает "закрыть" (чтобы он мог прочитаь лог).
+       // 3) Окно лога в UI должно быть многостроковым чтобы пользователь могпростматировать всю историю запуска
+       //    и выполнения скетча.
+       //    Так же нужно подсвечивать
 
 
     //UI events passed to Pumping
-    case CtrlEvents.HitStart if state == State.Work ⇒
-      pumping ! CtrlEvents.HitStart
-    case CtrlEvents.HitStop if state == State.Work ⇒
-      pumping ! CtrlEvents.HitStop
-    case CtrlEvents.HitStep if state == State.Work ⇒
-      pumping ! CtrlEvents.HitStep
-    case CtrlEvents.SetSpeed(v) if state == State.Work ⇒
-      pumping ! CtrlEvents.SetSpeed
-    case CtrlEvents.SwitchMode(v) if state == State.Work ⇒
-      pumping ! CtrlEvents.SwitchMode
+    case Msg.HitStart if state == State.Work ⇒
+      pumping ! Msg.HitStart
+    case Msg.HitStop if state == State.Work ⇒
+      pumping ! Msg.HitStop
+    case Msg.HitStep if state == State.Work ⇒
+      pumping ! Msg.HitStep
+    case Msg.SetSpeed(v) if state == State.Work ⇒
+      pumping ! Msg.SetSpeed
+    case Msg.SwitchMode(v) if state == State.Work ⇒
+      pumping ! Msg.SwitchMode(v)
     //PumpingError(error: Throwable)
-    case CtrlEvents.PumpingError(error) ⇒
+    case Msg.PumpingError(error) ⇒
 
       //!!! Здесь обработка ошибки Pumping
 
@@ -109,17 +127,17 @@ class WorkbenchController(sketch: Sketch, mainController: ActorRef) extends Base
 
       //!!! Здесь код для случая нормаьлного завершения
 
-      mainController ! CtrlEvents.SketchDone(sketch.className)
+      mainController ! Msg.SketchDone(sketch.className)
     //Error stop
     case ErrorStop(error) ⇒
       state = State.Failing
 
       //!!! Здесь код для случая аварийного завершения
 
-      mainController ! CtrlEvents.SketchError(sketch.className, error)
+      mainController ! Msg.SketchError(sketch.className, error)
 
     //Stop workbench controller
-    case CtrlEvents.StopWorkbenchController ⇒
+    case Msg.StopWorkbenchController ⇒
       state = State.Ended
 
       //!!! Здесь освобожение ресурсов, в зависимости от состояния
@@ -133,9 +151,9 @@ class WorkbenchController(sketch: Sketch, mainController: ActorRef) extends Base
     case Terminated(actor) ⇒
 
 
-//      logMsgD("CtrlEvents.Terminated", s"Terminated actor: $actor", state)
+//      logMsgD("Msg.Terminated", s"Terminated actor: $actor", state)
 //      (pumping == actor, state) match{
-//        case true ⇒ self ! ErrorStop(new Exception("[CtrlEvents.Terminated] Pumping actor "))
+//        case true ⇒ self ! ErrorStop(new Exception("[Msg.Terminated] Pumping actor "))
 //
 //      }
 //      currentSketch.filter(_.controller.contains(actor)).foreach{ _ ⇒
@@ -179,7 +197,7 @@ class WorkbenchController(sketch: Sketch, mainController: ActorRef) extends Base
 
 
 //
-//    case CtrlEvents.FatalError(message) ⇒
+//    case Msg.FatalError(message) ⇒
 //
 //      uiSketchControl.setStatus("Fatal error: " + message)
 //
@@ -191,7 +209,7 @@ class WorkbenchController(sketch: Sketch, mainController: ActorRef) extends Base
 
 
 
-//    case CtrlEvents.DoStop ⇒
+//    case Msg.DoStop ⇒
 //
 //      println("[WorkbenchController] Receive: DoStop")
 //

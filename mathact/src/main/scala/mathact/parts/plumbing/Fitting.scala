@@ -64,7 +64,7 @@ trait Fitting {
   protected object Outlet{
     def apply[T,H](v: T with Outlet[H]): T with Plug[H] = {
 
-throw new Exception("Ops!!!")
+//throw new Exception("Ops!!!")
 
 
       pump match{
@@ -73,7 +73,7 @@ throw new Exception("Ops!!!")
 
         //Проверка зарегестрирован ли уже Outlet, если зарегистрирован ничего не делать
 
-        pump.log.debug("[Fitting.Outlet.apply]")
+//        pump.log.debug("[Fitting.Outlet.apply]")
 
 
 

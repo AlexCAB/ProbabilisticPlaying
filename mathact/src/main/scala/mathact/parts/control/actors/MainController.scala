@@ -18,7 +18,7 @@ import java.util.concurrent.ExecutionException
 
 import akka.actor._
 import mathact.parts.{WorkbenchContext, BaseActor}
-import mathact.parts.data.{SketchStatus, Sketch, CtrlEvents}
+import mathact.parts.data.{SketchStatus, Sketch, Msg}
 import mathact.parts.gui.SelectSketchWindow
 import mathact.tools.Workbench
 
@@ -59,12 +59,12 @@ class MainController(doStop: Int⇒Unit) extends BaseActor{
       case s if s.className == cs.sketch.className ⇒ s.withStatus(newStat)
       case s ⇒ s}}
   def cleanCurrentSketch(): Unit = {
-    currentSketch.foreach(_.controller.foreach(_ ! CtrlEvents.StopWorkbenchController))
+    currentSketch.foreach(_.controller.foreach(_ ! Msg.StopWorkbenchController))
     currentSketch = None}
   //Messages handling
   reaction(){
     //Handling of starting
-    case CtrlEvents.MainControllerStart(sketchList) ⇒
+    case Msg.MainControllerStart(sketchList) ⇒
       sketches = sketchList
       //Check if there is autoruned
       sketchList.find(_.status == SketchStatus.Autorun) match{
@@ -84,7 +84,7 @@ class MainController(doStop: Int⇒Unit) extends BaseActor{
       (currentSketch, sketches.find(_.className == className)) match{
         case (None, Some(sketch)) ⇒
           currentSketch = Some(CurrentSketch(sketch, isWorking = false, None))
-          //Start creating timeout
+          //Starting creating timeout
           context.system.scheduler.scheduleOnce(sketchStartTimeout, self, SketchStartTimeout(className))
           //Hid UI
           tryToRun{uiSelectSketch.hide()}
@@ -92,15 +92,15 @@ class MainController(doStop: Int⇒Unit) extends BaseActor{
           Future{sketch.clazz.newInstance()}
             .map{ _ ⇒ self ! SketchStarted(className)}
             .recover{
-              case t: ExecutionException ⇒ self ! CtrlEvents.SketchError(className, t.getCause)
-              case t: Throwable ⇒ self ! CtrlEvents.SketchError(className, t)}
+              case t: ExecutionException ⇒ self ! Msg.SketchError(className, t.getCause)
+              case t: Throwable ⇒ self ! Msg.SketchError(className, t)}
         case (Some(curSketch), _) if curSketch.sketch.className != className ⇒
           log.warning(s"[MainController.RunSketch] Current sketch $curSketch not ended.")
         case (_, None) ⇒
           log.error(s"[MainController.RunSketch] Not found sketch for className: $className")
         case _ ⇒}
     //Creating of new WorkbenchContext instance, return Either[Exception,WorkbenchContext]
-    case CtrlEvents.NewWorkbenchContext(workbench: Workbench) ⇒
+    case Msg.NewWorkbenchContext(workbench: Workbench) ⇒
       (currentSketch, Option(workbench.getClass.getCanonicalName)) match {
         case (Some(s), Some(cn)) if s.sketch.className == cn ⇒
           //Create WorkbenchContext
@@ -117,20 +117,20 @@ class MainController(doStop: Int⇒Unit) extends BaseActor{
     case SketchStarted(className) ⇒
       currentSketch.filter(_.sketch.className == className).foreach{
         case s if s.controller.nonEmpty ⇒
-          s.controller.foreach(_ ! CtrlEvents.WorkbenchControllerStart)
+          s.controller.foreach(_ ! Msg.WorkbenchControllerStart)
           currentSketch = currentSketch.map(_.started())
         case s ⇒
-          self ! CtrlEvents.SketchError(className, new Exception(
+          self ! Msg.SketchError(className, new Exception(
             s"[MainController.SketchStarted] Workbench controller not created, current sketch: $currentSketch"))}
     //Normal end of sketch
-    case CtrlEvents.SketchDone(className) ⇒
+    case Msg.SketchDone(className) ⇒
       currentSketch.filter(_.sketch.className == className).foreach{ _ ⇒
         log.info(s"[MainController.SketchDone] Current sketch: $currentSketch")
         setCurrentSketchState(SketchStatus.Ended)
         cleanCurrentSketch()
         self ! ShowUI}
     //Failure end of sketch
-    case CtrlEvents.SketchError(className, error) ⇒
+    case Msg.SketchError(className, error) ⇒
       currentSketch.filter(_.sketch.className == className).foreach{ _ ⇒
         log.error(
           s"[MainController.SketchError] Error: $error currentSketch: $currentSketch, " +

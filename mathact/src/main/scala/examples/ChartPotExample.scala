@@ -44,7 +44,7 @@ class ChartPotExample extends Workbench{
 //  println("Workbench init")
 //
 //  }
-}
+//}
 
 
 
@@ -70,19 +70,19 @@ class ChartPotExample extends Workbench{
 //
 //
 //
-//  val pots = new PotBoard{      //Создание компонента с выходвми
-//
-////    val pot1 = Outlet(new Pot(1,2, None))    //Регистрация выхода
-//
-//    val pot2 = pot(2,3)               //егистрация выхода, вариант с DSL
-//
-//
-////    pot(chart.out1)                  //Рекурсивное связание
-//
-//
-//
-//
-//  }
+  val pots = new PotBoard{      //Создание компонента с выходвми
+
+//    val pot1 = Outlet(new Pot(1,2, None))    //Регистрация выхода
+
+    val pot2 = pot(2,3)               //егистрация выхода, вариант с DSL
+
+
+//    pot(chart.out1)                  //Рекурсивное связание
+
+
+
+
+  }
 //
 //
 //
@@ -108,7 +108,7 @@ class ChartPotExample extends Workbench{
 //
 //
 //
-//  }
+  }
 
 
 

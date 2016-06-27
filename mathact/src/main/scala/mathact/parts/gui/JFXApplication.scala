@@ -38,7 +38,7 @@ private [mathact] object JFXApplication{
     * @param args - Array[String], application arguments from def main()
     * @param log - LoggingAdapter, logging. */
   def init(args: Array[String], log: LoggingAdapter): Unit = {
-    //Start app
+    //Starting app
     log.debug("[JFXApplication.init] Try to start Java FX.")
     Future{
       Application.launch(classOf[JFXApplication], args: _*)}

@@ -19,7 +19,7 @@ import akka.event.Logging
 import akka.util.Timeout
 import mathact.parts.WorkbenchContext
 import mathact.parts.control.actors.MainController
-import mathact.parts.data.{SketchStatus, Sketch, CtrlEvents}
+import mathact.parts.data.{SketchStatus, Sketch, Msg}
 import mathact.parts.gui.JFXApplication
 import mathact.tools.Workbench
 import scala.collection.mutable.{ArrayBuffer ⇒ MutList}
@@ -74,7 +74,7 @@ private [mathact] object Application{
           JFXApplication.init(args, log)
           Platform.implicitExit = false
           log.debug(s"[Application.start] JFXApplication created, starting application.")
-          mainController ! CtrlEvents.MainControllerStart(sketches)
+          mainController ! Msg.MainControllerStart(sketches)
           state = State.Work
         case st ⇒
           throw new IllegalStateException(
@@ -99,7 +99,7 @@ private [mathact] object Application{
           //Ask for new context
           Await
             .result(
-              ask(mainController, CtrlEvents.NewWorkbenchContext(workbench))(askTimeout).mapTo[Either[Exception,WorkbenchContext]],
+              ask(mainController, Msg.NewWorkbenchContext(workbench))(askTimeout).mapTo[Either[Exception,WorkbenchContext]],
               askTimeout)
             .fold(
               e ⇒ {

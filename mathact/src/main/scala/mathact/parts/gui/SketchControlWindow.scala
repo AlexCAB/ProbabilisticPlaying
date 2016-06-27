@@ -40,12 +40,12 @@ import javafx.beans.value.ObservableValue
 
 abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
   //Parameters
+  val initSpeed = 10.0
+  val initStepMode = StepMode.Asynchronously
   val speedSliderDiapason = 100.0
-  val speedSliderInit = 10.0
   val speedSliderStep = 0.5
   val buttonsSize = 25
   val sliderWidth = 200
-  val defaultStepMode = 0 // 0 → Asynchronously, 1 → Soft synchronization, 2 → Hard synchronization
   //Callbacks
   def hitStart(): Unit
   def hitStop(): Unit
@@ -78,7 +78,7 @@ abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
           graphic = dImg
           disable = true}}
     //Variables
-    private var oldSliderPos = speedSliderInit
+    private var oldSliderPos = initSpeed
     //Close operation
     delegate.setOnCloseRequest(new EventHandler[WindowEvent]{
       def handle(event: WindowEvent): Unit = {
@@ -92,7 +92,7 @@ abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
     val speedSlider = new Slider{
       min = 0
       max = speedSliderDiapason
-      value = speedSliderInit
+      value = initSpeed
       showTickLabels = true
       showTickMarks = true
       majorTickUnit = 20
@@ -117,7 +117,7 @@ abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
       prefHeight = buttonsSize
       items = options
       disable = true
-      delegate.getSelectionModel.select(options(defaultStepMode))
+      delegate.getSelectionModel.select(options(initStepMode.id))
       onAction = handle{
         switchMode(StepMode(delegate.getSelectionModel.getSelectedIndex))}}
      val stateString = new Text {
@@ -167,6 +167,8 @@ abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
   def hide(): Unit = stage.foreach{ stg ⇒
     runAndWait(stg.close())
     stage = None}
+  def getInitSpeed: Double = initSpeed
+  def getInitStepMode: StepMode = initStepMode
   def setRun(isRan: Boolean): Unit = runAndWait{ stage.foreach{ stg ⇒ isRan match {
     case true ⇒
       stg.startBtn.setEnabled(false)
