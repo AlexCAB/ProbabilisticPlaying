@@ -44,6 +44,20 @@ class Drive(pumping: ActorRef) extends BaseActor{
       impeller = Some(impl)
       //Response
       sender ! impl
+    //Adding of Outlet
+    case Msg.AddOutlet(pipe) ⇒
+
+      //Проверка зарегестрирован ли уже Outlet, если зарегистрирован ничего не делать
+
+      //TODO
+
+      sender ! Right(true) //isAdded
+    //Adding of Inlet
+    case Msg.AddInlet(pipe) ⇒
+
+      //TODO
+
+      sender ! Right(true) //isAdded
     //Building
     case Msg.BuildDrive ⇒
 
@@ -56,6 +70,17 @@ class Drive(pumping: ActorRef) extends BaseActor{
       //TODO
 
       sender ! Msg.DriveStarted
+
+
+      //!!! Далее здесь:
+      // 1) По Msg.AddOutlet и Msg.BuildDrive создание соответсвующей инфраструктуры (список подписчиков для выхода,
+      //    очередь сообщений для входа)
+      // 2) При подключении до сообщения BuildDrive, добавлять подключение в список отложеных и по получении
+      //    BuildDrive создавать подключение. Для подключений после BuildDrive создавть немедленно.
+      //    Соответсвенно обрабатывать отключение.
+      // 3) По StartDrive выпролнять пользоватльские функции инициализации (по средством импеллера).
+
+
 
 
 

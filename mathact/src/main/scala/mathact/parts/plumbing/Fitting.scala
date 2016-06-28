@@ -60,47 +60,20 @@ trait Fitting {
 //
 //  }
 
-
+  //Registration if Outlet
   protected object Outlet{
-    def apply[T,H](v: T with Outlet[H]): T with Plug[H] = {
-
-//throw new Exception("Ops!!!")
-
-
-      pump match{
-      case null ⇒
-      case p ⇒}
-
-        //Проверка зарегестрирован ли уже Outlet, если зарегистрирован ничего не делать
-
-//        pump.log.debug("[Fitting.Outlet.apply]")
-
-
-
-
-
-
-      //Здесь  в Outlet должна инжектица Pump (можно росто добавить метод), который можно будет вызвать только раз
-      //Чтобы не переопределяли помпу
-      //И соответственно добавить медод получения помпы
-      v
-    }
-  }
-
+    def apply[T,H](out: T with Outlet[H]): T with Plug[H] = { //If pump set, inject it to Outlet and register Outlet
+      Option(pump).foreach{ p ⇒
+        p.addOutlet(out)
+        out.injectPump(p)}
+      out}}
+  //Registration if Inlet
   protected object Inlet{
-
-
-    def apply[T,H](v: T with Inlet[H]): T with Socket[H] = {
-
-
-      //Здесь регистрируется новый Inlet
-
-      //!!! Нужно проверять, зарегистрирован ли уже данный Inlet, иесли да ничего не деллать
-
-
-      v
-    }
-  }
+    def apply[T,H](in: T with Inlet[H]): T with Socket[H] = {
+      Option(pump).foreach{ p ⇒
+        p.addInlet(in)
+        in.injectPump(p)}
+      in}}
 
 
 

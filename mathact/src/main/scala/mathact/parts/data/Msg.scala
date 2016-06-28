@@ -14,6 +14,7 @@
 
 package mathact.parts.data
 
+import mathact.parts.plumbing.fitting.{Inlet, Outlet, Pipe}
 import mathact.tools.Workbench
 
 import scalafx.scene.image.Image
@@ -44,6 +45,8 @@ private[mathact]  object Msg {
   //Pumping - Drive
   case class NewDrive(name: String, image: Option[Image])     //Mane and image for display in UI
   case class NewImpeller(name: String)
+  case class AddOutlet(pipe: Outlet[_])
+  case class AddInlet(pipe: Inlet[_])
   case object BuildDrive
   case object DriveBuilt
   case object StartDrive

@@ -19,6 +19,7 @@ import akka.event.Logging
 import akka.pattern.ask
 import akka.util.Timeout
 import mathact.parts.data.Msg
+import mathact.parts.plumbing.fitting.{Inlet, Outlet}
 import mathact.parts.{WorkbenchContext, OnStart, OnStop}
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -33,7 +34,7 @@ class Pump(context: WorkbenchContext, tool: Fitting, toolName: String, toolImage
   //Parameters
   private implicit val askTimeout = Timeout(5.seconds)
   //Logging
-//  private val loger = Logging.getLogger(context.system, this)
+  val log = Logging.getLogger(context.system, this)
 //  object log {
 //    def debug(msg: String): Unit = loger.debug(s"[$toolName] $msg")
 //    def info(msg: String): Unit = loger.info(s"[$toolName] $msg")
@@ -45,7 +46,7 @@ class Pump(context: WorkbenchContext, tool: Fitting, toolName: String, toolImage
     .fold(t ⇒ throw t, d ⇒ d)
 
 //  private val impeller: ActorRef =
-//    Await.result(ask(drive, PumpEvents.NewImpeller(toolName)).mapTo[ActorRef], askTimeout.duration)
+//    Await.result(ask(drive, Msg.NewImpeller(toolName)).mapTo[ActorRef], askTimeout.duration)
 //
 //
 //
@@ -63,6 +64,26 @@ class Pump(context: WorkbenchContext, tool: Fitting, toolName: String, toolImage
     case os: OnStop ⇒  os.doStop()
     case _ ⇒ println("NOT OnStop")
   }
+
+  //Functions
+  private def addPipe(msg: Any): Boolean = Await
+    .result(
+      ask(drive, msg).mapTo[Either[Throwable,Boolean]],
+      askTimeout.duration)
+    .fold(
+      t ⇒ {
+        log.error(s"[Pump.addPipe] Error on adding of pipe, msg: $msg, error: $t")
+        throw t},
+      d ⇒ {
+        log.debug(s"[Pump.addPipe] Pump added, isAdded: $d")
+        d})
+  //Methods
+  private[mathact] def addOutlet(pipe: Outlet[_]): Boolean = addPipe(Msg.AddOutlet(pipe))
+  private[mathact] def addInlet(pipe: Inlet[_]): Boolean = addPipe(Msg.AddInlet(pipe))
+
+
+
+
 
 
 
