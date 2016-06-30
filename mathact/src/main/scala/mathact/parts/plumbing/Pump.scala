@@ -35,6 +35,7 @@ class Pump(context: WorkbenchContext, tool: Fitting, toolName: String, toolImage
   private implicit val askTimeout = Timeout(5.seconds)
   //Logging
   val log = Logging.getLogger(context.system, this)
+  log.info(s"[Pump.<init>] Creating of tool: $tool, name: $toolName")
 //  object log {
 //    def debug(msg: String): Unit = loger.debug(s"[$toolName] $msg")
 //    def info(msg: String): Unit = loger.info(s"[$toolName] $msg")
@@ -66,9 +67,9 @@ class Pump(context: WorkbenchContext, tool: Fitting, toolName: String, toolImage
   }
 
   //Functions
-  private def addPipe(msg: Any): Boolean = Await
+  private def addPipe(msg: Any): Int = Await
     .result(
-      ask(drive, msg).mapTo[Either[Throwable,Boolean]],
+      ask(drive, msg).mapTo[Either[Throwable,Int]],
       askTimeout.duration)
     .fold(
       t ⇒ {
@@ -78,8 +79,8 @@ class Pump(context: WorkbenchContext, tool: Fitting, toolName: String, toolImage
         log.debug(s"[Pump.addPipe] Pump added, isAdded: $d")
         d})
   //Methods
-  private[mathact] def addOutlet(pipe: Outlet[_]): Boolean = addPipe(Msg.AddOutlet(pipe))
-  private[mathact] def addInlet(pipe: Inlet[_]): Boolean = addPipe(Msg.AddInlet(pipe))
+  private[mathact] def addOutlet(pipe: Outlet[_]): Int = addPipe(Msg.AddOutlet(pipe))
+  private[mathact] def addInlet(pipe: Inlet[_]): Int = addPipe(Msg.AddInlet(pipe))
 
 
 

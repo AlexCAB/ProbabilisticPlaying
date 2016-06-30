@@ -86,11 +86,12 @@ class ChartPotExample extends Workbench{
 //
 //
 //
-//  val chart: YChartRecorder{val out1 : Outlet[Double]} = new YChartRecorder{    //Создание компоненеа с входами
+//  val chart: YChartRecorder{val out1 : Outlet[Double]} = new YChartRecorder{    //Создание компоненеа с входами и выходом
+  val chart = new YChartRecorder{    //Создание компоненеа с входами
 //
 //
 //
-//    line("line1").of(pots.pot2)    //Регистрация вход c DSL
+    line("line1").of(pots.pot2)    //Регистрация вход c DSL
 //
 //
 //
@@ -109,41 +110,4 @@ class ChartPotExample extends Workbench{
 //
 //
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//}
+}

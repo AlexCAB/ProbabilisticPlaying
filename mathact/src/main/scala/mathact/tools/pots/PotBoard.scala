@@ -50,11 +50,11 @@ abstract class PotBoard(implicit  context: WorkbenchContext) extends Tool(contex
 //    push(10)       //Посылка значения на выход
 
 
-    Future{
-      (0 to 10).foreach{ i ⇒
-        push(i)
-        Thread.sleep(1000)}
-    }
+//    Future{
+//      (0 to 10).foreach{ i ⇒
+//        push(i)
+//        Thread.sleep(1000)}
+//    }
 
 
 
