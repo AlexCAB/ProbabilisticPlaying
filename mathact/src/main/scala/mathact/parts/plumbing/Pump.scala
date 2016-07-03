@@ -34,14 +34,14 @@ class Pump(context: WorkbenchContext, tool: Fitting, toolName: String, toolImage
   //Parameters
   private implicit val askTimeout = Timeout(5.seconds)
   //Logging
-  val log = Logging.getLogger(context.system, this)
-  log.info(s"[Pump.<init>] Creating of tool: $tool, name: $toolName")
-//  object log {
-//    def debug(msg: String): Unit = loger.debug(s"[$toolName] $msg")
-//    def info(msg: String): Unit = loger.info(s"[$toolName] $msg")
-//    def warning(msg: String): Unit = loger.warning(s"[$toolName] $msg")
-//    def error(msg: String): Unit = loger.error(s"[$toolName] $msg")  }
-//  //Actors
+  private val akkaLog = Logging.getLogger(context.system, this)
+  akkaLog.info(s"[Pump.<init>] Creating of tool: $tool, name: $toolName")
+  object log {
+    def debug(msg: String): Unit = akkaLog.debug(s"[$toolName] $msg")
+    def info(msg: String): Unit = akkaLog.info(s"[$toolName] $msg")
+    def warning(msg: String): Unit = akkaLog.warning(s"[$toolName] $msg")
+    def error(msg: String): Unit = akkaLog.error(s"[$toolName] $msg")  }
+  //Actors
   private val drive: ActorRef = Await
     .result(ask(context.pumping, Msg.NewDrive(toolName, toolImage)).mapTo[Either[Throwable,ActorRef]], askTimeout.duration)
     .fold(t ⇒ throw t, d ⇒ d)
@@ -55,7 +55,7 @@ class Pump(context: WorkbenchContext, tool: Fitting, toolName: String, toolImage
 //
 //
 
-
+  //!!! Перенести код инициализации в импелер
   tool match{             //Должно выполнятся при инициализации инструмента
     case os: OnStart ⇒  os.doStart()
     case _ ⇒ println("NOT OnStart")
@@ -73,10 +73,10 @@ class Pump(context: WorkbenchContext, tool: Fitting, toolName: String, toolImage
       askTimeout.duration)
     .fold(
       t ⇒ {
-        log.error(s"[Pump.addPipe] Error on adding of pipe, msg: $msg, error: $t")
+        akkaLog.error(s"[Pump.addPipe] Error on adding of pipe, msg: $msg, error: $t")
         throw t},
       d ⇒ {
-        log.debug(s"[Pump.addPipe] Pump added, isAdded: $d")
+        akkaLog.debug(s"[Pump.addPipe] Pump added, isAdded: $d")
         d})
   //Methods
   private[mathact] def addOutlet(pipe: Outlet[_]): Int = addPipe(Msg.AddOutlet(pipe))

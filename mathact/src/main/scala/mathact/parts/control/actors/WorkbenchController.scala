@@ -250,7 +250,7 @@ class WorkbenchController(sketch: Sketch, mainController: ActorRef) extends Base
 
   //On stop
 //  override def postStop(): Unit = {
-//    log.info(s"[WorkbenchController.postStop] Call doStop with exit code: $exitCode")
+//    akkaLog.info(s"[WorkbenchController.postStop] Call doStop with exit code: $exitCode")
 //    doStop(exitCode)}
 
 }

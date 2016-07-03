@@ -36,6 +36,8 @@ trait Outlet[T] extends Plug[T] with Pipe[T]{
 
   }
 
+  val testVal = 0
+
 }
 
 

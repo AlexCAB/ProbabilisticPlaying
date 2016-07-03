@@ -76,6 +76,8 @@ class ChartPotExample extends Workbench{
 
     val pot2 = pot(2,3)               //егистрация выхода, вариант с DSL
 
+//  pot2.testVal
+
 
 //    pot(chart.out1)                  //Рекурсивное связание
 

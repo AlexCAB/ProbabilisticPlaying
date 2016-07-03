@@ -30,7 +30,7 @@ class Drive(pumping: ActorRef) extends BaseActor{
    //Supervisor strategy
   override val supervisorStrategy = OneForOneStrategy(){ case _: Exception ⇒ Resume }
   //Enums
-  private object WorkMode extends Enumeration {val Creating, Building, Starting, Work, Stopping = Value}
+  object WorkMode extends Enumeration {val Creating, Building, Starting, Work, Stopping = Value}
   //Definitions
   case class SubscriberData(drive: ActorRef,  inletId: Int, inletName: String)
   case class OutletData(id: Int, pipe: Outlet[_]){

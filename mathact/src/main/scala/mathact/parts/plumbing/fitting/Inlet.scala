@@ -44,7 +44,7 @@ import scala.concurrent.Future
 
 
 //  //Простой медод без синхронизации (один Connector один Inlet)
-//  def apply[Z, A](inlet: Z with Inlet[A], in: ()⇒Plug[A]): Z with Socket[A] = {  //Связание Connector с Inlet
+//  def apply[Z, A](inlet: Z with Inlet[A], in: ()⇒Plug[A]): Z with Jack[A] = {  //Связание Connector с Inlet
 //
 //
 //
@@ -135,7 +135,7 @@ import scala.concurrent.Future
 
 
 
-trait Inlet[T] extends Socket[T] with Pipe[T]{   //Методы обьявдены protected чтобы из не вызывали из вне, но пользователь может реализовть свой методв и оставить его доступным из вне
+trait Inlet[T] extends Jack[T] with Pipe[T]{   //Методы обьявдены protected чтобы из не вызывали из вне, но пользователь может реализовть свой методв и оставить его доступным из вне
 
   protected def pours(value: T): Unit    //Вызыватеся каждый раз при получении нового значения из Connector
 
@@ -145,6 +145,7 @@ trait Inlet[T] extends Socket[T] with Pipe[T]{   //Методы обьявден
 //  protected def disconnectAll: Boolean = ???    //Отключение dct[ Connector, true если было выполенео, false если нет ни одного
 
 
+  //??? Нужны ли методы ниже.
   protected def lastValue: Option[T] = ???      //Возвращает последнее полученое значение
   protected def nextValue: Future[T] = ???      //Ожыдание следующего значения
 

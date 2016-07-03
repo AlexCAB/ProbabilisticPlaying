@@ -35,7 +35,7 @@ abstract class YChartRecorder(implicit context: WorkbenchContext) extends Tool(c
     }
 
 
-    def of(out: Plug[Double]): Line with Socket[Double] = {
+    def of(out: ⇒Plug[Double]): Line with Socket[Double] = {
 
 
 
@@ -44,7 +44,7 @@ abstract class YChartRecorder(implicit context: WorkbenchContext) extends Tool(c
 
 
 
-      out.connect(in)
+      in.connectPlug(out)
 
       in
 

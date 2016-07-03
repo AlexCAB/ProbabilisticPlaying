@@ -43,7 +43,7 @@ abstract class PotBoard(implicit  context: WorkbenchContext) extends Tool(contex
 //
 //    })  //Эамыкание входа на выход
 
-    def test():Unit = ???
+    def test(): Unit = ???
 
     //Здесь реализация
 
@@ -55,7 +55,6 @@ abstract class PotBoard(implicit  context: WorkbenchContext) extends Tool(contex
 //        push(i)
 //        Thread.sleep(1000)}
 //    }
-
 
 
 

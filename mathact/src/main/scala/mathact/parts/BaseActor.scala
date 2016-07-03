@@ -33,7 +33,7 @@ abstract class BaseActor extends Actor{
   //Variables
   private var msgHandler: Option[(Option[()⇒Any], PartialFunction[Any, Unit])] = None
   //Helpers
-  /** Run block and log error
+  /** Run block and akkaLog error
     * @param block - code to run
     * @return - Try[T] */
   def tryToRun[T](block: ⇒T): Try[T] = Try{block}

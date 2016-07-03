@@ -24,7 +24,7 @@ trait Fitting {
   private[mathact] val pump: Pump
 
   type Plug[T] = fitting.Plug[T]
-  type Socket[T] = fitting.Socket[T]
+  type Socket[T] = fitting.Jack[T]
   type Outlet[T] = fitting.Outlet[T]
   type Inlet[T] = fitting.Inlet[T]
 

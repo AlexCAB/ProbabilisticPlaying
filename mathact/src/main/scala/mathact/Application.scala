@@ -114,7 +114,13 @@ private [mathact] object Application{
 
     case st ⇒
       throw new IllegalStateException(
-        s"[Application.getWorkbenchContext] This method can be called only if App in Work state, current state: $st")}}
+        s"[Application.getWorkbenchContext] This method can be called only if App in Work state, current state: $st")}
+  //Logging methods
+  object appLog {
+    def debug(msg: String): Unit = log.debug(s"[Application.appLog] $msg")
+    def info(msg: String): Unit = log.info(s"[Application.appLog] $msg")
+    def warning(msg: String): Unit = log.warning(s"[Application.appLog] $msg")
+    def error(msg: String): Unit = log.error(s"[Application.appLog] $msg")}}
 
 
 class Application {

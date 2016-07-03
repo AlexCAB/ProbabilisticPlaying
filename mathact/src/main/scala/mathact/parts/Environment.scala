@@ -34,10 +34,10 @@
 //  val beforeTerminateTimeout = 1000 //In milliseconds
 //  //Actor system
 //  val system = ActorSystem("MathActActorSystem")
-//  val log = Logging.getLogger(system, this)
+//  val akkaLog = Logging.getLogger(system, this)
 //  //Stop proc
 //  def doStop(exitCode: Int): Unit = Future{
-//    log.debug(s"[Environment.doStop] Stopping of program, terminate timeout: $beforeTerminateTimeout milliseconds.")
+//    akkaLog.debug(s"[Environment.doStop] Stopping of program, terminate timeout: $beforeTerminateTimeout milliseconds.")
 //    Thread.sleep(beforeTerminateTimeout)
 //    Platform.exit()
 //    system.terminate().onComplete{_ ⇒ System.exit(exitCode)}}
