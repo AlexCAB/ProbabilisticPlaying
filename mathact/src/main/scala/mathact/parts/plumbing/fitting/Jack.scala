@@ -31,7 +31,15 @@ trait Jack[T] extends Connector[T] {
   //Methods
   /** Connecting of this Jack to given Plug
     * @param plug - Plug[T] */
-  def connectPlug(plug: ⇒Plug[T]): Unit = {
+  def connectPlug(plug: ⇒Plug[T]): Unit = inlet.getPump.connect(()⇒plug, ()⇒this)
+  /** Disconnecting of this Jack to given Plug
+    * @param plug - Plug[T] */
+  def disconnectPlug(plug: ⇒Plug[T]): Unit = inlet.getPump.disconnect(()⇒plug, ()⇒this)
+
+
+
+
+
 
 
 
@@ -44,6 +52,9 @@ trait Jack[T] extends Connector[T] {
     // об отключении (чтобы Outlet перестал рассылать сообщения на это Inlet), в случае завршения работы инструмента
     // например.
     // ! Продумать алгоритм отключения, чтобы избежать потеряных сообщенй.
+
+
+
 
 
 
@@ -60,20 +71,7 @@ trait Jack[T] extends Connector[T] {
 
 
 
-    println("$$$$$$$$$$$$$$$$$$$$$$")
 
-
-  }
-
-  /** Disconnecting of this Jack to given Plug
-    * @param plug - Plug[T] */
-  def disconnectPlug(plug: ⇒Plug[T]): Unit = {
-
-
-    ???
-
-
-  }
 
 
 }

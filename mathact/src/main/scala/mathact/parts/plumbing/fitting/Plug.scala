@@ -29,18 +29,7 @@ trait Plug[T] extends Connector[T] {
   //Methods
   /** Connecting of this Plug to given Jack
     * @param jack - Jack[T] */
-  def connectJack(jack: ⇒Jack[T]): Unit = {
-
-    ???
-
-  }
+  def connectJack(jack: ⇒Jack[T]): Unit = outlet.getPump.connect(()⇒this, ()⇒jack)
   /** Disconnecting of this Plug to given Jack
     * @param jack - Jack[T] */
-  def disconnectJack(jack: ⇒Jack[T]): Unit = {
-
-   ???
-
-  }
-
-
-}
+  def disconnectJack(jack: ⇒Jack[T]): Unit = outlet.getPump.disconnect(()⇒this, ()⇒jack)}

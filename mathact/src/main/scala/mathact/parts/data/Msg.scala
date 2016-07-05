@@ -14,7 +14,8 @@
 
 package mathact.parts.data
 
-import mathact.parts.plumbing.fitting.{Inlet, Outlet, Pipe}
+import akka.actor.ActorRef
+import mathact.parts.plumbing.fitting._
 import mathact.tools.Workbench
 
 import scalafx.scene.image.Image
@@ -47,6 +48,13 @@ private[mathact]  object Msg {
   case class NewImpeller(name: String)
   case class AddOutlet(pipe: Outlet[_])
   case class AddInlet(pipe: Inlet[_])
+  trait Connectivity
+  case class ConnectPipes(out: ()⇒Plug[_], in: ()⇒Jack[_]) extends Connectivity
+  case class AddConnection(inletId: Int, outlet: PipeData)
+  case class ConnectTo(outletId: Int, inlet: PipeData)
+  case class DisconnectPipes(out: ()⇒Plug[_], in: ()⇒Jack[_]) extends Connectivity
+  case class DisconnectFrom(outletId: Int, inlet: PipeData)
+  case class DelConnection(inletId: Int, outlet: PipeData)
   case object BuildDrive
   case object DriveBuilt
   case object StartDrive

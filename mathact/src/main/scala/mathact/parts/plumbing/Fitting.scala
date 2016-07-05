@@ -62,13 +62,13 @@ trait Fitting {
 
   //Registration if Outlet
   protected object Outlet{
-    def apply[T,H](out: T with Outlet[H]): T with Plug[H] = { //If pump set, inject it to Outlet and register Outlet
-      Option(pump).foreach(p ⇒ out.injectPump(p, p.addOutlet(out)))
+    def apply[T,H](out: T with Outlet[H], name: String = ""): T with Plug[H] = { //If pump set, inject it to Outlet and register Outlet
+      Option(pump).foreach(p ⇒ out.injectPump(p, p.addOutlet(out),name))
       out}}
   //Registration if Inlet
   protected object Inlet{
-    def apply[T,H](in: T with Inlet[H]): T with Socket[H] = {
-      Option(pump).foreach(p ⇒ in.injectPump(p, p.addInlet(in)))
+    def apply[T,H](in: T with Inlet[H], name: String = ""): T with Socket[H] = {
+      Option(pump).foreach(p ⇒ in.injectPump(p, p.addInlet(in), name))
       in}}
 
 

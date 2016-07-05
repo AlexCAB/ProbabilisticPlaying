@@ -17,8 +17,9 @@ package mathact.parts.plumbing.actors
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor._
 import mathact.parts.BaseActor
-import mathact.parts.data.Msg
-import mathact.parts.plumbing.fitting.{Inlet, Outlet}
+import mathact.parts.data.{PipeData, Msg}
+import mathact.parts.data.Msg.Connectivity
+import mathact.parts.plumbing.fitting.{Jack, Plug, Inlet, Outlet}
 import scala.collection.mutable.{Map ⇒ MutMap, Set ⇒ MutSet, Queue ⇒ MutQueue}
 
 
@@ -32,13 +33,14 @@ class Drive(pumping: ActorRef) extends BaseActor{
   //Enums
   object WorkMode extends Enumeration {val Creating, Building, Starting, Work, Stopping = Value}
   //Definitions
-  case class SubscriberData(drive: ActorRef,  inletId: Int, inletName: String)
   case class OutletData(id: Int, pipe: Outlet[_]){
-    val subscribers = MutMap[ActorRef, SubscriberData]() //(subscribe tool drive, SubscriberData)
+    val subscribers = MutMap[(ActorRef, Int), PipeData]() //((subscribe tool drive, inlet ID), SubscriberData)
 
   }
   case class InletData(id: Int, pipe: Inlet[_]){
     val msgQueue = MutQueue[Any]()
+    val publishers = MutMap[(ActorRef, Int), PipeData]() //((publishers tool drive, outlet ID), SubscriberData)
+
 
   }
   //Variables
@@ -47,12 +49,24 @@ class Drive(pumping: ActorRef) extends BaseActor{
   var idCounter = 0
   val outlets = MutMap[Int, OutletData]()  //(Outlet ID, OutletData)
   val inlets = MutMap[Int, InletData]()    //(Inlet ID, OutletData)
-
+  val pendingConnections = MutQueue[Connectivity]()
 
 
 
   //Functions
   def nextId: Int = {idCounter += 1; idCounter}
+  def doConnect(out: ()⇒Plug[_], in: ()⇒Jack[_]): Unit = (out(),in()) match{
+    case (o: Outlet[_], i: Inlet[_]) ⇒
+      val p = i.getPipeData
+      p.toolDrive ! Msg.AddConnection(p.pipeId, o.getPipeData)
+    case (o, i) ⇒
+      log.error(s"[ConnectPipes.doConnect] Plug or Jack is not an instance of Outlet[_] or Inlet[_], out: $o, in: $i.")}
+  def doDisconnect(out: ()⇒Plug[_], in: ()⇒Jack[_]): Unit = (out(),in()) match{
+    case (o: Outlet[_], i: Inlet[_]) ⇒
+      val p = o.getPipeData
+      p.toolDrive ! Msg.DisconnectFrom(p.pipeId, i.getPipeData)
+    case (o, i) ⇒
+      log.error(s"[ConnectPipes.doConnect] Plug or Jack is not an instance of Outlet[_] or Inlet[_], out: $o, in: $i.")}
   //Messages handling
   reaction(state){
     //Creating of new impeller
@@ -93,14 +107,57 @@ class Drive(pumping: ActorRef) extends BaseActor{
           log.warning(s"[AddInlet] Inlet: $pipe, is registered more then once")
           o.id}
       sender ! Right(inletId)
+    //Connecting
+    case Msg.ConnectPipes(out, in) ⇒ state match{
+      case WorkMode.Creating ⇒ pendingConnections += Msg.ConnectPipes(out, in)
+      case WorkMode.Building | WorkMode.Starting | WorkMode.Work ⇒ doConnect(out, in)
+      case s ⇒ log.error(s"[ConnectPipes] Connecting in state $s is not allowed.")}
+    //Disconnecting
+    case Msg.DisconnectPipes(out, in) ⇒ state match{
+      case WorkMode.Creating ⇒ pendingConnections += Msg.DisconnectPipes(out, in)
+      case WorkMode.Building | WorkMode.Starting | WorkMode.Work ⇒ doDisconnect(out, in)
+      case s ⇒ log.error(s"[ConnectPipes] Dis connecting in state $s is not allowed.")}
     //Building
     case Msg.BuildDrive ⇒
-
-      //TODO
-
+      pendingConnections.foreach{
+        case Msg.ConnectPipes(out, in) ⇒ doConnect(out, in)
+        case Msg.DisconnectPipes(out, in) ⇒ doDisconnect(out, in)}
+      state = WorkMode.Building
       sender ! Msg.DriveBuilt
+    //Add new connection
+    case Msg.AddConnection(inletId, outlet) ⇒ inlets.get(inletId) match{
+      case Some(inlet) ⇒
+        inlet.publishers += ((outlet.toolDrive, outlet.pipeId) → outlet)
+        outlet.toolDrive ! Msg.ConnectTo(outlet.pipeId, inlet.pipe.getPipeData)
+      case None ⇒ log.error(s"[AddConnection] Inlet with id: $inletId, not exist.")}
+    //Connect to given inlet
+    case Msg.ConnectTo(outletId, inlet) ⇒ outlets.get(outletId) match{
+      case Some(outlet) ⇒
+        outlet.subscribers += ((inlet.toolDrive, inlet.pipeId) → inlet)
+        log.info(s"[ConnectTo] Connection added, from: $outlet, to: $inlet")
+      case None ⇒ log.error(s"[ConnectTo] Outlet with id: $outletId, not exist.")}
+    //Disconnect from given inlet
+    case Msg.DisconnectFrom(outletId, inlet) ⇒ outlets.get(outletId) match{
+      case Some(outlet) ⇒ outlet.subscribers.contains((inlet.toolDrive, inlet.pipeId)) match{
+        case true ⇒
+          outlet.subscribers -= Tuple2(inlet.toolDrive, inlet.pipeId)
+          inlet.toolDrive ! Msg.DelConnection(inlet.pipeId, outlet.pipe.getPipeData)
+        case false ⇒
+          log.error(s"[DisconnectFrom] Inlet not in subscribers list, inlet: $inlet")}
+      case None ⇒ log.error(s"[DisconnectFrom] Outlet with id: $outletId, not exist.")}
+    //Delete disconnected connection
+    case Msg.DelConnection(inletId, outlet) ⇒ inlets.get(inletId) match{
+      case Some(inlet) ⇒ inlet.publishers.contains((outlet.toolDrive, outlet.pipeId)) match{
+        case true ⇒
+          inlet.publishers -= Tuple2(outlet.toolDrive, outlet.pipeId)
+          log.info(s"[DelConnection] Connection deleted, from: $outlet, to: $inlet")
+        case false ⇒
+          log.error(s"[DelConnection] Outlet not in publishers list, outlet: $inlet")}
+      case None ⇒ log.error(s"[DelConnection] Inlet with id: $inletId, not exist.")}
     //Starting
     case Msg.StartDrive ⇒
+
+      state = WorkMode.Starting
 
       //TODO
 
@@ -108,11 +165,9 @@ class Drive(pumping: ActorRef) extends BaseActor{
 
 
       //!!! Далее здесь:
-      // 1) Подключения и отключения.
-      // 2) При подключении до сообщения BuildDrive, добавлять подключение в список отложеных и по получении
-      //    BuildDrive создавать подключение. Для подключений после BuildDrive создавть немедленно.
-      //    Соответсвенно обрабатывать отключение.
-      // 3) По StartDrive выпролнять пользоватльские функции инициализации (по средством импеллера).
+      // 1) По StartDrive выпролнять пользоватльские функции инициализации (по средством импеллера).
+      // 2) Обьмен пользовательскими сообщениями (очереди, обратное давление)
+      // 3) Заврешение рабоаты скетча.
 
 
 
@@ -157,9 +212,6 @@ class Drive(pumping: ActorRef) extends BaseActor{
 //
 //
 //    case Terminated(actor) ⇒
-    case x ⇒ println("[Drive] Unknown message " + x)
 
-      //Если это импелер, нужно завершыть работу
-
-        }
   }
+}
