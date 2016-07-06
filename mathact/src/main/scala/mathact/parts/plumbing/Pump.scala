@@ -30,7 +30,7 @@ import scalafx.scene.image.Image
   * Created by CAB on 09.05.2016.
   */
 
-class Pump(context: WorkbenchContext, tool: Fitting, val toolName: String, val toolImage: Option[Image]) {
+class Pump(context: WorkbenchContext, val tool: Fitting, val toolName: String, val toolImage: Option[Image]) {
   //Parameters
   private implicit val askTimeout = Timeout(5.seconds)
   //Logging
@@ -43,29 +43,8 @@ class Pump(context: WorkbenchContext, tool: Fitting, val toolName: String, val t
     def error(msg: String): Unit = akkaLog.error(s"[$toolName] $msg")  }
   //Actors
   private[mathact] val drive: ActorRef = Await
-    .result(ask(context.pumping, Msg.NewDrive(toolName, toolImage)).mapTo[Either[Throwable,ActorRef]], askTimeout.duration)
+    .result(ask(context.pumping, Msg.NewDrive(this, toolName, toolImage)).mapTo[Either[Throwable,ActorRef]], askTimeout.duration)
     .fold(t ⇒ throw t, d ⇒ d)
-
-//  private val impeller: ActorRef =
-//    Await.result(ask(drive, Msg.NewImpeller(toolName)).mapTo[ActorRef], askTimeout.duration)
-//
-//
-//
-//
-//
-//
-
-  //!!! Перенести код инициализации в импелер
-  tool match{             //Должно выполнятся при инициализации инструмента
-    case os: OnStart ⇒  os.doStart()
-    case _ ⇒ println("NOT OnStart")
-  }
-
-  tool match{             //Должно выполнятся призавершении работы инструмента
-    case os: OnStop ⇒  os.doStop()
-    case _ ⇒ println("NOT OnStop")
-  }
-
   //Functions
   private def addPipe(msg: Any): Int = Await //Return: pipe ID
     .result(
@@ -83,6 +62,12 @@ class Pump(context: WorkbenchContext, tool: Fitting, val toolName: String, val t
   private[mathact] def addInlet(pipe: Inlet[_]): Int = addPipe(Msg.AddInlet(pipe))
   private[mathact] def connect(out: ()⇒Plug[_], in: ()⇒Jack[_]): Unit = drive ! Msg.ConnectPipes(out, in)
   private[mathact] def disconnect(out: ()⇒Plug[_], in: ()⇒Jack[_]): Unit = drive ! Msg.ConnectPipes(out, in)
+  private[mathact] def toolStart(): Unit = tool match{
+    case os: OnStart ⇒ os.doStart()
+    case _ ⇒ akkaLog.debug(s"[Pump.toolStart] Tool $toolName not have doStart method.")}
+  private[mathact] def toolStop(): Unit = tool match{
+    case os: OnStop ⇒  os.doStop()
+    case _ ⇒ akkaLog.debug(s"[Pump.toolStop] Tool $toolName not have doStop method.")}
 
 
 
@@ -93,7 +78,7 @@ class Pump(context: WorkbenchContext, tool: Fitting, val toolName: String, val t
 
 
 
-    //Нужно добавиь ещё один актор который будет следить за нагрузкой impeller, и регулировать
+  //Нужно добавиь ещё один актор который будет следить за нагрузкой impeller, и регулировать
     //влечену очереди (подход с обратным давлением)
     //Нужно предусмотреть след режыми работы: синхронный жосткий, синхронный мягкий (без подтверждений выполения итерации)
     //и асинхронный.

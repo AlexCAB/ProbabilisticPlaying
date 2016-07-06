@@ -66,12 +66,12 @@ class Pumping(controller: ActorRef, sketch: Sketch) extends BaseActor{
   //Messages handling
   reaction(state){
     //Creating of new drive actor
-    case Msg.NewDrive(name, image) ⇒
+    case Msg.NewDrive(pump, name, image) ⇒
       //Check state
       state match{
         case WorkMode.Creating | WorkMode.Building | WorkMode.Starting | WorkMode.Work⇒
           //New actor
-          val drive = context.actorOf(Props(new Drive(self)), "DriveOf" + name)
+          val drive = context.actorOf(Props(new Drive(pump, name, self)), "DriveOf" + name)
           context.watch(drive)
           //Do init if pumping in started or in work mode
           state match{
@@ -163,6 +163,9 @@ class Pumping(controller: ActorRef, sketch: Sketch) extends BaseActor{
       drives.get(drive) match{
         case Some(driveData) if driveData.state == DriveState.Building ⇒
           log.error(s"[Pumping.DriveBuildingTimeout] Drive: $driveData, not built in $driveBuildingTimeout")
+
+          //!!!Здесь (и в остальных таймаутах) нужно отключить все соединания и завершить работу инструмента (тем же способом как если бы
+          // пользователь нажал кнопк "закрыть", но в логе скетча должна появится запись о неудачном запуске инструмента).
 
           ???
 

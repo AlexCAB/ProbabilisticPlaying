@@ -19,16 +19,18 @@ import akka.actor._
 import mathact.parts.BaseActor
 import mathact.parts.data.{PipeData, Msg}
 import mathact.parts.data.Msg.Connectivity
+import mathact.parts.plumbing.Pump
 import mathact.parts.plumbing.fitting.{Jack, Plug, Inlet, Outlet}
-import scala.collection.mutable.{Map ⇒ MutMap, Set ⇒ MutSet, Queue ⇒ MutQueue}
+import scala.collection.mutable.{Map ⇒ MutMap, Queue ⇒ MutQueue}
+import scala.concurrent.duration._
 
 
-/** Manage impeller actor
+/** Manage tool
   * Created by CAB on 15.05.2016.
   */
 
-class Drive(pumping: ActorRef) extends BaseActor{
-   //Supervisor strategy
+class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
+  //Supervisor strategy
   override val supervisorStrategy = OneForOneStrategy(){ case _: Exception ⇒ Resume }
   //Enums
   object WorkMode extends Enumeration {val Creating, Building, Starting, Work, Stopping = Value}
@@ -45,14 +47,16 @@ class Drive(pumping: ActorRef) extends BaseActor{
   }
   //Variables
   var state = WorkMode.Creating
-  var impeller: Option[ActorRef] = None
+//  var impeller: Option[ActorRef] = None
   var idCounter = 0
   val outlets = MutMap[Int, OutletData]()  //(Outlet ID, OutletData)
   val inlets = MutMap[Int, InletData]()    //(Inlet ID, OutletData)
   val pendingConnections = MutQueue[Connectivity]()
 
 
-
+  //Worker actor
+  val impeller = context.actorOf(Props(new Impeller(self)), "ImpellerOf" + toolName)
+  context.watch(impeller)
   //Functions
   def nextId: Int = {idCounter += 1; idCounter}
   def doConnect(out: ()⇒Plug[_], in: ()⇒Jack[_]): Unit = (out(),in()) match{
@@ -69,14 +73,14 @@ class Drive(pumping: ActorRef) extends BaseActor{
       log.error(s"[ConnectPipes.doConnect] Plug or Jack is not an instance of Outlet[_] or Inlet[_], out: $o, in: $i.")}
   //Messages handling
   reaction(state){
-    //Creating of new impeller
-    case Msg.NewImpeller(componentName) ⇒
-      //Create actor
-      val impl = context.actorOf(Props(new Impeller(self)), "ImpellerOf" + componentName)
-      context.watch(impl)
-      impeller = Some(impl)
-      //Response
-      sender ! impl
+//    //Creating of new impeller
+//    case Msg.NewImpeller(componentName) ⇒
+//      //Create actor
+//      val impl = context.actorOf(Props(new Impeller(self)), "ImpellerOf" + componentName)
+//      context.watch(impl)
+//      impeller = Some(impl)
+//      //Response
+//      sender ! impl
     //Adding of Outlet
     case Msg.AddOutlet(pipe) ⇒
       //Check if already registered
@@ -156,18 +160,63 @@ class Drive(pumping: ActorRef) extends BaseActor{
       case None ⇒ log.error(s"[DelConnection] Inlet with id: $inletId, not exist.")}
     //Starting
     case Msg.StartDrive ⇒
-
       state = WorkMode.Starting
+      impeller ! Msg.RunTask("Starting", ()⇒pump.toolStart())
 
-      //TODO
 
-      sender ! Msg.DriveStarted
+
+        //!!! Здесь логика обработки пользоватльских сообщений (так же через запуск задачи в impeller)
+
+
+
+    //Task done
+    case Msg.TaskDone(name) ⇒ state match{
+      case WorkMode.Starting ⇒
+        //User onStart function successfully executed.
+        state = WorkMode.Work
+        pumping ! Msg.DriveStarted
+      case WorkMode.Work ⇒
+
+        ???
+
+      case WorkMode.Stopping ⇒
+
+        ???
+
+      case _ ⇒}
+    //Task failed
+    case Msg.TaskFailed(name, error) ⇒ state match{
+      case WorkMode.Starting ⇒
+        //User out on run user onStart function
+
+
+
+
+      case WorkMode.Work ⇒
+
+        ???
+
+      case WorkMode.Stopping ⇒
+
+        ???
+
+      case _ ⇒}
+
+
+
+
+
+
+
+
+
+
+
 
 
       //!!! Далее здесь:
-      // 1) По StartDrive выпролнять пользоватльские функции инициализации (по средством импеллера).
-      // 2) Обьмен пользовательскими сообщениями (очереди, обратное давление)
-      // 3) Заврешение рабоаты скетча.
+      // 1) Обьмен пользовательскими сообщениями (очереди, обратное давление)
+      // 2) Заврешение рабоаты скетча.
 
 
 

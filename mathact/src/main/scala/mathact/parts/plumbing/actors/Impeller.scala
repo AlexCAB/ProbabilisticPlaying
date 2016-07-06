@@ -15,21 +15,25 @@
 package mathact.parts.plumbing.actors
 
 import akka.actor.{ActorRef, Props, Actor}
-import mathact.parts.data.PumpEvents
+import mathact.parts.BaseActor
+import mathact.parts.data.Msg
+import mathact.parts.plumbing.Pump
 
 
-/** PumpEvents processor
+/** User code processor
   * Created by CAB on 15.05.2016.
   */
 
-class Impeller(drive: ActorRef) extends Actor{
-
-  def receive = {
-
-
-
-
-    case x ⇒ println("[Impeller] Receive: " + x)
-  }
-
-}
+class Impeller(drive: ActorRef) extends BaseActor{
+  //Messages handling
+  reaction(){
+    //Run task
+    case Msg.RunTask(name, task) ⇒
+      log.debug(s"[Impeller.RunTask] Try to run task: $name")
+      try {
+        task()
+        log.debug(s"[Impeller.RunTask] Task: $name, done successfully.")
+        sender ! Msg.TaskDone(name)}
+      catch{ case t: Throwable ⇒
+        log.error(s"[Impeller.RunTask] Task: $name, failed, error: $t, stack: ${t.getStackTrace.mkString("\n")}")
+        sender ! Msg.TaskFailed(name, t)}}}

@@ -15,6 +15,7 @@
 package mathact.parts.data
 
 import akka.actor.ActorRef
+import mathact.parts.plumbing.Pump
 import mathact.parts.plumbing.fitting._
 import mathact.tools.Workbench
 
@@ -25,7 +26,7 @@ import scalafx.scene.image.Image
   * Created by CAB on 23.05.2016.
   */
 
-private[mathact]  object Msg {
+private[mathact] object Msg {
   //MainController - SketchController
   case class MainControllerStart(sketches: List[Sketch])
   case class NewWorkbenchContext(workbench: Workbench)
@@ -44,7 +45,7 @@ private[mathact]  object Msg {
   case class SwitchMode(newMode: StepMode)
   case class PumpingError(error: Throwable)
   //Pumping - Drive
-  case class NewDrive(name: String, image: Option[Image])     //Mane and image for display in UI
+  case class NewDrive(toolPump: Pump, toolName: String, toolImage: Option[Image])     //Mane and image for display in UI
   case class NewImpeller(name: String)
   case class AddOutlet(pipe: Outlet[_])
   case class AddInlet(pipe: Inlet[_])
@@ -59,7 +60,10 @@ private[mathact]  object Msg {
   case object DriveBuilt
   case object StartDrive
   case object DriveStarted
-
+  //Drive-Impeller
+  case class RunTask(name: String, task: ()⇒Unit)
+  case class TaskDone(name: String)
+  case class TaskFailed(name: String, error: Throwable)
 
 
 }

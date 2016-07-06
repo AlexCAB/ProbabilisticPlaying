@@ -21,4 +21,4 @@ import akka.actor.ActorRef
   * Created by CAB on 05.07.2016.
   */
 
-case class PipeData(toolDrive: ActorRef, toolName: String,  pipeId: Int, pipeName: String)
+case class PipeData(toolDrive: ActorRef, toolName: String, pipeId: Int, pipeName: String)
