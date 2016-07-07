@@ -64,6 +64,8 @@ private[mathact] object Msg {
   case class RunTask(name: String, task: ()⇒Unit)
   case class TaskDone(name: String)
   case class TaskFailed(name: String, error: Throwable)
+  //User data
+  case class PushedUserData[T](outletId: Int, value: T)
 
 
 }

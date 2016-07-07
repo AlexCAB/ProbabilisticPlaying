@@ -68,6 +68,26 @@ class Pump(context: WorkbenchContext, val tool: Fitting, val toolName: String, v
   private[mathact] def toolStop(): Unit = tool match{
     case os: OnStop ⇒  os.doStop()
     case _ ⇒ akkaLog.debug(s"[Pump.toolStop] Tool $toolName not have doStop method.")}
+  private[mathact] def pushUserMessage(msg: Msg.PushedUserData[_]): Unit = Await
+    .result(
+      ask(drive, msg).mapTo[Either[Throwable, Option[Long]]],  //Either(error,  Option[sleep timeout])
+      askTimeout.duration)
+    .fold(
+      error ⇒ {
+        akkaLog.error(s"[Pump.pushUserMessage] Error on ask of drive, msg: $msg, error: $error")
+        throw error},
+      timeout ⇒ {
+        akkaLog.debug(s"[Pump.pushUserMessage] Message pushed, msg: $msg, timeout, $timeout")
+        timeout.foreach{ d ⇒
+          try{
+            Thread.sleep(d)}
+          catch {case e: InterruptedException ⇒
+            akkaLog.error(s"[Pump.pushUserMessage] Error on Thread.sleep, msg: $msg, error: $e")
+            Thread.currentThread().interrupt()}}})
+
+
+
+
 
 
 

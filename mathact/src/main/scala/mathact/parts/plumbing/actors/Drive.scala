@@ -162,6 +162,18 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
     case Msg.StartDrive ⇒
       state = WorkMode.Starting
       impeller ! Msg.RunTask("Starting", ()⇒pump.toolStart())
+    //Pushed user data
+    case Msg.PushedUserData(outletId, value) ⇒
+
+
+    //???
+
+
+      sender ! Right(Some(1000L))
+
+
+
+
 
 
 

@@ -23,18 +23,18 @@ import mathact.parts.plumbing.Pump
 
 
 trait Outlet[T] extends Plug[T] with Pipe[T]{
-
   //Methods
-  protected def push(value: T): Unit = {     //Вталкивание событий
+  /** Send value to connected inlets
+    * @param value - */
+  protected def push(value: T): Unit = pushUserData(value)
 
 
 
-    println("push" + value)
 
 
 
 
-  }
+
 
   val testVal = 0
 

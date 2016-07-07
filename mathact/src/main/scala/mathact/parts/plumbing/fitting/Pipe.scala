@@ -14,8 +14,7 @@
 
 package mathact.parts.plumbing.fitting
 
-import akka.actor.ActorRef
-import mathact.parts.data.PipeData
+import mathact.parts.data.{Msg, PipeData}
 import mathact.parts.plumbing.Pump
 
 
@@ -31,9 +30,9 @@ trait Pipe[T]{
   //Service methods
   private[plumbing] def injectPump(pump: Pump, pipeId: Int, pipeName: String): Unit = this.pump match{
     case Some(_) ⇒
-      this.pump.foreach(_.log.warning(s"[Outlet.injectPump] Pump is already injected to $this"))
+      this.pump.foreach(_.log.warning(s"[Pipe.injectPump] Pump is already injected to $this"))
     case None ⇒
-      pump.log.debug(s"[Outlet.injectPump] Injected to $this.")
+      pump.log.debug(s"[Pipe.injectPump] Injected to $this.")
       this.pump = Some(pump)
       this.pipeId = Some(pipeId)
       this.pipeName = pipeName match{case "" ⇒ None; case s ⇒ Some(s)}}
@@ -49,13 +48,22 @@ trait Pipe[T]{
   private[plumbing] def getPipeData: PipeData = (pump, pipeId) match{  //Return: (drive, pipe ID)
     case (Some(p), Some(i)) ⇒ PipeData(p.drive, p.toolName, i, pipeName.getOrElse(this.toString))
     case s ⇒ throw new IllegalStateException(s"[Pipe.getPump] Pump not injected, state: $s.")}
+  private[plumbing] def pushUserData(value: T): Unit = (pump, pipeId) match{
+    case (Some(p), Some(i)) ⇒ this match{
+      case _: Outlet[T] ⇒ p.pushUserMessage(Msg.PushedUserData[T](outletId = i, value))
+      case t ⇒ p.log.error(s"[Pipe.pushUserData] This pipe is not an Outlet[T], class name ${this.getClass.getName}.")}
+    case s ⇒ throw new IllegalStateException(s"[Pipe.pushUserData] Pump not injected, state: $s.")}
 
 
 
 
 
 
-//  //Messaging methods
+
+
+
+
+  //  //Messaging methods
 //  private[mathact] def connect(out: ()⇒Plug[_], in: ()⇒Jack[_]): Unit = pump match{
 //    case Some(p) ⇒
 //
