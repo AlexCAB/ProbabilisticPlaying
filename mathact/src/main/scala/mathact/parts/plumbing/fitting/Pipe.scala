@@ -50,7 +50,7 @@ trait Pipe[T]{
     case s ⇒ throw new IllegalStateException(s"[Pipe.getPump] Pump not injected, state: $s.")}
   private[plumbing] def pushUserData(value: T): Unit = (pump, pipeId) match{
     case (Some(p), Some(i)) ⇒ this match{
-      case _: Outlet[T] ⇒ p.pushUserMessage(Msg.PushedUserData[T](outletId = i, value))
+      case _: Outlet[T] ⇒ p.pushUserMessage(Msg.UserData[T](outletId = i, value))
       case t ⇒ p.log.error(s"[Pipe.pushUserData] This pipe is not an Outlet[T], class name ${this.getClass.getName}.")}
     case s ⇒ throw new IllegalStateException(s"[Pipe.pushUserData] Pump not injected, state: $s.")}
 

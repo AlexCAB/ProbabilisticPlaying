@@ -33,14 +33,14 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
   //Supervisor strategy
   override val supervisorStrategy = OneForOneStrategy(){ case _: Exception ⇒ Resume }
   //Enums
-  object WorkMode extends Enumeration {val Creating, Building, Starting, Work, Stopping = Value}
+  object WorkMode extends Enumeration {val Creating, Building, Starting, Stepping, Running, Stopping = Value}
   //Definitions
   case class OutletData(id: Int, pipe: Outlet[_]){
     val subscribers = MutMap[(ActorRef, Int), PipeData]() //((subscribe tool drive, inlet ID), SubscriberData)
 
   }
   case class InletData(id: Int, pipe: Inlet[_]){
-    val msgQueue = MutQueue[Any]()
+    val taskQueue = MutQueue[Msg.RunTask]()
     val publishers = MutMap[(ActorRef, Int), PipeData]() //((publishers tool drive, outlet ID), SubscriberData)
 
 
@@ -52,6 +52,7 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
   val outlets = MutMap[Int, OutletData]()  //(Outlet ID, OutletData)
   val inlets = MutMap[Int, InletData]()    //(Inlet ID, OutletData)
   val pendingConnections = MutQueue[Connectivity]()
+  var pushTimeout: Option[Long] = None   //Time out after each push (depend from current back pressure)
 
 
   //Worker actor
@@ -114,12 +115,12 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
     //Connecting
     case Msg.ConnectPipes(out, in) ⇒ state match{
       case WorkMode.Creating ⇒ pendingConnections += Msg.ConnectPipes(out, in)
-      case WorkMode.Building | WorkMode.Starting | WorkMode.Work ⇒ doConnect(out, in)
+      case WorkMode.Building | WorkMode.Starting | WorkMode.Stepping | WorkMode.Running ⇒ doConnect(out, in)
       case s ⇒ log.error(s"[ConnectPipes] Connecting in state $s is not allowed.")}
     //Disconnecting
     case Msg.DisconnectPipes(out, in) ⇒ state match{
       case WorkMode.Creating ⇒ pendingConnections += Msg.DisconnectPipes(out, in)
-      case WorkMode.Building | WorkMode.Starting | WorkMode.Work ⇒ doDisconnect(out, in)
+      case WorkMode.Building | WorkMode.Starting | WorkMode.Stepping | WorkMode.Running ⇒ doDisconnect(out, in)
       case s ⇒ log.error(s"[ConnectPipes] Dis connecting in state $s is not allowed.")}
     //Building
     case Msg.BuildDrive ⇒
@@ -161,15 +162,87 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
     //Starting
     case Msg.StartDrive ⇒
       state = WorkMode.Starting
-      impeller ! Msg.RunTask("Starting", ()⇒pump.toolStart())
-    //Pushed user data
-    case Msg.PushedUserData(outletId, value) ⇒
+      impeller ! Msg.RunTask(0, "Starting", ()⇒pump.toolStart())
+    //Pushed user data, send to all subscribers
+    case Msg.UserData(outletId, value) ⇒ sender ! (state match{
+      case WorkMode.Stepping | WorkMode.Running ⇒ outlets.get(outletId) match{
+        case Some(outlet) ⇒
+          //Distribution of UserMessage
+          outlet.subscribers.values.foreach{ inlet ⇒
+            inlet.toolDrive ! Msg.UserMessage(outletId, inlet.pipeId, value)}
+          log.debug(
+            s"[UserData] Data: $value, sent from outletId: $outletId to ${outlet.subscribers.size} " +
+              s"subscribers, pushTimeout: $pushTimeout")
+          //Return push timeout
+          Right(pushTimeout)
+        case None ⇒
+          Left(new IllegalArgumentException(
+            s"[UserData] Outlet with id: $outletId, not exist."))}
+      case _ ⇒
+        Left(new IllegalStateException(
+          s"[UserData] User data can be processed only in Stepping or Running state, current state: $state"))})
+    //Sent user data from other drive
+    case Msg.UserMessage(outletId, inletId, value) ⇒ inlets.get(inletId) match{
+      case Some(inlet) ⇒
+        //Reply with load message
+        val maxQueueSize = inlets.values.map(_.taskQueue.size).max
+        sender ! Msg.DriveLoad(self, maxQueueSize)
+        //Add task to the queue
+        val runTask = Msg.RunTask(
+          id = inletId,
+          name = s"[UserMessage] outletId: $outletId, inletId: $inletId, value: $value",
+          task = ()⇒{ inlet.pipe.processValue(value) })
+        inlet.taskQueue += runTask
+        //If queue is empty and state is Running, send task to impeller
+        (maxQueueSize, state) match{
+          case (0, WorkMode.Running) ⇒
+            impeller ! runTask
+          case _ ⇒
+            log.debug(s"[UserMessage] Task not send to impeller, maxQueueSize: $maxQueueSize, state: $state")}
+      case None ⇒ log.error(s"[UserMessage] Inlet with id: $inletId, not exist.")}
+    //Other drive load
+    case Msg.DriveLoad(drive, maxQueueSize) ⇒
+
+      //!!! Обновление нагрузки драйва (длжен быть в одном из outlet.subscribers), вычисление pushTimeout
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    //Далее здесь:
+    // 1) Постановка сообщения в очрель inlet'та
+    // 2) Вычисление (на основе размера очереди) и отправка sender'у pushTimeout.
+    //    !Подумать как реализовать
+    // 3) Цикл обработки сообщений из очредей (зависит от режыма (непрерывный/пошаговый))
+
+
+
+
+
+
+
+
 
 
     //???
 
 
-      sender ! Right(Some(1000L))
+//      sender ! Right(Some(1000L))
 
 
 
@@ -182,14 +255,19 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
 
 
     //Task done
-    case Msg.TaskDone(name) ⇒ state match{
+    case Msg.TaskDone(id, name) ⇒ state match{
       case WorkMode.Starting ⇒
         //User onStart function successfully executed.
-        state = WorkMode.Work
+        state = WorkMode.Stepping
         pumping ! Msg.DriveStarted
-      case WorkMode.Work ⇒
+      case WorkMode.Stepping ⇒
 
         ???
+
+      case WorkMode.Running ⇒
+
+        ???
+
 
       case WorkMode.Stopping ⇒
 
@@ -197,14 +275,17 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
 
       case _ ⇒}
     //Task failed
-    case Msg.TaskFailed(name, error) ⇒ state match{
+    case Msg.TaskFailed(id, name, error) ⇒ state match{
       case WorkMode.Starting ⇒
         //User out on run user onStart function
 
+        ???
 
+      case WorkMode.Stepping ⇒
 
+        ???
 
-      case WorkMode.Work ⇒
+      case WorkMode.Running ⇒
 
         ???
 

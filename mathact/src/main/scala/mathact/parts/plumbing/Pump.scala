@@ -68,7 +68,7 @@ class Pump(context: WorkbenchContext, val tool: Fitting, val toolName: String, v
   private[mathact] def toolStop(): Unit = tool match{
     case os: OnStop ⇒  os.doStop()
     case _ ⇒ akkaLog.debug(s"[Pump.toolStop] Tool $toolName not have doStop method.")}
-  private[mathact] def pushUserMessage(msg: Msg.PushedUserData[_]): Unit = Await
+  private[mathact] def pushUserMessage(msg: Msg.UserData[_]): Unit = Await
     .result(
       ask(drive, msg).mapTo[Either[Throwable, Option[Long]]],  //Either(error,  Option[sleep timeout])
       askTimeout.duration)

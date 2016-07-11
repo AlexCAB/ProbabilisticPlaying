@@ -61,11 +61,13 @@ private[mathact] object Msg {
   case object StartDrive
   case object DriveStarted
   //Drive-Impeller
-  case class RunTask(name: String, task: ()⇒Unit)
-  case class TaskDone(name: String)
-  case class TaskFailed(name: String, error: Throwable)
+  case class RunTask(id: Int, name: String, task: ()⇒Unit)
+  case class TaskDone(id: Int, name: String)
+  case class TaskFailed(id: Int, name: String, error: Throwable)
   //User data
-  case class PushedUserData[T](outletId: Int, value: T)
+  case class UserData[T](outletId: Int, value: T)
+  case class UserMessage[T](outletId: Int, inletId: Int, value: T)
+  case class DriveLoad(drive: ActorRef, maxQueueSize: Int)
 
 
 }

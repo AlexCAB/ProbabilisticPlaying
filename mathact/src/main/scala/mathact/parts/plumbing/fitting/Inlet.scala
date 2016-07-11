@@ -137,6 +137,15 @@ import scala.concurrent.Future
 
 trait Inlet[T] extends Jack[T] with Pipe[T]{   //Методы обьявдены protected чтобы из не вызывали из вне, но пользователь может реализовть свой методв и оставить его доступным из вне
 
+  private[mathact] def processValue(value: Any): Unit = pours(value.asInstanceOf[T])
+
+
+
+
+
+//  pours(value)
+
+
   protected def pours(value: T): Unit    //Вызыватеся каждый раз при получении нового значения из Connector
 
 
