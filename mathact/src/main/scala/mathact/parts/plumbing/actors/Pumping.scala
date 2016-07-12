@@ -47,7 +47,7 @@ class Pumping(controller: ActorRef, sketch: Sketch) extends BaseActor{
   case class DriveStoppingTimeout(drive: ActorRef)
 
 
-//  object WorkMode extends Enumeration {val Creating, Starting, Work, Stopping = Value}
+//  object State extends Enumeration {val Creating, Starting, Work, Stopping = Value}
 //
 //
 //  case object StartTimeOut
@@ -80,14 +80,14 @@ class Pumping(controller: ActorRef, sketch: Sketch) extends BaseActor{
               drives += (drive → PumpData(drive, name, image, DriveState.Creating))
               sender ! Right(drive)
             case _ ⇒
-              log.debug(s"[Pumping.NewDrive] Creating of drive after WorkMode.Creating step, name: $name")
+              log.debug(s"[Pumping.NewDrive] Creating of drive after State.Creating step, name: $name")
               drives += (drive → PumpData(drive, name, image, DriveState.Building))
               context.system.scheduler.scheduleOnce(driveBuildingTimeout, self, DriveBuildingTimeout(drive))
               drive ! Msg.BuildDrive
               sender ! Right(drive)}
         case _ ⇒
-          log.error(s"[Pumping.NewDrive] Creating of drive after WorkMode.Stopping step, name: $name")
-          sender ! Left(new Exception("[Pumping.NewDrive] Creating of drive after WorkMode.Stopping step."))}
+          log.error(s"[Pumping.NewDrive] Creating of drive after State.Stopping step, name: $name")
+          sender ! Left(new Exception("[Pumping.NewDrive] Creating of drive after State.Stopping step."))}
     //Starting
     case Msg.StartPumping(initSpeed, initStepMode) if state == WorkMode.Creating ⇒
       log.info(s"[Pumping.StartPumping] Start of built of sketch: $sketch, drives: $drives.")
@@ -211,7 +211,7 @@ class Pumping(controller: ActorRef, sketch: Sketch) extends BaseActor{
 
 //    case PlumbingInit(stepMode) ⇒
 //      logMsgD("Pumping.PlumbingInit", s"Init, stepMode: $stepMode, created drives: $drives", state)
-//      state = WorkMode.Starting
+//      state = State.Starting
 //      controller = Some(sender)
 //      //Init of pumps
 //      drives.foreach{case (a, _)  ⇒ a ! Ready(stepMode)}
@@ -225,7 +225,7 @@ class Pumping(controller: ActorRef, sketch: Sketch) extends BaseActor{
 //      drives.values.exists(_.state != DriveState.Ready) match{
 //        case false ⇒
 //          logMsgD("Pumping.Steady", s"All ready, change state to Work", state)
-//          state = WorkMode.Work
+//          state = State.Work
 //          controller.foreach(_ ! PlumbingStarted)
 //        case true ⇒
 //          logMsgD("Pumping.Steady", s"Not all ready, drives: $drives", state)}
@@ -236,7 +236,7 @@ class Pumping(controller: ActorRef, sketch: Sketch) extends BaseActor{
 //    case StartTimeOut ⇒
 //      logMsgD("Pumping.StartTimeOut", s"Timeout: $pumpStartingTimeout", state)
 //      state match{
-//        case WorkMode.Creating | WorkMode.Starting ⇒
+//        case State.Creating | State.Starting ⇒
 //          logMsgE("Pumping.StartTimeOut", s"Pumping not started in: $pumpStartingTimeout", state)
 //          //Send error to controller
 //          controller.foreach(_ ! Msg.FatalError(s"The system not ready in $pumpStartingTimeout"))

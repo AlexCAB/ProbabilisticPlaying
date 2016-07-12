@@ -30,27 +30,46 @@ import scala.concurrent.duration._
   */
 
 class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
+  //Parameter
+  val pushTimeoutCoefficient = 10  // pushTimeout = maxQueueSize * pushTimeoutCoefficient
   //Supervisor strategy
   override val supervisorStrategy = OneForOneStrategy(){ case _: Exception ⇒ Resume }
   //Enums
-  object WorkMode extends Enumeration {val Creating, Building, Starting, Stepping, Running, Stopping = Value}
+  object State extends Enumeration {val Creating, Building, Starting, Work, Stopping = Value}
+  object Mode extends Enumeration {val Paused, Stepping, Walking, Running = Value}
   //Definitions
   case class OutletData(id: Int, pipe: Outlet[_]){
     val subscribers = MutMap[(ActorRef, Int), PipeData]() //((subscribe tool drive, inlet ID), SubscriberData)
 
   }
+  case class MessageProcTask[T](inlet: InletData, publisher: (ActorRef, Int), value: T){ //publisher: (drive, outletId)
+    def toRunTask:Msg.RunTask = Msg.RunTask(
+      id = inlet.id,
+      name = s"[UserMessage] publisher: $publisher, inletId: ${inlet.id}, value: $value",
+      task = ()⇒{inlet.pipe.processValue(value)})
+
+
+
+
+  }
   case class InletData(id: Int, pipe: Inlet[_]){
-    val taskQueue = MutQueue[Msg.RunTask]()
+    val taskQueue = MutQueue[MessageProcTask[_]]()
     val publishers = MutMap[(ActorRef, Int), PipeData]() //((publishers tool drive, outlet ID), SubscriberData)
 
 
   }
+  case class DrivesData(drive: ActorRef){
+   var driveLoad: Int = 0
+
+
+  }
   //Variables
-  var state = WorkMode.Creating
+  var state = State.Creating
+  var mode = Mode.Paused
 //  var impeller: Option[ActorRef] = None
-  var idCounter = 0
   val outlets = MutMap[Int, OutletData]()  //(Outlet ID, OutletData)
   val inlets = MutMap[Int, InletData]()    //(Inlet ID, OutletData)
+  val subscribedDrives = MutMap[ActorRef, DrivesData]()
   val pendingConnections = MutQueue[Connectivity]()
   var pushTimeout: Option[Long] = None   //Time out after each push (depend from current back pressure)
 
@@ -59,7 +78,7 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
   val impeller = context.actorOf(Props(new Impeller(self)), "ImpellerOf" + toolName)
   context.watch(impeller)
   //Functions
-  def nextId: Int = {idCounter += 1; idCounter}
+
   def doConnect(out: ()⇒Plug[_], in: ()⇒Jack[_]): Unit = (out(),in()) match{
     case (o: Outlet[_], i: Inlet[_]) ⇒
       val p = i.getPipeData
@@ -72,16 +91,12 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
       p.toolDrive ! Msg.DisconnectFrom(p.pipeId, i.getPipeData)
     case (o, i) ⇒
       log.error(s"[ConnectPipes.doConnect] Plug or Jack is not an instance of Outlet[_] or Inlet[_], out: $o, in: $i.")}
+
+
+
+
   //Messages handling
-  reaction(state){
-//    //Creating of new impeller
-//    case Msg.NewImpeller(componentName) ⇒
-//      //Create actor
-//      val impl = context.actorOf(Props(new Impeller(self)), "ImpellerOf" + componentName)
-//      context.watch(impl)
-//      impeller = Some(impl)
-//      //Response
-//      sender ! impl
+  reaction((state, mode)){
     //Adding of Outlet
     case Msg.AddOutlet(pipe) ⇒
       //Check if already registered
@@ -114,20 +129,20 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
       sender ! Right(inletId)
     //Connecting
     case Msg.ConnectPipes(out, in) ⇒ state match{
-      case WorkMode.Creating ⇒ pendingConnections += Msg.ConnectPipes(out, in)
-      case WorkMode.Building | WorkMode.Starting | WorkMode.Stepping | WorkMode.Running ⇒ doConnect(out, in)
+      case State.Creating ⇒ pendingConnections += Msg.ConnectPipes(out, in)
+      case State.Building | State.Starting | State.Work ⇒ doConnect(out, in)
       case s ⇒ log.error(s"[ConnectPipes] Connecting in state $s is not allowed.")}
     //Disconnecting
     case Msg.DisconnectPipes(out, in) ⇒ state match{
-      case WorkMode.Creating ⇒ pendingConnections += Msg.DisconnectPipes(out, in)
-      case WorkMode.Building | WorkMode.Starting | WorkMode.Stepping | WorkMode.Running ⇒ doDisconnect(out, in)
+      case State.Creating ⇒ pendingConnections += Msg.DisconnectPipes(out, in)
+      case State.Building | State.Starting | State.Work | State.Stopping ⇒ doDisconnect(out, in)
       case s ⇒ log.error(s"[ConnectPipes] Dis connecting in state $s is not allowed.")}
     //Building
     case Msg.BuildDrive ⇒
       pendingConnections.foreach{
         case Msg.ConnectPipes(out, in) ⇒ doConnect(out, in)
         case Msg.DisconnectPipes(out, in) ⇒ doDisconnect(out, in)}
-      state = WorkMode.Building
+      state = State.Building
       sender ! Msg.DriveBuilt
     //Add new connection
     case Msg.AddConnection(inletId, outlet) ⇒ inlets.get(inletId) match{
@@ -138,7 +153,9 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
     //Connect to given inlet
     case Msg.ConnectTo(outletId, inlet) ⇒ outlets.get(outletId) match{
       case Some(outlet) ⇒
-        outlet.subscribers += ((inlet.toolDrive, inlet.pipeId) → inlet)
+        val inDrive = inlet.toolDrive
+        outlet.subscribers += ((inDrive, inlet.pipeId) → inlet)
+        subscribedDrives.getOrElse(inDrive, {subscribedDrives += (inDrive → DrivesData(inDrive))})
         log.info(s"[ConnectTo] Connection added, from: $outlet, to: $inlet")
       case None ⇒ log.error(s"[ConnectTo] Outlet with id: $outletId, not exist.")}
     //Disconnect from given inlet
@@ -146,6 +163,7 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
       case Some(outlet) ⇒ outlet.subscribers.contains((inlet.toolDrive, inlet.pipeId)) match{
         case true ⇒
           outlet.subscribers -= Tuple2(inlet.toolDrive, inlet.pipeId)
+          subscribedDrives -= inlet.toolDrive
           inlet.toolDrive ! Msg.DelConnection(inlet.pipeId, outlet.pipe.getPipeData)
         case false ⇒
           log.error(s"[DisconnectFrom] Inlet not in subscribers list, inlet: $inlet")}
@@ -161,11 +179,19 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
       case None ⇒ log.error(s"[DelConnection] Inlet with id: $inletId, not exist.")}
     //Starting
     case Msg.StartDrive ⇒
-      state = WorkMode.Starting
+      state = State.Starting
       impeller ! Msg.RunTask(0, "Starting", ()⇒pump.toolStart())
+
+
+
+   //!!! Здесь сообщения управления режымом работы и шагами
+
+
+
+
     //Pushed user data, send to all subscribers
     case Msg.UserData(outletId, value) ⇒ sender ! (state match{
-      case WorkMode.Stepping | WorkMode.Running ⇒ outlets.get(outletId) match{
+      case State.Work ⇒ outlets.get(outletId) match{
         case Some(outlet) ⇒
           //Distribution of UserMessage
           outlet.subscribers.values.foreach{ inlet ⇒
@@ -188,22 +214,33 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
         val maxQueueSize = inlets.values.map(_.taskQueue.size).max
         sender ! Msg.DriveLoad(self, maxQueueSize)
         //Add task to the queue
-        val runTask = Msg.RunTask(
-          id = inletId,
-          name = s"[UserMessage] outletId: $outletId, inletId: $inletId, value: $value",
-          task = ()⇒{ inlet.pipe.processValue(value) })
-        inlet.taskQueue += runTask
+        val newRunTask = MessageProcTask(inlet, publisher = (sender, outletId), value)
+        inlet.taskQueue += newRunTask
+        log.debug(s"[UserMessage] Task added to the queue, task: $newRunTask, queue: ${inlet.taskQueue}")
         //If queue is empty and state is Running, send task to impeller
-        (maxQueueSize, state) match{
-          case (0, WorkMode.Running) ⇒
-            impeller ! runTask
+        (maxQueueSize, mode) match{
+          case (0, Mode.Running) ⇒
+            impeller ! newRunTask.toRunTask
           case _ ⇒
             log.debug(s"[UserMessage] Task not send to impeller, maxQueueSize: $maxQueueSize, state: $state")}
       case None ⇒ log.error(s"[UserMessage] Inlet with id: $inletId, not exist.")}
     //Other drive load
     case Msg.DriveLoad(drive, maxQueueSize) ⇒
+      subscribedDrives.get(drive) match{
+        case Some(driveData) ⇒
+          //Update drive load
+          driveData.driveLoad = maxQueueSize
+          //Evaluate next push timeout
+          subscribedDrives.values.map(_.driveLoad).max match{
+            case 0 ⇒
+              pushTimeout = None
+            case n ⇒
+              pushTimeout = Some(n * pushTimeoutCoefficient)}
+          log.debug(s"[DriveLoad] maxQueueSize: $maxQueueSize, new pushTimeout: $pushTimeout, inlet drive actor: $drive")
+        case None ⇒
+          log.debug(s"[DriveLoad] Drive not subscribed, actor: $drive")}
 
-      //!!! Обновление нагрузки драйва (длжен быть в одном из outlet.subscribers), вычисление pushTimeout
+
 
 
 
@@ -225,10 +262,13 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
 
 
     //Далее здесь:
-    // 1) Постановка сообщения в очрель inlet'та
-    // 2) Вычисление (на основе размера очереди) и отправка sender'у pushTimeout.
-    //    !Подумать как реализовать
-    // 3) Цикл обработки сообщений из очредей (зависит от режыма (непрерывный/пошаговый))
+    // 1) При отключении соедиения должна добавляться чпецифическая задача (на подобии PoisonPill),
+    //    чтобы были обработаны все пользовательские сообщения.
+    // 2) Релизовать Msg.TaskDone(id, name), действие в зависимости от режыма работа.
+    // 3) Добвить сообщения (обдумать какие должны быть) для управления режимом работы и
+    //    ваполения в пошаговом режиме.
+    // 4) Заврешение рабоаты скетча.
+
 
 
 
@@ -256,40 +296,50 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
 
     //Task done
     case Msg.TaskDone(id, name) ⇒ state match{
-      case WorkMode.Starting ⇒
+      case State.Starting ⇒
         //User onStart function successfully executed.
-        state = WorkMode.Stepping
+        state = State.Work
         pumping ! Msg.DriveStarted
-      case WorkMode.Stepping ⇒
+      case State.Work ⇒
+        //Remove task from queue
+
+
+        //If mode: Stepping → reply to Pumping, Running → run next task
+
+
+        //По обработке сообщения
+
+
+        //
 
         ???
 
-      case WorkMode.Running ⇒
 
-        ???
+      case State.Stopping ⇒
 
-
-      case WorkMode.Stopping ⇒
+        //По обработке пользовательская функция останова
 
         ???
 
       case _ ⇒}
     //Task failed
     case Msg.TaskFailed(id, name, error) ⇒ state match{
-      case WorkMode.Starting ⇒
+      case State.Starting ⇒
         //User out on run user onStart function
 
-        ???
-
-      case WorkMode.Stepping ⇒
+        //Если пользовательская функция запуска завершилась неудачно
 
         ???
 
-      case WorkMode.Running ⇒
+      case State.Work ⇒
+
+        //Если обработка сообщения завершилась неудачно
 
         ???
 
-      case WorkMode.Stopping ⇒
+      case State.Stopping ⇒
+
+        //Если пользовательская функция останова завершилась неудачно
 
         ???
 
@@ -304,12 +354,6 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
 
 
 
-
-
-
-      //!!! Далее здесь:
-      // 1) Обьмен пользовательскими сообщениями (очереди, обратное давление)
-      // 2) Заврешение рабоаты скетча.
 
 
 
@@ -324,16 +368,13 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
 //    case Ready(initStepMode) ⇒
 //      //Set values
 //      stepMode = initStepMode
-//      state = WorkMode.Starting
+//      state = State.Starting
       //
 
       //TODO ???
 
 
-      //Далее: отложениое полключение, подключение и отключение, предача значений (очреди значений),
-      //алгоритм обратного давления
-
-
+    
 
 
 

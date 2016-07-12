@@ -60,6 +60,12 @@ private[mathact] object Msg {
   case object DriveBuilt
   case object StartDrive
   case object DriveStarted
+
+
+
+
+
+
   //Drive-Impeller
   case class RunTask(id: Int, name: String, task: ()⇒Unit)
   case class TaskDone(id: Int, name: String)
