@@ -41,7 +41,7 @@ import javafx.beans.value.ObservableValue
 abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
   //Parameters
   val initSpeed = 10.0
-  val initStepMode = StepMode.Asynchronously
+  val initStepMode = StepMode.Stepping
   val speedSliderDiapason = 100.0
   val speedSliderStep = 0.5
   val buttonsSize = 25

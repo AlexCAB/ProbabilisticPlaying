@@ -17,7 +17,7 @@ package mathact.parts.plumbing.actors
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor._
 import mathact.parts.BaseActor
-import mathact.parts.data.{PipeData, Msg}
+import mathact.parts.data.{StepMode, PipeData, Msg}
 import mathact.parts.data.Msg.Connectivity
 import mathact.parts.plumbing.Pump
 import mathact.parts.plumbing.fitting.{Jack, Plug, Inlet, Outlet}
@@ -26,6 +26,7 @@ import scala.concurrent.duration._
 
 
 /** Manage tool
+  * Inlets and outlets never removes
   * Created by CAB on 15.05.2016.
   */
 
@@ -36,13 +37,14 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
   override val supervisorStrategy = OneForOneStrategy(){ case _: Exception ⇒ Resume }
   //Enums
   object State extends Enumeration {val Creating, Building, Starting, Work, Stopping = Value}
-  object Mode extends Enumeration {val Paused, Stepping, Walking, Running = Value}
   //Definitions
   case class OutletData(id: Int, pipe: Outlet[_]){
     val subscribers = MutMap[(ActorRef, Int), PipeData]() //((subscribe tool drive, inlet ID), SubscriberData)
 
   }
-  case class MessageProcTask[T](inlet: InletData, publisher: (ActorRef, Int), value: T){ //publisher: (drive, outletId)
+  trait Task
+  object Disconnect extends Task
+  case class MessageProcTask(inlet: InletData, publisher: (ActorRef, Int), value: Any) extends Task{ //publisher: (drive, outletId)
     def toRunTask:Msg.RunTask = Msg.RunTask(
       id = inlet.id,
       name = s"[UserMessage] publisher: $publisher, inletId: ${inlet.id}, value: $value",
@@ -53,7 +55,7 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
 
   }
   case class InletData(id: Int, pipe: Inlet[_]){
-    val taskQueue = MutQueue[MessageProcTask[_]]()
+    val taskQueue = MutQueue[Task]()
     val publishers = MutMap[(ActorRef, Int), PipeData]() //((publishers tool drive, outlet ID), SubscriberData)
 
 
@@ -65,7 +67,7 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
   }
   //Variables
   var state = State.Creating
-  var mode = Mode.Paused
+  var mode = StepMode.Paused
 //  var impeller: Option[ActorRef] = None
   val outlets = MutMap[Int, OutletData]()  //(Outlet ID, OutletData)
   val inlets = MutMap[Int, InletData]()    //(Inlet ID, OutletData)
@@ -162,9 +164,17 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
     case Msg.DisconnectFrom(outletId, inlet) ⇒ outlets.get(outletId) match{
       case Some(outlet) ⇒ outlet.subscribers.contains((inlet.toolDrive, inlet.pipeId)) match{
         case true ⇒
+          //Remove inlet from subscribers
           outlet.subscribers -= Tuple2(inlet.toolDrive, inlet.pipeId)
-          subscribedDrives -= inlet.toolDrive
+          //If no more subscribe inlets with this drive, remove drive from subscribedDrives
+          outlets.exists(_._2.subscribers.exists{case (_,p) ⇒ p.toolDrive == inlet.toolDrive}) match{
+            case false ⇒ subscribedDrives -= inlet.toolDrive
+            case _ ⇒}
+          //Allow inlet to remove self outlet from publishers list
           inlet.toolDrive ! Msg.DelConnection(inlet.pipeId, outlet.pipe.getPipeData)
+          log.info(
+            s"[DisconnectFrom] Inlet: $inlet removed, outlet subscribers: ${outlet.subscribers}, " +
+            s"subscribedDrives: $subscribedDrives ")
         case false ⇒
           log.error(s"[DisconnectFrom] Inlet not in subscribers list, inlet: $inlet")}
       case None ⇒ log.error(s"[DisconnectFrom] Outlet with id: $outletId, not exist.")}
@@ -181,10 +191,56 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
     case Msg.StartDrive ⇒
       state = State.Starting
       impeller ! Msg.RunTask(0, "Starting", ()⇒pump.toolStart())
+    //Updating of step mode
+    case Msg.SetStepMode(newMode) ⇒
+      mode = newMode
+      sender ! Msg.StepModeIsSet
+    //Run of user message processing
+    case Msg.DriveGo ⇒ mode match{
+      case StepMode.Stepping ⇒
+
+        //Выбор одной задачи-сообщения из акждой очереди и ваполение, по выполении всех задачь отправка DriveDone
+        //!!! Возможно можно просто отправить все в очередь импелера
+        //!!! Но тогда нужно некоторое уникальное ID задачи чтобы отслежывать их выполение
+
+      case StepMode.Walking ⇒
+
+        //Выбор одной задачи-сообщения из каждой очереди и ваполение, БЕЗ отправка DriveDone
+
+      case StepMode.Running ⇒
+
+        //Отправка одной задачи в на выполение, и позавершении будет отправлена следующая, т.е. образуется
+        // цикл выполения задачь
+
+
+      case _ ⇒}
+
+      //!!!!!!! Лучше всего убрать DriveGo (заменть на DriveStep) и DriveStay, Запуск цикла непрерывной обработки сообщений
+      // будет запускатся сразу по получении SetStepMode(Running), и останавоиватся при смене ражыма на любой другой
+      // (но нужно ещё подумаь как это сделать проще)
 
 
 
-   //!!! Здесь сообщения управления режымом работы и шагами
+    //Далее здесь:
+    // 1) Обдумать как лучше и реализовать DriveGo для разных режымов
+    // 2) Релизовать Msg.TaskDone(id, name), действие в зависимости от режыма работа.
+    // 3) Заврешение рабоаты скетча.
+
+
+
+
+
+
+
+
+    //Stop of user message processing
+    case Msg.DriveStay ⇒
+
+
+     ???
+
+
+    //!!! Здесь сообщения управления режымом работы и шагами
 
 
 
@@ -219,7 +275,7 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
         log.debug(s"[UserMessage] Task added to the queue, task: $newRunTask, queue: ${inlet.taskQueue}")
         //If queue is empty and state is Running, send task to impeller
         (maxQueueSize, mode) match{
-          case (0, Mode.Running) ⇒
+          case (0, StepMode.Running) ⇒
             impeller ! newRunTask.toRunTask
           case _ ⇒
             log.debug(s"[UserMessage] Task not send to impeller, maxQueueSize: $maxQueueSize, state: $state")}
@@ -261,13 +317,6 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
 
 
 
-    //Далее здесь:
-    // 1) При отключении соедиения должна добавляться чпецифическая задача (на подобии PoisonPill),
-    //    чтобы были обработаны все пользовательские сообщения.
-    // 2) Релизовать Msg.TaskDone(id, name), действие в зависимости от режыма работа.
-    // 3) Добвить сообщения (обдумать какие должны быть) для управления режимом работы и
-    //    ваполения в пошаговом режиме.
-    // 4) Заврешение рабоаты скетча.
 
 
 
@@ -374,7 +423,7 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
       //TODO ???
 
 
-    
+
 
 
 

@@ -60,6 +60,11 @@ private[mathact] object Msg {
   case object DriveBuilt
   case object StartDrive
   case object DriveStarted
+  case class SetStepMode(mode: StepMode)
+  case object StepModeIsSet
+  case object DriveGo
+  case object DriveDone
+  case object DriveStay
 
 
 

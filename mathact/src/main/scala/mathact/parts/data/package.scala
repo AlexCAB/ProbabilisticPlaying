@@ -14,6 +14,7 @@
 
 package mathact.parts
 
+
 /** Contains common enums
   * Created by CAB on 24.06.2016.
   */
@@ -23,7 +24,7 @@ package object data {
   object SketchStatus extends Enumeration {val Autorun, Ready, Ended, Failed = Value}
   type SketchStatus = SketchStatus.Value
   //StepMode
-  object StepMode extends Enumeration {val Asynchronously, SoftSynchronization, HardSynchronization, None = Value}
+  object StepMode extends Enumeration {val Paused, Stepping, Walking, Running = Value}
   type StepMode = StepMode.Value
 
 //TODO Add more
