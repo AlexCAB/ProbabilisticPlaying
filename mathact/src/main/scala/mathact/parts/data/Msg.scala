@@ -62,9 +62,9 @@ private[mathact] object Msg {
   case object DriveStarted
   case class SetStepMode(mode: StepMode)
   case object StepModeIsSet
-  case object DriveGo
+  case object DriveStep
   case object DriveDone
-  case object DriveStay
+
 
 
 
@@ -72,9 +72,9 @@ private[mathact] object Msg {
 
 
   //Drive-Impeller
-  case class RunTask(id: Int, name: String, task: ()⇒Unit)
-  case class TaskDone(id: Int, name: String)
-  case class TaskFailed(id: Int, name: String, error: Throwable)
+  case class RunTask(id: Long, name: String, task: ()⇒Unit)
+  case class TaskDone(id: Long, name: String)
+  case class TaskFailed(id: Long, name: String, error: Throwable)
   //User data
   case class UserData[T](outletId: Int, value: T)
   case class UserMessage[T](outletId: Int, inletId: Int, value: T)

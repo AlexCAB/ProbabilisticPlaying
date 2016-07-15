@@ -42,11 +42,9 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
     val subscribers = MutMap[(ActorRef, Int), PipeData]() //((subscribe tool drive, inlet ID), SubscriberData)
 
   }
-  trait Task
-  object Disconnect extends Task
-  case class MessageProcTask(inlet: InletData, publisher: (ActorRef, Int), value: Any) extends Task{ //publisher: (drive, outletId)
+  case class MessageProcTask(taskId: Long, inlet: InletData, publisher: (ActorRef, Int), value: Any){ //publisher: (drive, outletId)
     def toRunTask:Msg.RunTask = Msg.RunTask(
-      id = inlet.id,
+      id = taskId,
       name = s"[UserMessage] publisher: $publisher, inletId: ${inlet.id}, value: $value",
       task = ()⇒{inlet.pipe.processValue(value)})
 
@@ -55,7 +53,7 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
 
   }
   case class InletData(id: Int, pipe: Inlet[_]){
-    val taskQueue = MutQueue[Task]()
+    val taskQueue = MutQueue[MessageProcTask]()
     val publishers = MutMap[(ActorRef, Int), PipeData]() //((publishers tool drive, outlet ID), SubscriberData)
 
 
@@ -67,13 +65,15 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
   }
   //Variables
   var state = State.Creating
-  var mode = StepMode.Paused
+  var mode = StepMode.Running
 //  var impeller: Option[ActorRef] = None
   val outlets = MutMap[Int, OutletData]()  //(Outlet ID, OutletData)
   val inlets = MutMap[Int, InletData]()    //(Inlet ID, OutletData)
   val subscribedDrives = MutMap[ActorRef, DrivesData]()
   val pendingConnections = MutQueue[Connectivity]()
   var pushTimeout: Option[Long] = None   //Time out after each push (depend from current back pressure)
+  val performedTasks = MutMap[Long, MessageProcTask]()
+  var numberOfNotProcessedSteps = 0
 
 
   //Worker actor
@@ -95,6 +95,92 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
       log.error(s"[ConnectPipes.doConnect] Plug or Jack is not an instance of Outlet[_] or Inlet[_], out: $o, in: $i.")}
 
 
+  def sendBatchOfTasks(): Unit = inlets.values.foreach{ //Send batch of tasks, one from each inlet queue
+    case inletData if inletData.taskQueue.nonEmpty ⇒
+      val nextTask = inletData.taskQueue.dequeue()
+      performedTasks += (nextTask.taskId → nextTask)
+      impeller ! nextTask.toRunTask
+    case _ ⇒}
+
+
+  def sendTaskFromLongerQueue(): Unit = {
+    //Search for inlet with max queue size
+    val maxQueueInlet = inlets.values match{
+       case ins if ins.isEmpty ⇒ None
+       case ins ⇒ ins.maxBy(_.taskQueue.size) match{
+         case msi if msi.taskQueue.isEmpty ⇒ None
+         case msi ⇒ Some(msi)}}
+    //Run task
+    maxQueueInlet match{
+      case Some(inlet) ⇒
+        val nextTask = inlet.taskQueue.dequeue()
+        log.debug(s"[sendTaskFromLongerQueue] Run task: $nextTask, from inlet: $inlet")
+        impeller ! nextTask.toRunTask
+      case None ⇒
+       log.debug(s"[sendTaskFromLongerQueue] No tasks to run")}}
+
+
+
+
+  def runNextMsgTask(): Unit = mode match {
+    case StepMode.Stepping ⇒ performedTasks.isEmpty match{
+      case true ⇒
+        sendBatchOfTasks()
+        log.debug(s"[runNextMsgTask.Stepping] Performed task list been empty, new performedTasks: $performedTasks")
+      case false ⇒
+        log.debug(s"[runNextMsgTask.Stepping] Performed task list not empty, performedTasks: $performedTasks")}
+    case StepMode.Walking ⇒ performedTasks.isEmpty match{
+      case true ⇒
+        sendBatchOfTasks()
+        log.debug(s"[runNextMsgTask.Walking] Performed task list been empty, new performedTasks: $performedTasks")
+      case false ⇒
+        numberOfNotProcessedSteps += 1
+        log.debug(
+          s"[runNextMsgTask.Walking] Performed task list not empty, numberOfNotProcessedSteps: $numberOfNotProcessedSteps, " +
+          s"performedTasks: $performedTasks")}
+    case StepMode.Running ⇒ performedTasks.isEmpty match{
+      case true ⇒
+        sendTaskFromLongerQueue()
+        log.debug(s"[runNextMsgTask.Running] Performed task list been empty, new performedTasks: $performedTasks")
+      case false ⇒
+        log.debug(s"[runNextMsgTask.Running] Performed task list not empty, performedTasks: $performedTasks")}
+    case _ ⇒}
+
+
+
+
+
+  def msgTaskDone(taskId: Long): Unit =
+    //Remove task for list
+    performedTasks -= taskId
+    //Action on task done
+    mode match {
+      case StepMode.Stepping ⇒ performedTasks.isEmpty match{
+        case true ⇒
+          log.debug(s"[msgTaskDone.Stepping] Performed task list empty, send DriveDone to plumping.")
+          pumping ! Msg.DriveDone
+        case false ⇒
+          log.debug(s"[msgTaskDone.Stepping] Performed task list not empty, performedTasks: $performedTasks")}
+      case StepMode.Walking ⇒ (performedTasks.isEmpty, numberOfNotProcessedSteps) match{
+        case (true, 0) ⇒
+          log.debug(s"[msgTaskDone.Walking] Performed task list empty, wait for next DriveStep message.")
+        case (true, ns) ⇒
+          log.debug(
+            s"[msgTaskDone.Walking] Performed task list empty, run next step if it is, " +
+            s"numberOfNotProcessedSteps: $ns")
+          numberOfNotProcessedSteps -= 1
+          sendBatchOfTasks()
+        case (false, _) ⇒
+          log.debug(
+            s"[msgTaskDone.Walking] Performed task list not empty, performedTasks: $performedTasks, " +
+            s"numberOfNotProcessedSteps: $numberOfNotProcessedSteps")}
+      case StepMode.Running ⇒ performedTasks.isEmpty match{
+        case true ⇒
+          log.debug(s"[msgTaskDone.Running] Performed task list empty, run next task.")
+          sendTaskFromLongerQueue()
+        case false ⇒
+          log.debug(s"[msgTaskDone.Running] Performed task list not empty, performedTasks: $performedTasks")}
+      case _ ⇒}
 
 
   //Messages handling
@@ -105,7 +191,7 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
       val outletId = outlets.values.filter(_.pipe == pipe) match{
         case Nil ⇒
           //Create and add
-          val id = nextId
+          val id = nextIntId
           outlets += (id → OutletData(id, pipe))
           log.debug(s"[AddOutlet] Outlet: $pipe, added with ID: $id")
           id
@@ -120,7 +206,7 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
       val inletId = inlets.values.filter(_.pipe == pipe) match{
         case Nil ⇒
           //Create and add
-          val id = nextId
+          val id = nextIntId
           inlets += (id → InletData(id, pipe))
           log.debug(s"[AddInlet] Inlet: $pipe, added with ID: $id")
           id
@@ -193,31 +279,57 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
       impeller ! Msg.RunTask(0, "Starting", ()⇒pump.toolStart())
     //Updating of step mode
     case Msg.SetStepMode(newMode) ⇒
+      //Set mode
       mode = newMode
+      numberOfNotProcessedSteps = 0
+      //If new mode is StepMode.Running start msg processing
+      (newMode, state) match{
+        case (StepMode.Running, State.Work) ⇒ runNextMsgTask()
+        case (_,s) ⇒ log.warning(s"[SetStepMode] Can't run message task not in work state, state: $s.")}
       sender ! Msg.StepModeIsSet
-    //Run of user message processing
-    case Msg.DriveGo ⇒ mode match{
-      case StepMode.Stepping ⇒
-
-        //Выбор одной задачи-сообщения из акждой очереди и ваполение, по выполении всех задачь отправка DriveDone
-        //!!! Возможно можно просто отправить все в очередь импелера
-        //!!! Но тогда нужно некоторое уникальное ID задачи чтобы отслежывать их выполение
-
-      case StepMode.Walking ⇒
-
-        //Выбор одной задачи-сообщения из каждой очереди и ваполение, БЕЗ отправка DriveDone
-
-      case StepMode.Running ⇒
-
-        //Отправка одной задачи в на выполение, и позавершении будет отправлена следующая, т.е. образуется
-        // цикл выполения задачь
+    //Run of one step of user message processing
+    case Msg.DriveStep ⇒ state match{
+      case State.Work ⇒ runNextMsgTask()
+      case s ⇒ log.warning(s"[SetStepMode] Can't do step not in work state, state: $s.")}
 
 
-      case _ ⇒}
+
+
+
+
+
+
+
+
+
+
+
+
+//      mode match{
+//      case StepMode.Stepping ⇒
+//
+//        //Выбор одной задачи-сообщения из акждой очереди и ваполение, по выполении всех задачь отправка DriveDone
+//        //!!! Возможно можно просто отправить все в очередь импелера
+//        //!!! Но тогда нужно некоторое уникальное ID задачи чтобы отслежывать их выполение
+//
+//      case StepMode.Walking ⇒
+//
+//        //Выбор одной задачи-сообщения из каждой очереди и ваполение, БЕЗ отправка DriveDone
+//
+//      case StepMode.Running ⇒
+//
+//        //Отправка одной задачи в на выполение, и позавершении будет отправлена следующая, т.е. образуется
+//        // цикл выполения задачь
+//
+//
+//      case _ ⇒}
 
       //!!!!!!! Лучше всего убрать DriveGo (заменть на DriveStep) и DriveStay, Запуск цикла непрерывной обработки сообщений
       // будет запускатся сразу по получении SetStepMode(Running), и останавоиватся при смене ражыма на любой другой
       // (но нужно ещё подумаь как это сделать проще)
+      //!!! Для отслежывания завершения задачь можно использовать колекцию, из которой будут удалятся
+      // выполененые задач, когда колекция станет пуста, жто значитьможно запускать следующую (для Running)
+      // или обобрабатывать следующий DriveStep
 
 
 
@@ -232,12 +344,6 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
 
 
 
-
-    //Stop of user message processing
-    case Msg.DriveStay ⇒
-
-
-     ???
 
 
     //!!! Здесь сообщения управления режымом работы и шагами
@@ -270,13 +376,13 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
         val maxQueueSize = inlets.values.map(_.taskQueue.size).max
         sender ! Msg.DriveLoad(self, maxQueueSize)
         //Add task to the queue
-        val newRunTask = MessageProcTask(inlet, publisher = (sender, outletId), value)
+        val newRunTask = MessageProcTask(nextLongId, inlet, publisher = (sender, outletId), value)
         inlet.taskQueue += newRunTask
         log.debug(s"[UserMessage] Task added to the queue, task: $newRunTask, queue: ${inlet.taskQueue}")
         //If queue is empty and state is Running, send task to impeller
         (maxQueueSize, mode) match{
           case (0, StepMode.Running) ⇒
-            impeller ! newRunTask.toRunTask
+            runNextMsgTask()
           case _ ⇒
             log.debug(s"[UserMessage] Task not send to impeller, maxQueueSize: $maxQueueSize, state: $state")}
       case None ⇒ log.error(s"[UserMessage] Inlet with id: $inletId, not exist.")}
@@ -344,35 +450,18 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
 
 
     //Task done
-    case Msg.TaskDone(id, name) ⇒ state match{
+    case Msg.TaskDone(taskId, name) ⇒ state match{
       case State.Starting ⇒
-        //User onStart function successfully executed.
         state = State.Work
         pumping ! Msg.DriveStarted
-      case State.Work ⇒
-        //Remove task from queue
-
-
-        //If mode: Stepping → reply to Pumping, Running → run next task
-
-
-        //По обработке сообщения
-
-
-        //
-
-        ???
-
-
+      case State.Work ⇒ msgTaskDone(taskId)
       case State.Stopping ⇒
-
-        //По обработке пользовательская функция останова
 
         ???
 
       case _ ⇒}
     //Task failed
-    case Msg.TaskFailed(id, name, error) ⇒ state match{
+    case Msg.TaskFailed(taskId, name, error) ⇒ state match{
       case State.Starting ⇒
         //User out on run user onStart function
 
@@ -383,8 +472,9 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
       case State.Work ⇒
 
         //Если обработка сообщения завершилась неудачно
+        //Отправка сообщения об ошибке в пользоательский лог
 
-        ???
+        msgTaskDone(taskId)
 
       case State.Stopping ⇒
 

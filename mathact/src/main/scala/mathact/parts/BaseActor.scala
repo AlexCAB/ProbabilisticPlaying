@@ -32,7 +32,8 @@ abstract class BaseActor extends Actor{
   implicit val execContext = context.system.dispatcher
   //Variables
   private var msgHandler: Option[(Option[()⇒Any], PartialFunction[Any, Unit])] = None
-  private var idCounter = 0
+  private var intIdCounter = 0
+  private var longIdCounter = 0L
   //Helpers
   /** Run block and akkaLog error
     * @param block - code to run
@@ -46,7 +47,8 @@ abstract class BaseActor extends Actor{
       throw t}
   /** Generate next integer ID
     * @return - Int ID */
-  def nextId: Int = {idCounter += 1; idCounter}
+  def nextIntId: Int = {intIdCounter += 1; intIdCounter}
+  def nextLongId: Long = {longIdCounter += 1; longIdCounter}
   //Messages handling with logging
   def reaction(state: ⇒ Any)(handling: PartialFunction[Any, Unit]): Unit = {
     msgHandler = Some(Tuple2(Some(()⇒state), handling))}
