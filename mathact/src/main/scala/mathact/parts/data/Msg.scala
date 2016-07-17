@@ -36,13 +36,14 @@ private[mathact] object Msg {
   case class SketchError(className: String, error: Throwable)
   //SketchController - Pumping
   case object GetPumpingActor
-  case class StartPumping(speed: Double, stepMode: StepMode)
-  case object PumpingStarted
+  case class StartPumping(workMode: WorkMode, speed: Double)
+  case class PumpingStarted(workMode: WorkMode)
   case object HitStart
   case object HitStop
   case object HitStep
   case class SetSpeed(value: Double)
-  case class SwitchMode(newMode: StepMode)
+  case class SwitchWorkMode(newMode: WorkMode)
+  case class StepModeSwitched(workMode: WorkMode, stepMode: StepMode)
   case class PumpingError(error: Throwable)
   //Pumping - Drive
   case class NewDrive(toolPump: Pump, toolName: String, toolImage: Option[Image])     //Mane and image for display in UI
@@ -61,7 +62,7 @@ private[mathact] object Msg {
   case object StartDrive
   case object DriveStarted
   case class SetStepMode(mode: StepMode)
-  case object StepModeIsSet
+  case class StepModeIsSet(mode: StepMode)
   case object DriveStep
   case object DriveDone
 

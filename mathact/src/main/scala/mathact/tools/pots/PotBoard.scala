@@ -51,7 +51,7 @@ abstract class PotBoard(implicit  context: WorkbenchContext) extends Tool(contex
 
 
     Future{
-      (0 to 10).foreach{ i ⇒
+      (0 to 5).foreach{ i ⇒
         println("############# push: " + i)
         try{
           push(i)}

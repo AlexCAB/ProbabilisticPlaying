@@ -26,6 +26,8 @@ package object data {
   //StepMode
   object StepMode extends Enumeration {val Paused, Stepping, Walking, Running = Value}
   type StepMode = StepMode.Value
+  object WorkMode extends Enumeration {val HardSynchro, SoftSynchro, Asynchro = Value}
+  type WorkMode = WorkMode.Value
 
 //TODO Add more
 

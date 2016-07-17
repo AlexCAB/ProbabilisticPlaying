@@ -20,7 +20,7 @@ import akka.actor._
 import akka.event.Logging
 import mathact.parts.BaseActor
 import mathact.parts.data.Msg.GetPumpingActor
-import mathact.parts.data.{Sketch, StepMode, Msg}
+import mathact.parts.data.{WorkMode, Sketch, StepMode, Msg}
 import mathact.parts.gui.{SelectSketchWindow, SketchControlWindow}
 import mathact.parts.gui.frame.Frame
 import mathact.parts.plumbing.actors.Pumping
@@ -35,6 +35,7 @@ import scalafx.scene.paint.Color._
 import scalafx.scene.paint.{LinearGradient, Stops}
 import scalafx.scene.text.Text
 import scalafx.stage.Stage
+
 
 /** Workbench application controller
   * Created by CAB on 21.05.2016.
@@ -55,7 +56,7 @@ class WorkbenchController(sketch: Sketch, mainController: ActorRef) extends Base
     def hitStop(): Unit = {self ! Msg.HitStop}
     def hitStep(): Unit = {self ! Msg.HitStep}
     def setSpeed(value: Double) = {self ! Msg.SetSpeed(value)}
-    def switchMode(newMode: StepMode) = {self ! Msg.SwitchMode(newMode)}
+    def switchMode(newMode: WorkMode) = {self ! Msg.SwitchWorkMode(newMode)}
     def windowClosed(): Unit = {self ! HitWindowClose}}
   //Actors
   val pumping = context.actorOf(Props(new Pumping(self, sketch)), "Pumping_" + sketch.className)
@@ -71,19 +72,20 @@ class WorkbenchController(sketch: Sketch, mainController: ActorRef) extends Base
       tryToRun{uiSketchControl.init()} match{
         case Success(_) ⇒
           //Starting of Pumping
-          pumping ! Msg.StartPumping(uiSketchControl.getInitSpeed, uiSketchControl.getInitStepMode)
+          pumping ! Msg.StartPumping(uiSketchControl.getInitWorkMode, uiSketchControl.getInitSpeed)
           state = State.Starting
         case Failure(e) ⇒
           //Fail on create UI
           self ! ErrorStop(e)}
     //Pumping is ready
-    case Msg.PumpingStarted if state == State.Starting ⇒
+    case Msg.PumpingStarted(workMode) if state == State.Starting ⇒
       //Enable UI
-      tryToRun{uiSketchControl.setEnabled(true)} match{
+      tryToRun{uiSketchControl.setReady(workMode)} match{
         case Success(_) ⇒
           //If autorun then start Pumping
 
-          //TODO Добавить autorun метод в Workbench DSL и получать его знаение, если аквтозапуск то посылка Msg.HitStart
+          // Добавить autorun метод в Workbench DSL и получать его знаение, если аквтозапуск то посылка Msg.HitStart
+          // Также добавить в DSL методы ля установки InitWorkMode InitSpeed
 
           //Update state
           state = State.Work
@@ -113,8 +115,19 @@ class WorkbenchController(sketch: Sketch, mainController: ActorRef) extends Base
       pumping ! Msg.HitStep
     case Msg.SetSpeed(v) if state == State.Work ⇒
       pumping ! Msg.SetSpeed
-    case Msg.SwitchMode(v) if state == State.Work ⇒
-      pumping ! Msg.SwitchMode(v)
+    case Msg.SwitchWorkMode(v) if state == State.Work ⇒
+      pumping ! Msg.SwitchWorkMode(v)
+    //Mode switched
+    case Msg.StepModeSwitched(workMode, stepMode) if state == State.Work ⇒
+      uiSketchControl.setReady(workMode)
+
+
+
+
+
+
+
+
     //PumpingError(error: Throwable)
     case Msg.PumpingError(error) ⇒
 

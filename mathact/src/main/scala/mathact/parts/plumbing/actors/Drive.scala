@@ -65,8 +65,7 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
   }
   //Variables
   var state = State.Creating
-  var mode = StepMode.Running
-//  var impeller: Option[ActorRef] = None
+  var mode = StepMode.Paused
   val outlets = MutMap[Int, OutletData]()  //(Outlet ID, OutletData)
   val inlets = MutMap[Int, InletData]()    //(Inlet ID, OutletData)
   val subscribedDrives = MutMap[ActorRef, DrivesData]()
@@ -150,11 +149,13 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
 
 
 
-  def msgTaskDone(taskId: Long): Unit =
+  def msgTaskDone(taskId: Long): Unit = {
     //Remove task for list
     performedTasks -= taskId
     //Action on task done
     mode match {
+      case StepMode.Paused ⇒
+        log.debug(s"[msgTaskDone.Paused] Do nothing.")
       case StepMode.Stepping ⇒ performedTasks.isEmpty match{
         case true ⇒
           log.debug(s"[msgTaskDone.Stepping] Performed task list empty, send DriveDone to plumping.")
@@ -180,7 +181,8 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
           sendTaskFromLongerQueue()
         case false ⇒
           log.debug(s"[msgTaskDone.Running] Performed task list not empty, performedTasks: $performedTasks")}
-      case _ ⇒}
+      case s ⇒
+        log.error(s"[msgTaskDone] Unknown mode: $s")}}
 
 
   //Messages handling
@@ -277,16 +279,18 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
     case Msg.StartDrive ⇒
       state = State.Starting
       impeller ! Msg.RunTask(0, "Starting", ()⇒pump.toolStart())
-    //Updating of step mode
+    //Updating of step stepMode
     case Msg.SetStepMode(newMode) ⇒
-      //Set mode
+      //Set stepMode
       mode = newMode
       numberOfNotProcessedSteps = 0
-      //If new mode is StepMode.Running start msg processing
-      (newMode, state) match{
-        case (StepMode.Running, State.Work) ⇒ runNextMsgTask()
-        case (_,s) ⇒ log.warning(s"[SetStepMode] Can't run message task not in work state, state: $s.")}
-      sender ! Msg.StepModeIsSet
+      //If new stepMode is StepMode.Running start msg processing
+      state match{
+        case State.Work ⇒ newMode match{
+          case StepMode.Running ⇒ runNextMsgTask()
+          case _ ⇒}
+        case s ⇒ log.warning(s"[SetStepMode] Can't run message task, not in work state, state: $s.")}
+      sender ! Msg.StepModeIsSet(mode)
     //Run of one step of user message processing
     case Msg.DriveStep ⇒ state match{
       case State.Work ⇒ runNextMsgTask()
@@ -305,7 +309,8 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
 
 
 
-//      mode match{
+
+//      stepMode match{
 //      case StepMode.Stepping ⇒
 //
 //        //Выбор одной задачи-сообщения из акждой очереди и ваполение, по выполении всех задачь отправка DriveDone
@@ -459,7 +464,8 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
 
         ???
 
-      case _ ⇒}
+      case s ⇒
+        log.error(s"[TaskDone] Unknown mode: $s")}
     //Task failed
     case Msg.TaskFailed(taskId, name, error) ⇒ state match{
       case State.Starting ⇒
@@ -482,7 +488,8 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
 
         ???
 
-      case _ ⇒}
+      case s ⇒
+        log.error(s"[TaskFailed] Unknown mode: $s")}
 
 
 

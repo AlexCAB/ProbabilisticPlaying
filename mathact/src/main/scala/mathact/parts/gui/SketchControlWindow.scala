@@ -18,7 +18,7 @@ import javafx.event.EventHandler
 import javafx.stage.WindowEvent
 
 import akka.event.LoggingAdapter
-import mathact.parts.data.StepMode
+import mathact.parts.data.{WorkMode, StepMode}
 
 import scalafx.collections.ObservableBuffer
 import scalafx.geometry.{Pos, Insets}
@@ -41,7 +41,7 @@ import javafx.beans.value.ObservableValue
 abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
   //Parameters
   val initSpeed = 10.0
-  val initStepMode = StepMode.Stepping
+  val initStepMode = WorkMode.HardSynchro
   val speedSliderDiapason = 100.0
   val speedSliderStep = 0.5
   val buttonsSize = 25
@@ -51,7 +51,7 @@ abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
   def hitStop(): Unit
   def hitStep(): Unit
   def setSpeed(value: Double): Unit
-  def switchMode(newMode: StepMode): Unit
+  def switchMode(newMode: WorkMode): Unit
   def windowClosed(): Unit
   //Definitions
   private class MainWindowStage extends Stage {
@@ -110,16 +110,20 @@ abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
           case false ⇒}}}
     val stepMode = new ComboBox[String]{
       val options = ObservableBuffer(
-        "Asynchronously",
+        "Hard synchronization",
         "Soft synchronization",
-        "Hard synchronization")
+        "Asynchronously")
       prefWidth = 170
       prefHeight = buttonsSize
       items = options
       disable = true
       delegate.getSelectionModel.select(options(initStepMode.id))
       onAction = handle{
-        switchMode(StepMode(delegate.getSelectionModel.getSelectedIndex))}}
+        disable = true
+        startBtn.setEnabled(false)
+        stopBtn.setEnabled(false)
+        stepBtn.setEnabled(false)
+        switchMode(WorkMode(delegate.getSelectionModel.getSelectedIndex))}}
      val stateString = new Text {
       text = "Starting..."
       style = "-fx-font-size: 11pt;"}
@@ -168,29 +172,53 @@ abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
     runAndWait(stg.close())
     stage = None}
   def getInitSpeed: Double = initSpeed
-  def getInitStepMode: StepMode = initStepMode
-  def setRun(isRan: Boolean): Unit = runAndWait{ stage.foreach{ stg ⇒ isRan match {
-    case true ⇒
-      stg.startBtn.setEnabled(false)
-      stg.stopBtn.setEnabled(true)
-      stg.stepBtn.setEnabled(false)
-    case false ⇒
-      stg.startBtn.setEnabled(true)
-      stg.stopBtn.setEnabled(false)
-      stg.stepBtn.setEnabled(true)}}}
-  def setEnabled(isEnabled: Boolean): Unit = runAndWait{ stage.foreach{ stg ⇒ isEnabled match {
-    case true ⇒
+  def getInitWorkMode: WorkMode = initStepMode
+//  def setRun(isRan: Boolean): Unit = runAndWait{ stage.foreach{ stg ⇒ isRan match {
+//    case true ⇒
+//      stg.startBtn.setEnabled(false)
+//      stg.stopBtn.setEnabled(true)
+//      stg.stepBtn.setEnabled(false)
+//    case false ⇒
+//      stg.startBtn.setEnabled(true)
+//      stg.stopBtn.setEnabled(false)
+//      stg.stepBtn.setEnabled(true)}}}
+
+
+  def setDisabled(): Unit = runAndWait{ stage.foreach{ stg ⇒
+    stg.speedSlider.disable = true
+    stg.stepMode.disable = true
+    stg.startBtn.setEnabled(false)
+    stg.stopBtn.setEnabled(false)
+    stg.stepBtn.setEnabled(false)}}
+  def setReady(workMode: WorkMode): Unit = runAndWait{ stage.foreach{ stg ⇒ workMode match{
+    case WorkMode.HardSynchro | WorkMode.SoftSynchro ⇒
       stg.speedSlider.disable = false
       stg.stepMode.disable = false
       stg.startBtn.setEnabled(true)
       stg.stopBtn.setEnabled(false)
       stg.stepBtn.setEnabled(true)
-    case false ⇒
+    case WorkMode.Asynchro ⇒
       stg.speedSlider.disable = true
-      stg.stepMode.disable = true
-      stg.startBtn.setEnabled(false)
+      stg.stepMode.disable = false
+      stg.startBtn.setEnabled(true)
       stg.stopBtn.setEnabled(false)
-      stg.stepBtn.setEnabled(false)}}}
+      stg.stepBtn.setEnabled(false)}
+
+
+
+
+
+
+
+
+
+
+
+
+  }}
+
+
+  //TODO Переписать в логирование
   def setStatus(status: String): Unit = runAndWait{ stage.foreach{ stg ⇒
     stg.stateString.text = status}}}
 
