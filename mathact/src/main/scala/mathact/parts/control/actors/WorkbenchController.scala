@@ -56,7 +56,7 @@ class WorkbenchController(sketch: Sketch, mainController: ActorRef) extends Base
     def hitStop(): Unit = {self ! Msg.HitStop}
     def hitStep(): Unit = {self ! Msg.HitStep}
     def setSpeed(value: Double) = {self ! Msg.SetSpeed(value)}
-    def switchMode(newMode: WorkMode) = {self ! Msg.SwitchWorkMode(newMode)}
+    def switchMode(stepMode: StepMode) = {self ! Msg.SwitchStepMode(stepMode)}
     def windowClosed(): Unit = {self ! HitWindowClose}}
   //Actors
   val pumping = context.actorOf(Props(new Pumping(self, sketch)), "Pumping_" + sketch.className)
@@ -115,11 +115,11 @@ class WorkbenchController(sketch: Sketch, mainController: ActorRef) extends Base
       pumping ! Msg.HitStep
     case Msg.SetSpeed(v) if state == State.Work ⇒
       pumping ! Msg.SetSpeed
-    case Msg.SwitchWorkMode(v) if state == State.Work ⇒
-      pumping ! Msg.SwitchWorkMode(v)
+    case Msg.SwitchStepMode(v) if state == State.Work ⇒
+      pumping ! Msg.SwitchStepMode(v)
     //Mode switched
-    case Msg.StepModeSwitched(workMode, stepMode) if state == State.Work ⇒
-      uiSketchControl.setReady(workMode)
+//    case Msg.StepModeSwitched(workMode, stepMode) if state == State.Work ⇒
+//      uiSketchControl.setReady(workMode)
 
 
 

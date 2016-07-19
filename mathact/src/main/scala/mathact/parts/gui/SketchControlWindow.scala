@@ -41,7 +41,7 @@ import javafx.beans.value.ObservableValue
 abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
   //Parameters
   val initSpeed = 10.0
-  val initStepMode = WorkMode.HardSynchro
+  val initStepMode = StepMode.HardSynchro
   val speedSliderDiapason = 100.0
   val speedSliderStep = 0.5
   val buttonsSize = 25
@@ -51,7 +51,7 @@ abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
   def hitStop(): Unit
   def hitStep(): Unit
   def setSpeed(value: Double): Unit
-  def switchMode(newMode: WorkMode): Unit
+  def switchMode(newMode: StepMode): Unit
   def windowClosed(): Unit
   //Definitions
   private class MainWindowStage extends Stage {
@@ -123,7 +123,7 @@ abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
         startBtn.setEnabled(false)
         stopBtn.setEnabled(false)
         stepBtn.setEnabled(false)
-        switchMode(WorkMode(delegate.getSelectionModel.getSelectedIndex))}}
+        switchMode(StepMode(delegate.getSelectionModel.getSelectedIndex))}}
      val stateString = new Text {
       text = "Starting..."
       style = "-fx-font-size: 11pt;"}
@@ -172,7 +172,7 @@ abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
     runAndWait(stg.close())
     stage = None}
   def getInitSpeed: Double = initSpeed
-  def getInitWorkMode: WorkMode = initStepMode
+  def getInitWorkMode: StepMode = initStepMode
 //  def setRun(isRan: Boolean): Unit = runAndWait{ stage.foreach{ stg ⇒ isRan match {
 //    case true ⇒
 //      stg.startBtn.setEnabled(false)
@@ -190,14 +190,14 @@ abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
     stg.startBtn.setEnabled(false)
     stg.stopBtn.setEnabled(false)
     stg.stepBtn.setEnabled(false)}}
-  def setReady(workMode: WorkMode): Unit = runAndWait{ stage.foreach{ stg ⇒ workMode match{
-    case WorkMode.HardSynchro | WorkMode.SoftSynchro ⇒
+  def setReady(workMode: StepMode): Unit = runAndWait{ stage.foreach{ stg ⇒ workMode match{
+    case StepMode.HardSynchro | StepMode.SoftSynchro ⇒
       stg.speedSlider.disable = false
       stg.stepMode.disable = false
       stg.startBtn.setEnabled(true)
       stg.stopBtn.setEnabled(false)
       stg.stepBtn.setEnabled(true)
-    case WorkMode.Asynchro ⇒
+    case StepMode.Asynchro ⇒
       stg.speedSlider.disable = true
       stg.stepMode.disable = false
       stg.startBtn.setEnabled(true)

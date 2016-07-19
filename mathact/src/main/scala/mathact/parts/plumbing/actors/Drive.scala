@@ -17,7 +17,7 @@ package mathact.parts.plumbing.actors
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor._
 import mathact.parts.BaseActor
-import mathact.parts.data.{StepMode, PipeData, Msg}
+import mathact.parts.data.{WorkMode, StepMode, PipeData, Msg}
 import mathact.parts.data.Msg.Connectivity
 import mathact.parts.plumbing.Pump
 import mathact.parts.plumbing.fitting.{Jack, Plug, Inlet, Outlet}
@@ -65,7 +65,8 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
   }
   //Variables
   var state = State.Creating
-  var mode = StepMode.Paused
+  var stepMode = StepMode.None
+  var workMode = WorkMode.Paused
   val outlets = MutMap[Int, OutletData]()  //(Outlet ID, OutletData)
   val inlets = MutMap[Int, InletData]()    //(Inlet ID, OutletData)
   val subscribedDrives = MutMap[ActorRef, DrivesData]()
@@ -121,14 +122,14 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
 
 
 
-  def runNextMsgTask(): Unit = mode match {
-    case StepMode.Stepping ⇒ performedTasks.isEmpty match{
+  def runNextMsgTask(): Unit = stepMode match {
+    case StepMode.HardSynchro ⇒ performedTasks.isEmpty match{
       case true ⇒
         sendBatchOfTasks()
-        log.debug(s"[runNextMsgTask.Stepping] Performed task list been empty, new performedTasks: $performedTasks")
+        log.debug(s"[runNextMsgTask.HardSynchro] Performed task list been empty, new performedTasks: $performedTasks")
       case false ⇒
-        log.debug(s"[runNextMsgTask.Stepping] Performed task list not empty, performedTasks: $performedTasks")}
-    case StepMode.Walking ⇒ performedTasks.isEmpty match{
+        log.debug(s"[runNextMsgTask.HardSynchro] Performed task list not empty, performedTasks: $performedTasks")}
+    case StepMode.SoftSynchro ⇒ performedTasks.isEmpty match{
       case true ⇒
         sendBatchOfTasks()
         log.debug(s"[runNextMsgTask.Walking] Performed task list been empty, new performedTasks: $performedTasks")
@@ -137,7 +138,7 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
         log.debug(
           s"[runNextMsgTask.Walking] Performed task list not empty, numberOfNotProcessedSteps: $numberOfNotProcessedSteps, " +
           s"performedTasks: $performedTasks")}
-    case StepMode.Running ⇒ performedTasks.isEmpty match{
+    case StepMode.Asynchro ⇒ performedTasks.isEmpty match{
       case true ⇒
         sendTaskFromLongerQueue()
         log.debug(s"[runNextMsgTask.Running] Performed task list been empty, new performedTasks: $performedTasks")
@@ -148,21 +149,18 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
 
 
 
-
   def msgTaskDone(taskId: Long): Unit = {
     //Remove task for list
     performedTasks -= taskId
     //Action on task done
-    mode match {
-      case StepMode.Paused ⇒
-        log.debug(s"[msgTaskDone.Paused] Do nothing.")
-      case StepMode.Stepping ⇒ performedTasks.isEmpty match{
+    stepMode match {
+      case StepMode.HardSynchro ⇒ performedTasks.isEmpty match{
         case true ⇒
           log.debug(s"[msgTaskDone.Stepping] Performed task list empty, send DriveDone to plumping.")
-          pumping ! Msg.DriveDone
+          pumping ! Msg.DriveStepDone
         case false ⇒
           log.debug(s"[msgTaskDone.Stepping] Performed task list not empty, performedTasks: $performedTasks")}
-      case StepMode.Walking ⇒ (performedTasks.isEmpty, numberOfNotProcessedSteps) match{
+      case StepMode.SoftSynchro ⇒ (performedTasks.isEmpty, numberOfNotProcessedSteps) match{
         case (true, 0) ⇒
           log.debug(s"[msgTaskDone.Walking] Performed task list empty, wait for next DriveStep message.")
         case (true, ns) ⇒
@@ -175,18 +173,20 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
           log.debug(
             s"[msgTaskDone.Walking] Performed task list not empty, performedTasks: $performedTasks, " +
             s"numberOfNotProcessedSteps: $numberOfNotProcessedSteps")}
-      case StepMode.Running ⇒ performedTasks.isEmpty match{
+      case StepMode.Asynchro ⇒ performedTasks.isEmpty match{
         case true ⇒
           log.debug(s"[msgTaskDone.Running] Performed task list empty, run next task.")
           sendTaskFromLongerQueue()
         case false ⇒
           log.debug(s"[msgTaskDone.Running] Performed task list not empty, performedTasks: $performedTasks")}
       case s ⇒
-        log.error(s"[msgTaskDone] Unknown mode: $s")}}
+        log.error(s"[msgTaskDone] Unknown stepMode: $s")}}
+
+
 
 
   //Messages handling
-  reaction((state, mode)){
+  reaction((state, stepMode)){
     //Adding of Outlet
     case Msg.AddOutlet(pipe) ⇒
       //Check if already registered
@@ -228,10 +228,11 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
       case State.Building | State.Starting | State.Work | State.Stopping ⇒ doDisconnect(out, in)
       case s ⇒ log.error(s"[ConnectPipes] Dis connecting in state $s is not allowed.")}
     //Building
-    case Msg.BuildDrive ⇒
+    case Msg.BuildDrive(initStepMode) ⇒
       pendingConnections.foreach{
         case Msg.ConnectPipes(out, in) ⇒ doConnect(out, in)
         case Msg.DisconnectPipes(out, in) ⇒ doDisconnect(out, in)}
+      stepMode = initStepMode
       state = State.Building
       sender ! Msg.DriveBuilt
     //Add new connection
@@ -279,22 +280,35 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
     case Msg.StartDrive ⇒
       state = State.Starting
       impeller ! Msg.RunTask(0, "Starting", ()⇒pump.toolStart())
+
     //Updating of step stepMode
     case Msg.SetStepMode(newMode) ⇒
       //Set stepMode
-      mode = newMode
+      stepMode = newMode
+      workMode = WorkMode.Paused
       numberOfNotProcessedSteps = 0
-      //If new stepMode is StepMode.Running start msg processing
-      state match{
-        case State.Work ⇒ newMode match{
-          case StepMode.Running ⇒ runNextMsgTask()
-          case _ ⇒}
-        case s ⇒ log.warning(s"[SetStepMode] Can't run message task, not in work state, state: $s.")}
-      sender ! Msg.StepModeIsSet(mode)
+      log.debug(s"[SetStepMode] Step mode updated, stepMode: $stepMode, workMode: $workMode")
+      sender ! Msg.StepModeIsSet(stepMode)
+
     //Run of one step of user message processing
-    case Msg.DriveStep ⇒ state match{
-      case State.Work ⇒ runNextMsgTask()
-      case s ⇒ log.warning(s"[SetStepMode] Can't do step not in work state, state: $s.")}
+    case Msg.DriveStep if state == State.Work⇒
+      runNextMsgTask()
+
+
+    //Drive start
+    case Msg.DriveStart if state == State.Work && stepMode == StepMode.Asynchro && workMode == WorkMode.Paused ⇒
+      workMode = WorkMode.Runned
+      runNextMsgTask()
+
+
+
+    //Drive stop
+    case Msg.DriveStop if state == State.Work && workMode == WorkMode.Runned ⇒
+      workMode = WorkMode.Paused
+
+
+
+
 
 
 
@@ -385,11 +399,11 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
         inlet.taskQueue += newRunTask
         log.debug(s"[UserMessage] Task added to the queue, task: $newRunTask, queue: ${inlet.taskQueue}")
         //If queue is empty and state is Running, send task to impeller
-        (maxQueueSize, mode) match{
-          case (0, StepMode.Running) ⇒
+        (maxQueueSize, workMode) match{
+          case (0, WorkMode.Runned) ⇒
             runNextMsgTask()
           case _ ⇒
-            log.debug(s"[UserMessage] Task not send to impeller, maxQueueSize: $maxQueueSize, state: $state")}
+            log.debug(s"[UserMessage] Task not send to impeller, maxQueueSize: $maxQueueSize, workMode: $workMode")}
       case None ⇒ log.error(s"[UserMessage] Inlet with id: $inletId, not exist.")}
     //Other drive load
     case Msg.DriveLoad(drive, maxQueueSize) ⇒
@@ -465,7 +479,7 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
         ???
 
       case s ⇒
-        log.error(s"[TaskDone] Unknown mode: $s")}
+        log.error(s"[TaskDone] Unknown stepMode: $s")}
     //Task failed
     case Msg.TaskFailed(taskId, name, error) ⇒ state match{
       case State.Starting ⇒
@@ -489,7 +503,7 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
         ???
 
       case s ⇒
-        log.error(s"[TaskFailed] Unknown mode: $s")}
+        log.error(s"[TaskFailed] Unknown stepMode: $s")}
 
 
 

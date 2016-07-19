@@ -36,14 +36,14 @@ private[mathact] object Msg {
   case class SketchError(className: String, error: Throwable)
   //SketchController - Pumping
   case object GetPumpingActor
-  case class StartPumping(workMode: WorkMode, speed: Double)
-  case class PumpingStarted(workMode: WorkMode)
+  case class StartPumping(stepMode: StepMode, speed: Double)
+  case class PumpingStarted(stepMode: StepMode)
+  case class SwitchStepMode(stepMode: StepMode)
+  case class StepModeSwitched(stepMode: StepMode)
+  case class SetSpeed(value: Double)
   case object HitStart
   case object HitStop
   case object HitStep
-  case class SetSpeed(value: Double)
-  case class SwitchWorkMode(newMode: WorkMode)
-  case class StepModeSwitched(workMode: WorkMode, stepMode: StepMode)
   case class PumpingError(error: Throwable)
   //Pumping - Drive
   case class NewDrive(toolPump: Pump, toolName: String, toolImage: Option[Image])     //Mane and image for display in UI
@@ -57,18 +57,16 @@ private[mathact] object Msg {
   case class DisconnectPipes(out: ()⇒Plug[_], in: ()⇒Jack[_]) extends Connectivity
   case class DisconnectFrom(outletId: Int, inlet: PipeData)
   case class DelConnection(inletId: Int, outlet: PipeData)
-  case object BuildDrive
+  case class BuildDrive(stepMode: StepMode)
   case object DriveBuilt
   case object StartDrive
   case object DriveStarted
   case class SetStepMode(mode: StepMode)
   case class StepModeIsSet(mode: StepMode)
-  case object DriveStep
-  case object DriveDone
-
-
-
-
+  case object DriveStart //DriveStart and DriveStop used in WorkMode.Asynchro
+  case object DriveStop
+  case object DriveStep  //DriveStep used in WorkMode.HardSynchro and WorkMode.SoftSynchro
+  case object DriveStepDone  //DriveStepDone used as response on DriveStep in WorkMode.HardSynchro
 
 
 

@@ -24,9 +24,10 @@ package object data {
   object SketchStatus extends Enumeration {val Autorun, Ready, Ended, Failed = Value}
   type SketchStatus = SketchStatus.Value
   //StepMode
-  object StepMode extends Enumeration {val Paused, Stepping, Walking, Running = Value}
+  object StepMode extends Enumeration {val HardSynchro, SoftSynchro, Asynchro, None = Value}
   type StepMode = StepMode.Value
-  object WorkMode extends Enumeration {val HardSynchro, SoftSynchro, Asynchro = Value}
+  //WorkMode
+  object WorkMode extends Enumeration {val Paused, Runned = Value}
   type WorkMode = WorkMode.Value
 
 //TODO Add more

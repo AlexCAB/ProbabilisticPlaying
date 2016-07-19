@@ -41,35 +41,53 @@ class Pumping(controller: ActorRef, sketch: Sketch) extends BaseActor{
   object DriveState extends Enumeration {
     val Creating, Building, Built, Starting, Started, Work, Stopping, Ended = Value}
   //Data
-  case class PumpData(actor: ActorRef, name: String, image: Option[Image], state: DriveState.Value, mode: StepMode){
-    def withDriveState(newState: DriveState.Value): PumpData = PumpData(actor, name, image, newState,mode)
-    def withDriveMode(newMode: StepMode): PumpData = PumpData(actor, name, image, state, newMode)}
+  case class PumpData(actor: ActorRef, name: String, image: Option[Image], state: DriveState.Value, mode: StepMode, isDone: Boolean){
+    def withDriveState(newState: DriveState.Value): PumpData = PumpData(actor, name, image, newState, mode, isDone)
+    def withDriveMode(newMode: StepMode): PumpData = PumpData(actor, name, image, state, newMode, isDone)
+    def setIsDone(newIsDone: Boolean): PumpData = PumpData(actor, name, image, state, mode, newIsDone)}
   //Messages
   case class DriveBuildingTimeout(drive: ActorRef)
   case class DriveStartingTimeout(drive: ActorRef)
   case class DriveStoppingTimeout(drive: ActorRef)
+  case class ProcessTick(startTime: Long)
+
+
+
+
 
 
 //  object State extends Enumeration {val Creating, Starting, Work, Stopping = Value}
-//
-//
 //  case object StartTimeOut
+
+
+
 
   //Variables
   var state = State.Creating
-  var workMode = WorkMode.HardSynchro
-  var speed = 0.0
-  var stepMode = StepMode.Paused
+  var processTickTimeout = 1000L
+  var stepMode = StepMode.None
+  var workMode = WorkMode.Paused
+  var expectedTickMessage: Option[ProcessTick] = None
+
   val drives = MutMap[ActorRef, PumpData]()
 
 
 
+  //Functions
+  def calcProcessTickTimeout(speed: Double): Long = {
 
+    (speed * 100).toLong    //Переписать в нелеинейное измение скорости (подумать как будут удобней)
+
+  }
+  def startTick(): Unit = {
+    val timeoutMsg = ProcessTick(System.currentTimeMillis())
+    expectedTickMessage = Some(timeoutMsg)
+    context.system.scheduler.scheduleOnce(processTickTimeout.millis, self, timeoutMsg)}
 
 
 
   //Messages handling
-  reaction((state,workMode,stepMode)){
+  reaction((state, stepMode, workMode)){
     //Creating of new drive actor
     case Msg.NewDrive(pump, name, image) ⇒
       //Check state
@@ -82,11 +100,11 @@ class Pumping(controller: ActorRef, sketch: Sketch) extends BaseActor{
           state match{
             case State.Creating ⇒
               log.debug(s"[NewDrive] Creating drive, name: $name")
-              drives += (drive → PumpData(drive, name, image, DriveState.Creating, StepMode.Paused))
+              drives += (drive → PumpData(drive, name, image, DriveState.Creating, stepMode, isDone = true))
               sender ! Right(drive)
             case _ ⇒
               log.debug(s"[NewDrive] Creating of drive after State.Creating step, name: $name")
-              drives += (drive → PumpData(drive, name, image, DriveState.Building, StepMode.Paused))
+              drives += (drive → PumpData(drive, name, image, DriveState.Building, stepMode, isDone = true))
               context.system.scheduler.scheduleOnce(driveBuildingTimeout, self, DriveBuildingTimeout(drive))
               drive ! Msg.BuildDrive
               sender ! Right(drive)}
@@ -94,17 +112,17 @@ class Pumping(controller: ActorRef, sketch: Sketch) extends BaseActor{
           log.error(s"[NewDrive] Creating of drive after State.Stopping step, name: $name")
           sender ! Left(new Exception("[NewDrive] Creating of drive after State.Stopping step."))}
     //Starting
-    case Msg.StartPumping(initWorkMode, initSpeed) if state == State.Creating ⇒
+    case Msg.StartPumping(initStepMode, initSpeed) if state == State.Creating ⇒
       log.info(s"[StartPumping] Start of built of sketch: $sketch, drives: $drives.")
       state = State.Building
-      workMode = initWorkMode
-      speed = initSpeed
+      stepMode = initStepMode
+      processTickTimeout = calcProcessTickTimeout(initSpeed)
       //Starting of building of each Drive
       drives ++= drives.values
         .map{ drive ⇒
           log.debug(s"[StartPumping] Building of: $drive")
           context.system.scheduler.scheduleOnce(driveBuildingTimeout, self, DriveBuildingTimeout(drive.actor))
-          drive.actor ! Msg.BuildDrive
+          drive.actor ! Msg.BuildDrive(initStepMode)
           (drive.actor, drive.withDriveState(DriveState.Building))}
     //One drive built
     case Msg.DriveBuilt ⇒
@@ -143,54 +161,115 @@ class Pumping(controller: ActorRef, sketch: Sketch) extends BaseActor{
               state = State.Work
               drives ++= drives.values.map{ drive ⇒ (drive.actor, drive.withDriveState(DriveState.Work))}
               //Send ready msg
-              controller ! Msg.PumpingStarted(workMode)
+              controller ! Msg.PumpingStarted(stepMode)
             case true ⇒
               log.debug(s"[DriveBuilt] Not all drives built, drives: $drives")}
         case None ⇒
           log.error(s"[DriveBuilt] Unknown drive: $sender")}
       //Switch stepMode, set stepMode and send SetStepMode to all drives
-    case Msg.SwitchWorkMode(newMode) if state == State.Work ⇒
-      workMode = newMode
-      stepMode = StepMode.Paused
-
-      //!!! Здесь ещё должна быть остановка циклического таймера
-      //!!! Так же сдесь нужно стартовать таймер ошибки обновления
-
-
-      drives.values.foreach(_.actor ! Msg.SetStepMode(StepMode.Paused))
-
-
+    case Msg.SwitchStepMode(newStepMode) if state == State.Work ⇒
+      stepMode = newStepMode
+      workMode = WorkMode.Paused
+      expectedTickMessage = None //Stop process cycle
+      log.debug(s"[SwitchStepMode] Pumping step mode updated, update state of all drives")
+      drives.values.foreach(_.actor ! Msg.SetStepMode(stepMode))
     //Step stepMode is set, update of particular actor and check if all set
     case Msg.StepModeIsSet(mode) ⇒ drives.get(sender) match{
       case Some(drive) ⇒
         drives += (drive.actor → drive.withDriveMode(mode))
         drives.values.exists(_.mode != stepMode) match{
           case false ⇒
-            log.debug(s"[StepModeIsSet] All drives mode update to stepMode: $stepMode")
-            controller ! Msg.StepModeSwitched(workMode, stepMode)
+            log.debug(s"[StepModeIsSet] All drives stepMode update to stepMode: $stepMode")
+            controller ! Msg.StepModeSwitched(stepMode)
           case true ⇒
-            log.debug(s"[StepModeIsSet] Not all drives mode update to stepMode: $stepMode, drives: $drives")}
+            log.debug(s"[StepModeIsSet] Not all drives stepMode update to stepMode: $stepMode, drives: $drives")}
       case None ⇒
         log.error(s"[StepModeIsSet] Unknown drive: $sender")}
-
+    //Updating of process cycle speed
+    case Msg.SetSpeed(newSpeed) ⇒
+      //Set timeout
+      processTickTimeout = calcProcessTickTimeout(newSpeed)
+      log.debug(s"[SetSpeed] New processTickTimeout: $processTickTimeout, workMode: $workMode")
+      //Restart timer if runned
+      workMode match{
+        case WorkMode.Runned ⇒ startTick()
+        case _ ⇒}
     //Hit start UI button
-    case Msg.HitStart if state == State.Work ⇒
-
-
-      //Здесь в зависимости от workMode, переключение StepMode'а для драйвов и запуск цислического таймера (учли асинхронный режим)
-
-
+    case Msg.HitStart if state == State.Work && workMode == WorkMode.Paused ⇒
+      workMode = WorkMode.Runned
+      stepMode match{
+        case StepMode.HardSynchro ⇒
+          log.debug(s"[HitStart] Set 'not done' for all drives and start process cycle.")
+          drives ++= drives.values.map(drive ⇒ drive.actor → drive.setIsDone(false))
+          startTick()
+        case StepMode.SoftSynchro ⇒
+          log.debug(s"[HitStart] Start process cycle.")
+          startTick()
+        case StepMode.Asynchro ⇒
+          log.debug(s"[HitStart] Send DriveStart to all drives.")
+          drives.values.foreach(_.actor ! Msg.DriveStart)}
     //Hit stop UI button
-    case Msg.HitStop if state == State.Work ⇒
-
-      //Остановка циклического таймера и переключение в Paused если Asynchro, либо ничего.
-
-
+    case Msg.HitStop if state == State.Work && workMode == WorkMode.Runned ⇒
+      workMode = WorkMode.Paused
+      stepMode match{
+        case StepMode.HardSynchro | StepMode.SoftSynchro ⇒
+          log.debug(s"[HitStart] Stop process cycle.")
+          expectedTickMessage = None
+        case StepMode.Asynchro ⇒
+          log.debug(s"[HitStart] Send DriveStart to all drives.")
+          drives.values.foreach(_.actor ! Msg.DriveStop)}
     //Hit step UI button
-    case Msg.HitStep if state == State.Work ⇒
+    case Msg.HitStep if state == State.Work && workMode == WorkMode.Paused ⇒ stepMode match{
+      case StepMode.HardSynchro ⇒ drives.values.forall(_.isDone) match{
+        case true ⇒
+          log.debug(s"[HitStep] Prev step done, reset isDone and run new step.")
+          drives ++= drives.values.map(drive ⇒ drive.actor → drive.setIsDone(false))
+          drives.values.foreach(_.actor ! Msg.DriveStep)
+        case false ⇒
+          log.debug(s"[HitStep]Prev step NOT done, do nothing.")}
+      case StepMode.SoftSynchro ⇒
+        log.debug(s"[HitStep] Do one step.")
+        drives.values.foreach(_.actor ! Msg.DriveStep)
+      case wm ⇒
+        log.error(s"[HitStep] Incorrect work stepMode $wm.")}
+    //Drive step done
+    case Msg.DriveStepDone ⇒ drives.get(sender) match{
+      case Some(drive) ⇒
+        //Set is done
+        log.debug(s"[DriveStepDone] Set 'is done' for the sender drive")
+        drives += (drive.actor → drive.setIsDone(true))
+        //If stepMode is HardSynchro and all drives done, start new tick
+        (stepMode, drives.values.forall(_.isDone)) match{
+          case (StepMode.HardSynchro, true) ⇒
+            log.debug(s"[DriveStepDone] Starting of new tick.")
+            startTick()
+          case (sm, id) ⇒
+           log.debug(s"[DriveStepDone] New tick not started, stepMode: $sm, allIsDone: $id.")}
+      case None ⇒
+        log.error(s"[DriveStepDone] Unknown drive: $sender")}
+    //Process tick
+    case tick: ProcessTick if expectedTickMessage.contains(tick) && workMode == WorkMode.Runned ⇒ stepMode match{
+      case StepMode.HardSynchro ⇒
+        drives.values.forall(_.isDone) match{
+          case true ⇒
+            log.debug(s"[ProcessTick] Run next step in HardSynchro stepMode.")
+            drives.values.foreach(_.actor ! Msg.DriveStep)
+          case false ⇒
+            log.error(s"[ProcessTick] All drives should be in 'done' state before new tick will started.")}
+      case StepMode.SoftSynchro ⇒
+        log.debug(s"[ProcessTick] Run next step in SoftSynchro stepMode, and start new tick.")
+        drives.values.foreach(_.actor ! Msg.DriveStep)
+        startTick()
+      case StepMode.Asynchro ⇒
+        log.debug(s"[ProcessTick] Do nothing in Asynchro stepMode.")
+      case wm ⇒
+        log.error(s"[ProcessTick] Incorrect work stepMode $wm.")}
 
-      //Если HardSynchro или SoftSynchro выполенение одного шага (независимо от того работает ли циклический таймер)
-      //Если Asynchro ничего не делать
+
+
+
+
+
 
 
 
