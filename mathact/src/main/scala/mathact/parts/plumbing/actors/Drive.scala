@@ -122,29 +122,37 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
 
 
 
-  def runNextMsgTask(): Unit = stepMode match {
+  def runNextMsgTask(): Int = stepMode match { //Return number of task runned
     case StepMode.HardSynchro ⇒ performedTasks.isEmpty match{
       case true ⇒
         sendBatchOfTasks()
         log.debug(s"[runNextMsgTask.HardSynchro] Performed task list been empty, new performedTasks: $performedTasks")
+        performedTasks.size
       case false ⇒
-        log.debug(s"[runNextMsgTask.HardSynchro] Performed task list not empty, performedTasks: $performedTasks")}
+        log.debug(s"[runNextMsgTask.HardSynchro] Performed task list not empty, performedTasks: $performedTasks")
+        0}
     case StepMode.SoftSynchro ⇒ performedTasks.isEmpty match{
       case true ⇒
         sendBatchOfTasks()
         log.debug(s"[runNextMsgTask.Walking] Performed task list been empty, new performedTasks: $performedTasks")
+        performedTasks.size
       case false ⇒
         numberOfNotProcessedSteps += 1
         log.debug(
           s"[runNextMsgTask.Walking] Performed task list not empty, numberOfNotProcessedSteps: $numberOfNotProcessedSteps, " +
-          s"performedTasks: $performedTasks")}
+          s"performedTasks: $performedTasks")
+        0}
     case StepMode.Asynchro ⇒ performedTasks.isEmpty match{
       case true ⇒
         sendTaskFromLongerQueue()
         log.debug(s"[runNextMsgTask.Running] Performed task list been empty, new performedTasks: $performedTasks")
+        performedTasks.size
       case false ⇒
-        log.debug(s"[runNextMsgTask.Running] Performed task list not empty, performedTasks: $performedTasks")}
-    case _ ⇒}
+        log.debug(s"[runNextMsgTask.Running] Performed task list not empty, performedTasks: $performedTasks")
+        0}
+    case s ⇒
+      log.error(s"[runNextMsgTask] Unknown stepMode: $s")
+      0}
 
 
 
@@ -291,8 +299,18 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
       sender ! Msg.StepModeIsSet(stepMode)
 
     //Run of one step of user message processing
-    case Msg.DriveStep if state == State.Work⇒
-      runNextMsgTask()
+    case Msg.DriveStep if state == State.Work && (stepMode == StepMode.HardSynchro || stepMode == StepMode.SoftSynchro) ⇒
+      //Run next task
+      val numOfRunned = runNextMsgTask()
+      //If no new task found and HardSynchro, send DriveStepDone
+      (stepMode, numOfRunned) match{
+        case (StepMode.HardSynchro, 0) ⇒
+          log.debug(s"[DriveStep] Send DriveStepDone.")
+          pumping ! Msg.DriveStepDone
+        case (m,nr) ⇒
+          log.debug(s"[DriveStep] DriveStepDone not send, stepMode: $m, numOfRunned: $nr")}
+
+
 
 
     //Drive start

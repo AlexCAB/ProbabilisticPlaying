@@ -74,8 +74,8 @@ private [mathact] object Application{
           JFXApplication.init(args, log)
           Platform.implicitExit = false
           log.debug(s"[Application.start] JFXApplication created, starting application.")
-          mainController ! Msg.MainControllerStart(sketches)
           state = State.Work
+          mainController ! Msg.MainControllerStart(sketches)
         case st ⇒
           throw new IllegalStateException(
             s"[Application.start] This method can be called only if App in Starting state, current state: $st")}}

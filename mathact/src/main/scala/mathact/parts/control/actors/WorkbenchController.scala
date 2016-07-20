@@ -114,12 +114,27 @@ class WorkbenchController(sketch: Sketch, mainController: ActorRef) extends Base
     case Msg.HitStep if state == State.Work ⇒
       pumping ! Msg.HitStep
     case Msg.SetSpeed(v) if state == State.Work ⇒
-      pumping ! Msg.SetSpeed
+      pumping ! Msg.SetSpeed(v)
     case Msg.SwitchStepMode(v) if state == State.Work ⇒
       pumping ! Msg.SwitchStepMode(v)
     //Mode switched
-//    case Msg.StepModeSwitched(workMode, stepMode) if state == State.Work ⇒
-//      uiSketchControl.setReady(workMode)
+    case Msg.StepModeSwitched(stepMode) if state == State.Work ⇒
+      log.debug(s"[StepModeSwitched] Step mode updated to: $stepMode, enable UI.")
+      uiSketchControl.setReady(stepMode)
+    case Msg.PumpingStepDone if state == State.Work ⇒
+      log.debug(s"[PumpingStepDone] Enable UI step button.")
+      uiSketchControl.setStepButtonEnabled(true)
+    case Msg.PumpingStarted if state == State.Work ⇒
+      log.debug(s"[PumpingStepDone] Enable UI stop button.")
+      uiSketchControl.setStopButtonEnabled(true)
+    case Msg.PumpingStopped(stepMode) if state == State.Work ⇒
+      log.debug(s"[PumpingStopped] Enable UI run and step button, stepMode: $stepMode.")
+      uiSketchControl.setReady(stepMode)
+
+
+
+
+
 
 
 

@@ -76,16 +76,17 @@ class Pumping(controller: ActorRef, sketch: Sketch) extends BaseActor{
   //Functions
   def calcProcessTickTimeout(speed: Double): Long = {
 
-    (speed * 100).toLong    //Переписать в нелеинейное измение скорости (подумать как будут удобней)
+    (speed * 1000).toLong    //Переписать в нелеинейное измение скорости (подумать как будут удобней)
 
   }
-  def startTick(): Unit = {
-    val timeoutMsg = ProcessTick(System.currentTimeMillis())
-    expectedTickMessage = Some(timeoutMsg)
-    context.system.scheduler.scheduleOnce(processTickTimeout.millis, self, timeoutMsg)}
-
-
-
+  def startTick(): Unit = expectedTickMessage match{
+    case None ⇒
+      val timeoutMsg = ProcessTick(System.currentTimeMillis())
+      expectedTickMessage = Some(timeoutMsg)
+      log.debug(s"[startTick] Timeout: $processTickTimeout millis, expected message: $timeoutMsg")
+      context.system.scheduler.scheduleOnce(processTickTimeout.millis, self, timeoutMsg)
+    case Some(m) ⇒
+      log.error(s"[startTick] Prev tick not done, msg: $m")}
   //Messages handling
   reaction((state, stepMode, workMode)){
     //Creating of new drive actor
@@ -182,7 +183,7 @@ class Pumping(controller: ActorRef, sketch: Sketch) extends BaseActor{
             log.debug(s"[StepModeIsSet] All drives stepMode update to stepMode: $stepMode")
             controller ! Msg.StepModeSwitched(stepMode)
           case true ⇒
-            log.debug(s"[StepModeIsSet] Not all drives stepMode update to stepMode: $stepMode, drives: $drives")}
+            log.debug(s"[StepModeIsSet] Not all drives stepMode update to stepMode: $stepMode")}
       case None ⇒
         log.error(s"[StepModeIsSet] Unknown drive: $sender")}
     //Updating of process cycle speed
@@ -191,17 +192,24 @@ class Pumping(controller: ActorRef, sketch: Sketch) extends BaseActor{
       processTickTimeout = calcProcessTickTimeout(newSpeed)
       log.debug(s"[SetSpeed] New processTickTimeout: $processTickTimeout, workMode: $workMode")
       //Restart timer if runned
-      workMode match{
-        case WorkMode.Runned ⇒ startTick()
-        case _ ⇒}
+      expectedTickMessage match{
+        case Some(ot) ⇒
+          log.debug(s"[SetSpeed] Restarting of timer, old tick: $ot")
+          expectedTickMessage = None
+          startTick()
+        case _ ⇒
+          log.debug(s"[SetSpeed] Timer not started, do nothing.")}
     //Hit start UI button
     case Msg.HitStart if state == State.Work && workMode == WorkMode.Paused ⇒
       workMode = WorkMode.Runned
       stepMode match{
         case StepMode.HardSynchro ⇒
-          log.debug(s"[HitStart] Set 'not done' for all drives and start process cycle.")
+          log.debug(s"[HitStart] Set 'not done' for all drives and run first step.")
+          //Run first step
           drives ++= drives.values.map(drive ⇒ drive.actor → drive.setIsDone(false))
-          startTick()
+          drives.values.foreach(_.actor ! Msg.DriveStep)
+          //Send started to controller
+          controller ! Msg.PumpingStarted
         case StepMode.SoftSynchro ⇒
           log.debug(s"[HitStart] Start process cycle.")
           startTick()
@@ -210,13 +218,25 @@ class Pumping(controller: ActorRef, sketch: Sketch) extends BaseActor{
           drives.values.foreach(_.actor ! Msg.DriveStart)}
     //Hit stop UI button
     case Msg.HitStop if state == State.Work && workMode == WorkMode.Runned ⇒
-      workMode = WorkMode.Paused
+      expectedTickMessage = None
       stepMode match{
-        case StepMode.HardSynchro | StepMode.SoftSynchro ⇒
-          log.debug(s"[HitStart] Stop process cycle.")
-          expectedTickMessage = None
+        case StepMode.HardSynchro ⇒
+          log.debug(s"[HitStart] Stop process cycle, check if all drives done step.")
+          drives.values.forall(_.isDone) match{
+            case true ⇒
+              log.debug(s"[HitStart] All drives done step, send PumpingStopped ")
+              workMode = WorkMode.Paused
+              controller ! Msg.PumpingStopped(stepMode)
+            case false ⇒
+              log.debug(s"[HitStart] Not all drives done step, wait for done.")
+              workMode = WorkMode.Stopping}
+        case StepMode.SoftSynchro ⇒
+          log.debug(s"[HitStart] Send PumpingStopped ")
+          workMode = WorkMode.Paused
+          controller ! Msg.PumpingStopped(stepMode)
         case StepMode.Asynchro ⇒
           log.debug(s"[HitStart] Send DriveStart to all drives.")
+          workMode = WorkMode.Stopping
           drives.values.foreach(_.actor ! Msg.DriveStop)}
     //Hit step UI button
     case Msg.HitStep if state == State.Work && workMode == WorkMode.Paused ⇒ stepMode match{
@@ -236,34 +256,55 @@ class Pumping(controller: ActorRef, sketch: Sketch) extends BaseActor{
     case Msg.DriveStepDone ⇒ drives.get(sender) match{
       case Some(drive) ⇒
         //Set is done
-        log.debug(s"[DriveStepDone] Set 'is done' for the sender drive")
+        log.debug(s"[DriveStepDone] Set 'is done' for the sender drive: $drive")
         drives += (drive.actor → drive.setIsDone(true))
         //If stepMode is HardSynchro and all drives done, start new tick
         (stepMode, drives.values.forall(_.isDone)) match{
           case (StepMode.HardSynchro, true) ⇒
-            log.debug(s"[DriveStepDone] Starting of new tick.")
-            startTick()
+            log.debug(s"[DriveStepDone] All drives process step.")
+            //If Runned then start new task, else send PumpingStepDone
+            workMode match{
+              case WorkMode.Paused ⇒
+                log.debug(s"[DriveStepDone] Send PumpingStepDone to controller in Paused mode.")
+                controller ! Msg.PumpingStepDone
+              case WorkMode.Runned ⇒
+                log.debug(s"[DriveStepDone] Start next tick in Runned mode.")
+                startTick()
+              case WorkMode.Stopping ⇒
+                log.debug(s"[DriveStepDone] All drives down, send PumpingStopped.")
+                workMode = WorkMode.Paused
+                controller ! Msg.PumpingStopped(stepMode)}
           case (sm, id) ⇒
            log.debug(s"[DriveStepDone] New tick not started, stepMode: $sm, allIsDone: $id.")}
       case None ⇒
         log.error(s"[DriveStepDone] Unknown drive: $sender")}
     //Process tick
-    case tick: ProcessTick if expectedTickMessage.contains(tick) && workMode == WorkMode.Runned ⇒ stepMode match{
-      case StepMode.HardSynchro ⇒
-        drives.values.forall(_.isDone) match{
-          case true ⇒
-            log.debug(s"[ProcessTick] Run next step in HardSynchro stepMode.")
+    case tick: ProcessTick if workMode == WorkMode.Runned ⇒  expectedTickMessage.contains(tick) match{
+      case true ⇒
+        //Reset expected
+        expectedTickMessage = None
+        //Handling
+        stepMode match{
+          case StepMode.HardSynchro ⇒
+            drives.values.forall(_.isDone) match{
+              case true ⇒
+                log.debug(s"[ProcessTick] Run next step in HardSynchro stepMode.")
+                drives ++= drives.values.map(drive ⇒ drive.actor → drive.setIsDone(false))
+                drives.values.foreach(_.actor ! Msg.DriveStep)
+              case false ⇒
+                log.error(s"[ProcessTick] All drives should be in 'done' state before new tick will started.")}
+          case StepMode.SoftSynchro ⇒
+            log.debug(s"[ProcessTick] Run next step in SoftSynchro stepMode, and start new tick.")
             drives.values.foreach(_.actor ! Msg.DriveStep)
-          case false ⇒
-            log.error(s"[ProcessTick] All drives should be in 'done' state before new tick will started.")}
-      case StepMode.SoftSynchro ⇒
-        log.debug(s"[ProcessTick] Run next step in SoftSynchro stepMode, and start new tick.")
-        drives.values.foreach(_.actor ! Msg.DriveStep)
-        startTick()
-      case StepMode.Asynchro ⇒
-        log.debug(s"[ProcessTick] Do nothing in Asynchro stepMode.")
-      case wm ⇒
-        log.error(s"[ProcessTick] Incorrect work stepMode $wm.")}
+            startTick()
+          case StepMode.Asynchro ⇒
+            log.debug(s"[ProcessTick] Do nothing in Asynchro stepMode.")
+          case wm ⇒
+            log.error(s"[ProcessTick] Incorrect work stepMode $wm.")}
+      case false ⇒
+        //Not expected tick
+        log.debug(s"[ProcessTick] Not expected tick $tick, expected: $expectedTickMessage.")}
+
 
 
 

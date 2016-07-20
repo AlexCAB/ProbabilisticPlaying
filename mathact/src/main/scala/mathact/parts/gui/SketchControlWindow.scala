@@ -86,9 +86,17 @@ abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
         windowClosed()
         event.consume()}})
     //UI Components
-    val startBtn = new MWButton("start_e.png", "start_d.png")(hitStart())
-    val stopBtn = new MWButton("stop_e.png", "stop_d.png")(hitStop())
-    val stepBtn = new MWButton("step_e.png", "step_d.png")(hitStep())
+    val startBtn: MWButton = new MWButton("start_e.png", "start_d.png")({
+      startBtn.setEnabled(false)
+      stepBtn.setEnabled(false)
+      stepMode.disable = true
+      hitStart()})
+    val stopBtn: MWButton = new MWButton("stop_e.png", "stop_d.png")({
+      stopBtn.setEnabled(false)
+      hitStop()})
+    val stepBtn: MWButton = new MWButton("step_e.png", "step_d.png")({
+      stepBtn.setEnabled(false)
+      hitStep()})
     val speedSlider = new Slider{
       min = 0
       max = speedSliderDiapason
@@ -123,6 +131,7 @@ abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
         startBtn.setEnabled(false)
         stopBtn.setEnabled(false)
         stepBtn.setEnabled(false)
+        speedSlider.disable = false
         switchMode(StepMode(delegate.getSelectionModel.getSelectedIndex))}}
      val stateString = new Text {
       text = "Starting..."
@@ -198,24 +207,17 @@ abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
       stg.stopBtn.setEnabled(false)
       stg.stepBtn.setEnabled(true)
     case StepMode.Asynchro ⇒
-      stg.speedSlider.disable = true
+      stg.speedSlider.disable = false
       stg.stepMode.disable = false
       stg.startBtn.setEnabled(true)
       stg.stopBtn.setEnabled(false)
-      stg.stepBtn.setEnabled(false)}
+      stg.stepBtn.setEnabled(false)}}}
 
 
+  def setStepButtonEnabled(isEnabled: Boolean): Unit = runAndWait{stage.foreach{_.stepBtn.setEnabled(isEnabled)}}
+  def setStopButtonEnabled(isEnabled: Boolean): Unit = runAndWait{stage.foreach{_.stopBtn.setEnabled(isEnabled)}}
 
 
-
-
-
-
-
-
-
-
-  }}
 
 
   //TODO Переписать в логирование

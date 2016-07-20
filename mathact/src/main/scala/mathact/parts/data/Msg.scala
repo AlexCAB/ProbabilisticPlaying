@@ -42,8 +42,11 @@ private[mathact] object Msg {
   case class StepModeSwitched(stepMode: StepMode)
   case class SetSpeed(value: Double)
   case object HitStart
+  case object PumpingStarted
   case object HitStop
+  case class PumpingStopped(stepMode: StepMode)
   case object HitStep
+  case object PumpingStepDone
   case class PumpingError(error: Throwable)
   //Pumping - Drive
   case class NewDrive(toolPump: Pump, toolName: String, toolImage: Option[Image])     //Mane and image for display in UI
