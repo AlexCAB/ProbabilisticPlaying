@@ -36,7 +36,8 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
   //Supervisor strategy
   override val supervisorStrategy = OneForOneStrategy(){ case _: Exception ⇒ Resume }
   //Enums
-  object State extends Enumeration {val Creating, Building, Starting, Work, Stopping = Value}
+  object State extends Enumeration {
+    val Creating, Building, Starting, Work, Stopping = Value}
   //Definitions
   case class OutletData(id: Int, pipe: Outlet[_]){
     val subscribers = MutMap[(ActorRef, Int), PipeData]() //((subscribe tool drive, inlet ID), SubscriberData)
@@ -80,6 +81,16 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
   val impeller = context.actorOf(Props(new Impeller(self)), "ImpellerOf" + toolName)
   context.watch(impeller)
   //Functions
+
+
+  //Далее здесь:
+  // 1. Перепистаь соглачно концепции удаления режымов и шагов.
+  // 2. Подумать как лучше оформить код (может вынести всё в функции или наоборот).
+
+
+
+
+
 
   def doConnect(out: ()⇒Plug[_], in: ()⇒Jack[_]): Unit = (out(),in()) match{
     case (o: Outlet[_], i: Inlet[_]) ⇒

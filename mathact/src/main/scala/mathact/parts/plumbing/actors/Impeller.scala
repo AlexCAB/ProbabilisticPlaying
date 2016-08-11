@@ -25,10 +25,27 @@ import mathact.parts.plumbing.Pump
   */
 
 class Impeller(drive: ActorRef) extends BaseActor{
+
+
+
+
+
+  //Далее здесь:
+  // 1. Запуск задачи с ожиданием завершения, при достижении таймаута, задача не завершается но пользователю
+  //    отправдяется ссобщение об этом (и далее по ссобщению через тот же интервал времени).
+  // 2. Подумать как завершыть подвисшые задачи при закрытии скетча.
+
+
+
+
+
+
+
+
   //Messages handling
   reaction(){
     //Run task
-    case Msg.RunTask(id, name, task) ⇒
+    case Msg.RunTask(name, timeout, task) ⇒
       log.debug(s"[Impeller.RunTask] Try to run task, id: $id, name: $name")
       try {
         task()

@@ -279,7 +279,7 @@ class Pumping(controller: ActorRef, sketch: Sketch) extends BaseActor{
       case None ⇒
         log.error(s"[DriveStepDone] Unknown drive: $sender")}
     //Process tick
-    case tick: ProcessTick if workMode == WorkMode.Runned ⇒  expectedTickMessage.contains(tick) match{
+    case tick: ProcessTick if workMode == WorkMode.Runned ⇒ expectedTickMessage.contains(tick) match{
       case true ⇒
         //Reset expected
         expectedTickMessage = None

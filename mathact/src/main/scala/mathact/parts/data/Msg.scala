@@ -19,6 +19,7 @@ import mathact.parts.plumbing.Pump
 import mathact.parts.plumbing.fitting._
 import mathact.tools.Workbench
 
+import scala.concurrent.duration.FiniteDuration
 import scalafx.scene.image.Image
 
 
@@ -50,7 +51,6 @@ private[mathact] object Msg {
   case class PumpingError(error: Throwable)
   //Pumping - Drive
   case class NewDrive(toolPump: Pump, toolName: String, toolImage: Option[Image])     //Mane and image for display in UI
-  case class NewImpeller(name: String)
   case class AddOutlet(pipe: Outlet[_])
   case class AddInlet(pipe: Inlet[_])
   trait Connectivity
@@ -60,23 +60,19 @@ private[mathact] object Msg {
   case class DisconnectPipes(out: ()⇒Plug[_], in: ()⇒Jack[_]) extends Connectivity
   case class DisconnectFrom(outletId: Int, inlet: PipeData)
   case class DelConnection(inletId: Int, outlet: PipeData)
-  case class BuildDrive(stepMode: StepMode)
+  case object BuildDrive //Creating of connections from pending list
   case object DriveBuilt
-  case object StartDrive
+  case object StartDrive //Run init user code
   case object DriveStarted
-  case class SetStepMode(mode: StepMode)
-  case class StepModeIsSet(mode: StepMode)
-  case object DriveStart //DriveStart and DriveStop used in WorkMode.Asynchro
-  case object DriveStop
-  case object DriveStep  //DriveStep used in WorkMode.HardSynchro and WorkMode.SoftSynchro
-  case object DriveStepDone  //DriveStepDone used as response on DriveStep in WorkMode.HardSynchro
-
-
-
+  case object StopDrive  //Run sopping user code
+  case object DriveStopped
+  case object TerminateDrive //Disconnect all connection and terminate
+  case object DriveTerminated
   //Drive-Impeller
-  case class RunTask(id: Long, name: String, task: ()⇒Unit)
-  case class TaskDone(id: Long, name: String)
-  case class TaskFailed(id: Long, name: String, error: Throwable)
+  case class RunTask(name: String, timeout: FiniteDuration, task: ()⇒Unit)
+  case class TaskDone(name: String)
+  case class TaskTimeout(name: String)
+  case class TaskFailed(name: String, error: Throwable)
   //User data
   case class UserData[T](outletId: Int, value: T)
   case class UserMessage[T](outletId: Int, inletId: Int, value: T)
