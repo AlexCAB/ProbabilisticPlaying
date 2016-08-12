@@ -69,8 +69,9 @@ private[mathact] object Msg {
   case object TerminateDrive //Disconnect all connection and terminate
   case object DriveTerminated
   //Drive-Impeller
-  case class RunTask(name: String, timeout: FiniteDuration, task: ()⇒Unit)
-  case class TaskDone(name: String)
+  case class RunTask[R](name: String, timeout: FiniteDuration, task: ()⇒R)
+  case object TerminateCurrentTask
+  case class TaskDone[R](name: String, taskRes: R)
   case class TaskTimeout(name: String)
   case class TaskFailed(name: String, error: Throwable)
   //User data

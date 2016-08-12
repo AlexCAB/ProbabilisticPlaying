@@ -57,7 +57,7 @@ abstract class BaseActor extends Actor{
   final def receive: PartialFunction[Any, Unit] = {
     case m ⇒ msgHandler match{
       case Some((state, handling)) ⇒
-        log.debug(state.map(s ⇒ s"STATE: ${s()}, ").getOrElse("") + "MESSAGE: " + m)
+        log.debug("FROM: " + sender + state.map(s ⇒ s", STATE: ${s()}").getOrElse("") + ", MESSAGE: " + m)
         handling.applyOrElse[Any, Unit](m, _ ⇒ log.warning("NOT HANDLED MESSAGE: " + m))
       case None ⇒  log.error(s"Message handler not setup, message: $m")}}
 
