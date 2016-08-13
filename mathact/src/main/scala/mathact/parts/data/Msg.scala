@@ -70,14 +70,15 @@ private[mathact] object Msg {
   case object DriveTerminated
   //Drive-Impeller
   case class RunTask[R](name: String, timeout: FiniteDuration, task: ()⇒R)
-  case object TerminateCurrentTask
-  case class TaskDone[R](name: String, taskRes: R)
-  case class TaskTimeout(name: String)
-  case class TaskFailed(name: String, error: Throwable)
+  case object SkipCurrentTask //Makes impeller to skip the current task, but not terminate it (impeller just will not wait for this more)
+  case class TaskDone(name: String, execTime: FiniteDuration, taskRes: Any)
+  case class TaskTimeout(name: String, timeFromStart: FiniteDuration)
+  case class TaskFailed(name: String, execTime: FiniteDuration, error: Throwable)
   //User data
   case class UserData[T](outletId: Int, value: T)
   case class UserMessage[T](outletId: Int, inletId: Int, value: T)
   case class DriveLoad(drive: ActorRef, maxQueueSize: Int)
 
+  //TODO Add more
 
 }

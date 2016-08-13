@@ -12,19 +12,18 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-
 package mathact
 
-import akka.actor.ActorSystem
-import akka.testkit.TestKit
-import org.scalatest.{BeforeAndAfterAll, Matchers, FlatSpecLike}
+import java.util.UUID
 
 
-/** Base class for testing of actors
-  * Created by CAB on 12.08.2016.
+/** Random data generator methods
+  * Created by CAB on 13.08.2016.
   */
 
-class ActorTestSpec extends TestKit(ActorSystem("ActorTestSpec"))
-with FlatSpecLike with Matchers with BeforeAndAfterAll with FutureHelpers with RandomDataGenerators{
-  //Stop actor sys
-  override def afterAll {TestKit.shutdownActorSystem(system)}}
+trait RandomDataGenerators {
+  def randomBoolean:Boolean = math.random > .5
+  def randomOpt[T](v: T): Option[T] = randomBoolean match{case true ⇒ Some(v); case _ ⇒ None}
+  def randomInt(from:Int = 0, to:Int = 1000):Int = from + (math.random * (to - from + 1)).toInt
+  def randomDouble(from:Double = 0, to:Double = 100):Double = from + math.random * (to - from)
+  def randomString(n:Int = 32):String = UUID.randomUUID().toString.reverse.take(n)}
