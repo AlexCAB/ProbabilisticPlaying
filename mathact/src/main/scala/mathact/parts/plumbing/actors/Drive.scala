@@ -18,7 +18,6 @@ import akka.actor.SupervisorStrategy.Resume
 import akka.actor._
 import mathact.parts.BaseActor
 import mathact.parts.data.{WorkMode, StepMode, PipeData, Msg}
-import mathact.parts.data.Msg.Connectivity
 import mathact.parts.plumbing.Pump
 import mathact.parts.plumbing.fitting.{Jack, Plug, Inlet, Outlet}
 import scala.collection.mutable.{Map ⇒ MutMap, Queue ⇒ MutQueue}

@@ -49,15 +49,17 @@ private[mathact] object Msg {
   case object HitStep
   case object PumpingStepDone
   case class PumpingError(error: Throwable)
-  //Pumping - Drive
-  case class NewDrive(toolPump: Pump, toolName: String, toolImage: Option[Image])     //Mane and image for display in UI
+  //Object Pump - Pumping (ask)
+  case class NewDrive(toolPump: Pump, toolName: String, toolImage: Option[Image])     //Name and image for display in UI
+  //Object Pump - Drive (ask)
   case class AddOutlet(pipe: Outlet[_])
   case class AddInlet(pipe: Inlet[_])
-  trait Connectivity
-  case class ConnectPipes(out: ()⇒Plug[_], in: ()⇒Jack[_]) extends Connectivity
+  case class ConnectPipes(out: ()⇒Plug[_], in: ()⇒Jack[_])
+  case class DisconnectPipes(out: ()⇒Plug[_], in: ()⇒Jack[_])
+  case class UserData[T](outletId: Int, value: T)
+  //Pumping - Drive
   case class AddConnection(inletId: Int, outlet: PipeData)
   case class ConnectTo(outletId: Int, inlet: PipeData)
-  case class DisconnectPipes(out: ()⇒Plug[_], in: ()⇒Jack[_]) extends Connectivity
   case class DisconnectFrom(outletId: Int, inlet: PipeData)
   case class DelConnection(inletId: Int, outlet: PipeData)
   case object BuildDrive //Creating of connections from pending list
@@ -68,16 +70,16 @@ private[mathact] object Msg {
   case object DriveStopped
   case object TerminateDrive //Disconnect all connection and terminate
   case object DriveTerminated
-  //Drive-Impeller
+  //Drive - Drive
+  case class UserMessage[T](outletId: Int, inletId: Int, value: T)
+  case class DriveLoad(drive: ActorRef, maxQueueSize: Int)
+  //Drive - Impeller
   case class RunTask[R](name: String, timeout: FiniteDuration, task: ()⇒R)
   case object SkipCurrentTask //Makes impeller to skip the current task, but not terminate it (impeller just will not wait for this more)
   case class TaskDone(name: String, execTime: FiniteDuration, taskRes: Any)
   case class TaskTimeout(name: String, timeFromStart: FiniteDuration)
   case class TaskFailed(name: String, execTime: FiniteDuration, error: Throwable)
   //User data
-  case class UserData[T](outletId: Int, value: T)
-  case class UserMessage[T](outletId: Int, inletId: Int, value: T)
-  case class DriveLoad(drive: ActorRef, maxQueueSize: Int)
 
   //TODO Add more
 

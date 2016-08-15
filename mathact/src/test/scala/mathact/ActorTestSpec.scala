@@ -17,7 +17,7 @@ package mathact
 
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
-import org.scalatest.{BeforeAndAfterAll, Matchers, FlatSpecLike}
+import org.scalatest.{WordSpecLike, BeforeAndAfterAll, Matchers}
 
 
 /** Base class for testing of actors
@@ -25,6 +25,6 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, FlatSpecLike}
   */
 
 class ActorTestSpec extends TestKit(ActorSystem("ActorTestSpec"))
-with FlatSpecLike with Matchers with BeforeAndAfterAll with FutureHelpers with RandomDataGenerators{
+with WordSpecLike with Matchers with BeforeAndAfterAll with FutureHelpers with RandomDataGenerators{
   //Stop actor sys
   override def afterAll {TestKit.shutdownActorSystem(system)}}

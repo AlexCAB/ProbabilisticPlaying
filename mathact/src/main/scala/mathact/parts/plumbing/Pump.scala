@@ -61,7 +61,7 @@ class Pump(context: WorkbenchContext, val tool: Fitting, val toolName: String, v
   private[mathact] def addOutlet(pipe: Outlet[_]): Int = addPipe(Msg.AddOutlet(pipe))
   private[mathact] def addInlet(pipe: Inlet[_]): Int = addPipe(Msg.AddInlet(pipe))
   private[mathact] def connect(out: ()⇒Plug[_], in: ()⇒Jack[_]): Unit = drive ! Msg.ConnectPipes(out, in)
-  private[mathact] def disconnect(out: ()⇒Plug[_], in: ()⇒Jack[_]): Unit = drive ! Msg.ConnectPipes(out, in)
+  private[mathact] def disconnect(out: ()⇒Plug[_], in: ()⇒Jack[_]): Unit = drive ! Msg.DisconnectPipes(out, in)
   private[mathact] def toolStart(): Unit = tool match{
     case os: OnStart ⇒ os.doStart()
     case _ ⇒ akkaLog.debug(s"[Pump.toolStart] Tool $toolName not have doStart method.")}
