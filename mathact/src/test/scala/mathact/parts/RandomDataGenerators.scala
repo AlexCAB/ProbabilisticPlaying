@@ -12,23 +12,18 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact
+package mathact.parts
 
-import scala.concurrent.{Future, Await}
-import scala.concurrent.duration._
+import java.util.UUID
 
 
-/** Future helpers used in tests
-  * Created by CAB on 12.08.2016.
+/** Random data generator methods
+  * Created by CAB on 13.08.2016.
   */
 
-trait FutureHelpers {
-  //Classes
-  implicit class FutureEx[T](future: Future[T]){
-    def get(timeout: FiniteDuration = 5.second): T = Await.result(future, timeout)
-    def await(timeout: FiniteDuration = 5.second): Unit = Await.result(future, timeout)}
-  //Methods
-  def sleep(timeout: FiniteDuration):Unit = {
-    println(s"[FutureHelpers.sleep] Start of $timeout sleep")
-    Thread.sleep(timeout.toMillis)
-    println(s"[FutureHelpers.sleep] Done of $timeout sleep")}}
+trait RandomDataGenerators {
+  def randomBoolean:Boolean = math.random > .5
+  def randomOpt[T](v: T): Option[T] = randomBoolean match{case true ⇒ Some(v); case _ ⇒ None}
+  def randomInt(from:Int = 0, to:Int = 1000):Int = from + (math.random * (to - from + 1)).toInt
+  def randomDouble(from:Double = 0, to:Double = 100):Double = from + math.random * (to - from)
+  def randomString(n:Int = 32):String = UUID.randomUUID().toString.reverse.take(n)}

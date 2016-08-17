@@ -17,7 +17,7 @@ package mathact.parts.plumbing.actors
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor._
 import akka.event.Logging
-import mathact.parts.BaseActor
+import mathact.parts.ActorBase
 import mathact.parts.data.{WorkMode, StepMode, Sketch, Msg}
 import collection.mutable.{Map ⇒ MutMap}
 import scalafx.scene.image.Image
@@ -28,7 +28,7 @@ import scala.concurrent.duration._
   * Created by CAB on 15.05.2016.
   */
 
-class Pumping(controller: ActorRef, sketch: Sketch) extends BaseActor{
+class Pumping(controller: ActorRef, sketch: Sketch) extends ActorBase{
   //Parameters
   val driveBuildingTimeout = 5.second
   val driveStartingTimeout = 10.second
@@ -72,7 +72,7 @@ class Pumping(controller: ActorRef, sketch: Sketch) extends BaseActor{
   val drives = MutMap[ActorRef, PumpData]()
 
 
-
+  stateToLog((state, stepMode, workMode))
   //Functions
   def calcProcessTickTimeout(speed: Double): Long = {
 
@@ -88,7 +88,7 @@ class Pumping(controller: ActorRef, sketch: Sketch) extends BaseActor{
     case Some(m) ⇒
       log.error(s"[startTick] Prev tick not done, msg: $m")}
   //Messages handling
-  reaction((state, stepMode, workMode)){
+  def reaction = {
     //Creating of new drive actor
     case Msg.NewDrive(pump, name, image) ⇒
       //Check state

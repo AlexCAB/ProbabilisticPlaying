@@ -28,15 +28,16 @@ import scalafx.scene.image.Image
   */
 
 private[mathact] object Msg {
-  //MainController - SketchController
+  //Application - MainController
   case class MainControllerStart(sketches: List[Sketch])
   case class NewWorkbenchContext(workbench: Workbench)
+  //MainController - SketchController
+  case class WorkbenchControllerInit(workbenchSender: ActorRef)
   case object WorkbenchControllerStart
   case object StopWorkbenchController
   case class SketchDone(className: String)
   case class SketchError(className: String, error: Throwable)
   //SketchController - Pumping
-  case object GetPumpingActor
   case class StartPumping(stepMode: StepMode, speed: Double)
   case class PumpingStarted(stepMode: StepMode)
   case class SwitchStepMode(stepMode: StepMode)
@@ -58,10 +59,6 @@ private[mathact] object Msg {
   case class DisconnectPipes(out: ()⇒Plug[_], in: ()⇒Jack[_])
   case class UserData[T](outletId: Int, value: T)
   //Pumping - Drive
-  case class AddConnection(inletId: Int, outlet: PipeData)
-  case class ConnectTo(outletId: Int, inlet: PipeData)
-  case class DisconnectFrom(outletId: Int, inlet: PipeData)
-  case class DelConnection(inletId: Int, outlet: PipeData)
   case object BuildDrive //Creating of connections from pending list
   case object DriveBuilt
   case object StartDrive //Run init user code
@@ -71,6 +68,10 @@ private[mathact] object Msg {
   case object TerminateDrive //Disconnect all connection and terminate
   case object DriveTerminated
   //Drive - Drive
+  case class AddConnection(inletId: Int, outlet: PipeData)
+  case class ConnectTo(outletId: Int, inlet: PipeData)
+  case class DisconnectFrom(outletId: Int, inlet: PipeData)
+  case class DelConnection(inletId: Int, outlet: PipeData)
   case class UserMessage[T](outletId: Int, inletId: Int, value: T)
   case class DriveLoad(drive: ActorRef, maxQueueSize: Int)
   //Drive - Impeller

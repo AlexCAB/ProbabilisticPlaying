@@ -16,7 +16,7 @@ package mathact.parts.plumbing.actors
 
 import akka.actor.Props
 import akka.testkit.TestProbe
-import mathact.ActorTestSpec
+import mathact.parts.ActorTestSpec
 import mathact.parts.data.Msg
 import org.scalatest.{Matchers, WordSpecLike, Suite}
 

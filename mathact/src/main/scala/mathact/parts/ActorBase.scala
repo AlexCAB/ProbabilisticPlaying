@@ -16,7 +16,7 @@ package mathact.parts
 
 import java.io.{PrintWriter, StringWriter}
 
-import akka.actor.{ActorRef, Actor}
+import akka.actor.Actor
 import akka.event.{Logging, LoggingAdapter}
 
 import scala.util.Try
@@ -26,12 +26,12 @@ import scala.util.Try
   * Created by CAB on 24.05.2016.
   */
 
-abstract class BaseActor extends Actor{
+abstract class ActorBase extends Actor{
   //Objects
   val log: LoggingAdapter = Logging.getLogger(context.system, this)
   implicit val execContext = context.system.dispatcher
   //Variables
-  private var msgHandler: Option[(Option[()⇒Any], PartialFunction[Any, Unit])] = None
+  private var stateToLogFun: Option[()⇒Any] = None
   private var intIdCounter = 0
   private var longIdCounter = 0L
   //Helpers
@@ -42,7 +42,7 @@ abstract class BaseActor extends Actor{
     .recover{case t: Throwable ⇒
       val sw = new StringWriter
       t.printStackTrace(new PrintWriter(sw))
-      log.error(s"[BaseActor.tryToRun] Error: ${sw.toString}")
+      log.error(s"[ActorBase.tryToRun] Error: ${sw.toString}")
       t.printStackTrace()
       throw t}
   /** Generate next integer ID
@@ -50,16 +50,14 @@ abstract class BaseActor extends Actor{
   def nextIntId: Int = {intIdCounter += 1; intIdCounter}
   def nextLongId: Long = {longIdCounter += 1; longIdCounter}
   //Messages handling with logging
-  def reaction(state: ⇒ Any)(handling: PartialFunction[Any, Unit]): Unit = {
-    msgHandler = Some(Tuple2(Some(()⇒state), handling))}
-  def reaction()(handling: PartialFunction[Any, Unit]): Unit = {
-    msgHandler = Some(Tuple2(None, handling))}
-  final def receive: PartialFunction[Any, Unit] = {
-    case m ⇒ msgHandler match{
-      case Some((state, handling)) ⇒
-        log.debug("FROM: " + sender + state.map(s ⇒ s", STATE: ${s()}").getOrElse("") + ", MESSAGE: " + m)
-        handling.applyOrElse[Any, Unit](m, _ ⇒ log.warning("NOT HANDLED MESSAGE: " + m))
-      case None ⇒  log.error(s"Message handler not setup, message: $m")}}
+  def stateToLog(state: ⇒Any): Unit = { stateToLogFun = Some(()⇒state) }
+  def reaction: PartialFunction[Any, Unit]
+  //Receive
+  def receive: PartialFunction[Any, Unit] = { case m ⇒
+    val stateText = stateToLogFun.map(s ⇒ s", STATE: ${s()}").getOrElse("")
+    reaction.lift(m) match{
+      case Some(_) ⇒ log.debug(s"FROM: $sender$stateText, MESSAGE: $m")
+      case None ⇒ log.warning(s"FROM: $sender$stateText, NOT HANDLED MESSAGE: $m")}}
 
 
   //TODO Add more

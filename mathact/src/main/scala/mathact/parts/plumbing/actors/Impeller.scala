@@ -15,7 +15,7 @@
 package mathact.parts.plumbing.actors
 
 import akka.actor.ActorRef
-import mathact.parts.BaseActor
+import mathact.parts.ActorBase
 import mathact.parts.data.Msg
 
 import scala.concurrent.Future
@@ -27,7 +27,7 @@ import scala.util.{Failure, Success}
   * Created by CAB on 15.05.2016.
   */
 
-class Impeller(drive: ActorRef) extends BaseActor{
+class Impeller(drive: ActorRef) extends ActorBase{
   //Messages
   case class TaskTimeout(taskNumber: Long, timeout: FiniteDuration)
   case class TaskSuccess(taskNumber: Long, res: Any)
@@ -36,7 +36,7 @@ class Impeller(drive: ActorRef) extends BaseActor{
   var taskCounter = 0L
   var currentTask: Option[(Long, String, Long)] = None // (task number, task name, start time)
   //Messages handling
-  reaction(){
+  def reaction = {
     //Starting of task in separate thread and start of task timeout
     case Msg.RunTask(name, timeout, task) if sender == drive ⇒ currentTask match{
       case None ⇒

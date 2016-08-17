@@ -16,7 +16,7 @@ package mathact.parts.plumbing.actors
 
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor._
-import mathact.parts.BaseActor
+import mathact.parts.ActorBase
 import mathact.parts.data.{WorkMode, StepMode, PipeData, Msg}
 import mathact.parts.plumbing.Pump
 import mathact.parts.plumbing.fitting.{Jack, Plug, Inlet, Outlet}
@@ -29,7 +29,7 @@ import scala.concurrent.duration._
   * Created by CAB on 15.05.2016.
   */
 
-class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
+class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends ActorBase{
   //Parameter
   val pushTimeoutCoefficient = 10  // pushTimeout = maxQueueSize * pushTimeoutCoefficient
   //Supervisor strategy
@@ -43,21 +43,21 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
 
   }
 //  case class MessageProcTask(taskId: Long, inlet: InletData, publisher: (ActorRef, Int), value: Any){ //publisher: (drive, outletId)
-//    def toRunTask:Msg.RunTask = Msg.RunTask(
+//    def toRunTask: Msg.RunTask = Msg.RunTask(
 //      id = taskId,
 //      name = s"[UserMessage] publisher: $publisher, inletId: ${inlet.id}, value: $value",
 //      task = ()⇒{inlet.pipe.processValue(value)})
-//
-//
-//
-//
+
+
+
+
 //  }
-//  case class InletData(id: Int, pipe: Inlet[_]){
+  case class InletData(id: Int, pipe: Inlet[_]){
 //    val taskQueue = MutQueue[MessageProcTask]()
 //    val publishers = MutMap[(ActorRef, Int), PipeData]() //((publishers tool drive, outlet ID), SubscriberData)
-//
-//
-//  }
+
+
+  }
 //  case class DrivesData(drive: ActorRef){
 //   var driveLoad: Int = 0
 //
@@ -67,8 +67,8 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
 //  var state = State.Creating
 //  var stepMode = StepMode.None
 //  var workMode = WorkMode.Paused
-//  val outlets = MutMap[Int, OutletData]()  //(Outlet ID, OutletData)
-//  val inlets = MutMap[Int, InletData]()    //(Inlet ID, OutletData)
+  val outlets = MutMap[Int, OutletData]()  //(Outlet ID, OutletData)
+  val inlets = MutMap[Int, InletData]()    //(Inlet ID, OutletData)
 //  val subscribedDrives = MutMap[ActorRef, DrivesData]()
 //  val pendingConnections = MutQueue[Connectivity]()
 //  var pushTimeout: Option[Long] = None   //Time out after each push (depend from current back pressure)
@@ -98,7 +98,9 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends BaseActor{
 
 
 
-
+  def reaction = {
+    case m ⇒ println("TODO: " + m)
+  }
 
 
 

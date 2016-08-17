@@ -12,18 +12,28 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact
+package mathact.parts
 
-import java.util.UUID
+import akka.actor.{Props, Actor, ActorSystem, ActorRef}
 
 
-/** Random data generator methods
-  * Created by CAB on 13.08.2016.
+/** Test actors factory
+  * Created by CAB on 17.08.2016.
   */
 
-trait RandomDataGenerators {
-  def randomBoolean:Boolean = math.random > .5
-  def randomOpt[T](v: T): Option[T] = randomBoolean match{case true ⇒ Some(v); case _ ⇒ None}
-  def randomInt(from:Int = 0, to:Int = 1000):Int = from + (math.random * (to - from + 1)).toInt
-  def randomDouble(from:Double = 0, to:Double = 100):Double = from + math.random * (to - from)
-  def randomString(n:Int = 32):String = UUID.randomUUID().toString.reverse.take(n)}
+class TestActor(name: String, customReceive: ActorRef⇒PartialFunction[Any, Any], system: ActorSystem){
+  //Actor
+  val ref: ActorRef = system.actorOf(
+    Props(new Actor{
+      def receive = { case m ⇒
+        sender ! customReceive(self).apply(m)}}),
+    name)
+  //Methods
+
+    //TODO
+
+}
+
+object TestActor {
+  def apply(name: String)(receive: ActorRef⇒PartialFunction[Any, Any])(implicit system: ActorSystem): TestActor =
+    new TestActor(name, receive, system)}

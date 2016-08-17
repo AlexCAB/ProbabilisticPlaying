@@ -17,7 +17,7 @@ package mathact.parts.control.actors
 import java.util.concurrent.ExecutionException
 
 import akka.actor._
-import mathact.parts.{WorkbenchContext, BaseActor}
+import mathact.parts.{WorkbenchContext, ActorBase}
 import mathact.parts.data.{SketchStatus, Sketch, Msg}
 import mathact.parts.gui.SelectSketchWindow
 import mathact.tools.Workbench
@@ -31,7 +31,7 @@ import scala.concurrent.duration._
   * Created by CAB on 20.06.2016.
   */
 
-class MainController(doStop: Int⇒Unit) extends BaseActor{
+class MainController(doStop: Int⇒Unit) extends ActorBase{
   //Parameters
   val sketchStartTimeout = 5.seconds
   //Messages
@@ -62,7 +62,7 @@ class MainController(doStop: Int⇒Unit) extends BaseActor{
     currentSketch.foreach(_.controller.foreach(_ ! Msg.StopWorkbenchController))
     currentSketch = None}
   //Messages handling
-  reaction(){
+  def reaction = {
     //Handling of starting
     case Msg.MainControllerStart(sketchList) ⇒
       sketches = sketchList
@@ -101,6 +101,8 @@ class MainController(doStop: Int⇒Unit) extends BaseActor{
         case _ ⇒}
     //Creating of new WorkbenchContext instance, return Either[Exception,WorkbenchContext]
     case Msg.NewWorkbenchContext(workbench: Workbench) ⇒
+
+
       (currentSketch, Option(workbench.getClass.getCanonicalName)) match {
         case (Some(s), Some(cn)) if s.sketch.className == cn ⇒
           //Create WorkbenchContext
@@ -109,9 +111,14 @@ class MainController(doStop: Int⇒Unit) extends BaseActor{
             "WorkbenchControllerActor_" + s.sketch.className)
           context.watch(controller)
           currentSketch = currentSketch.map(_.withController(controller))
-          //Return
-          sender ! Right(new WorkbenchContext(context.system, controller))
-        case (_, cn) ⇒ Left(new Exception(
+          //Init of Workbench Controller
+          controller ! Msg.WorkbenchControllerInit(sender)
+
+
+
+
+
+        case (_, cn) ⇒  sender ! Left(new Exception(
           s"[MainController.NewWorkbenchContext] Workbench class $cn not match a current sketch: $currentSketch"))}
     //Sketch started
     case SketchStarted(className) ⇒
