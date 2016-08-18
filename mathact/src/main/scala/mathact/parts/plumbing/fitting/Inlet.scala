@@ -62,10 +62,10 @@ import scala.concurrent.Future
 
   //Методы ниже принимают несколько Connector и компонуют их в один Inlet,
   //Нужно перерабоать их чтобы они поддержывали следующие виды компоновка:
-  // 1) Барьерная - pours вызывается только когда на всех выходах есть значение, после вызова сохранённые значения сбрасывабтся
-  // 2) Барьерная с сохраением - pours не вызыватся пока все значения не заполнятся, после заполения вызывается
+  // 1) Барьерная - drain вызывается только когда на всех выходах есть значение, после вызова сохранённые значения сбрасывабтся
+  // 2) Барьерная с сохраением - drain не вызыватся пока все значения не заполнятся, после заполения вызывается
   //    при при изменеии любого из занчений, вместе с новым передаются сохранённые значения
-  // 3) Для каждого - pours каждый раз когда приходи новое значение по одному из входов, это значение не пустое остальные
+  // 3) Для каждого - drain каждый раз когда приходи новое значение по одному из входов, это значение не пустое остальные
   //    пустые, значения сбрасываются после вызова.
   // 4) Для каждого для каждого с сохранением - тоже но перд значение созраняются, и будут переданы при следующем вызове
 
@@ -74,7 +74,7 @@ import scala.concurrent.Future
   // Т.е. Inlet сам оп семе может соединется  толко с одним Outlet.
   //Код внутри инструмента будет выглядить пример так:
   //  class Line2(name: String) extends Inlet[(Double, String)]{
-  //    def pours(v: (Double, String)): Unit = println("Handle: " + v)
+  //    def drain(v: (Double, String)): Unit = println("Handle: " + v)
   //
   //    def of(in1: ⇒Connector[Double], in2: ⇒Connector[String]): Unit = {
   //
@@ -83,9 +83,9 @@ import scala.concurrent.Future
   //    }
   //
   //
-  //    val out: MaleFlange = Outlet( new Outlet{ push(...)} )     //Пример определеия выхода
+  //    val out: MaleFlange = Outlet( new Outlet{ pour(...)} )     //Пример определеия выхода
   //
-  //    val in: FemaleFlange = Inlet( new Inlet{ def pours(v) = ...} )     //Пример определеия входа
+  //    val in: FemaleFlange = Inlet( new Inlet{ def drain(v) = ...} )     //Пример определеия входа
   //
   //    out.connect(in)      //Соедиение выхода и входа
   //
@@ -111,8 +111,8 @@ import scala.concurrent.Future
   //    def line(name:string) = Inlet( new Line2(name) )    //Возвращает Line2 и далее можно вызывать def of,
   //  что в целом эквиваленто внешнему подключению, но вход не торчит в наружу.
   //  Тогда опредляемие внути входы будут создавтся так:
-  //    Inlet(new Inlet{ def pours(v) = ...})  //Т.е. возвращамое FemaleFlange заячение не используется, так как
-  //    функции def pours доступны все внурености класа
+  //    Inlet(new Inlet{ def drain(v) = ...})  //Т.е. возвращамое FemaleFlange заячение не используется, так как
+  //    функции def drain доступны все внурености класа
   //
   //
 
@@ -137,16 +137,16 @@ import scala.concurrent.Future
 
 trait Inlet[T] extends Jack[T] with Pipe[T]{   //Методы обьявдены protected чтобы из не вызывали из вне, но пользователь может реализовть свой методв и оставить его доступным из вне
 
-  private[mathact] def processValue(value: Any): Unit = pours(value.asInstanceOf[T])
+  private[mathact] def processValue(value: Any): Unit = drain(value.asInstanceOf[T])
 
 
 
 
 
-//  pours(value)
+//  drain(value)
 
 
-  protected def pours(value: T): Unit    //Вызыватеся каждый раз при получении нового значения из Connector
+  protected def drain(value: T): Unit    //Вызыватеся каждый раз при получении нового значения из Connector
 
 
 

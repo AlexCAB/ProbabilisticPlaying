@@ -30,14 +30,14 @@ abstract class PotBoard(implicit  context: WorkbenchContext) extends Tool(contex
 
   protected class Pot(from: Double, to: Double, in: Option[()⇒Plug[Double]]) extends Outlet[Double] with Inlet[Double]{    //Определение выхода
 
-    protected def pours(value: Double): Unit = {}// push(value)    //Все полученые из in значения будут нередаватся на выход
+    protected def drain(value: Double): Unit = {}// pour(value)    //Все полученые из in значения будут нередаватся на выход
 
 
 //    in.foreach(e ⇒ Inlet(this, e))       //Эамыкание входа на выход
 //
 //    in.foreach(e ⇒ new Inlet[Double]{    //Констуирование отдельного вхда
 //
-//      protected def pours(value: Double): Unit = { ??? }
+//      protected def drain(value: Double): Unit = { ??? }
 //
 //
 //
@@ -47,14 +47,14 @@ abstract class PotBoard(implicit  context: WorkbenchContext) extends Tool(contex
 
     //Здесь реализация
 
-//    push(10)       //Посылка значения на выход
+//    pour(10)       //Посылка значения на выход
 
 
 //    Future{
 //      (0 to 5).foreach{ i ⇒
-//        println("############# push: " + i)
+//        println("############# pour: " + i)
 //        try{
-//          push(i)}
+//          pour(i)}
 //        catch{ case t: Throwable ⇒
 //          t.printStackTrace()}
 //      Thread.sleep(1000)}

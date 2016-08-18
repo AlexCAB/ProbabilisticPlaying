@@ -26,7 +26,7 @@ trait Outlet[T] extends Plug[T] with Pipe[T]{
   //Methods
   /** Send value to connected inlets
     * @param value - */
-  protected def push(value: T): Unit = pushUserData(value)
+  protected def pour(value: T): Unit = pushUserData(value)
 
 
 

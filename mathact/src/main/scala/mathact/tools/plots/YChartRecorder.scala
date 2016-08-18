@@ -28,14 +28,14 @@ abstract class YChartRecorder(implicit context: WorkbenchContext) extends Tool(c
   protected class Line(name: String) extends Inlet[Double]{   //В этом случае имеется один обработчик, к которому может быть подключено несколько флянцев
     //Если нужно несколько обработчиков для разных типов, можно внутири Line создать несколько Inlet
 
-    protected def pours(v: Double): Unit = {
+    protected def drain(v: Double): Unit = {
 
       println("##### Handle: " + v)
 
     }
 
 
-    def of(out: ⇒Plug[Double]): Line with Socket[Double] = {
+    def of(out: ⇒Plug[Double]): Jack[Double] = {
 
 
 
@@ -67,7 +67,7 @@ abstract class YChartRecorder(implicit context: WorkbenchContext) extends Tool(c
 //  protected class Line2(name: String) extends Inlet[(Double, String)]{ //Пример с обработчиком с двумя значениями разного типа
 //
 //
-//    protected def pours(v: (Double, String)): Unit = {
+//    protected def drain(v: (Double, String)): Unit = {
 //
 //
 //      println("Handle: " + v)

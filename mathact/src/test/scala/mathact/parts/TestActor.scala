@@ -22,6 +22,7 @@ import akka.actor.{Props, Actor, ActorSystem, ActorRef}
   */
 
 class TestActor(name: String, customReceive: ActorRef⇒PartialFunction[Any, Any], system: ActorSystem){
+
   //Actor
   val ref: ActorRef = system.actorOf(
     Props(new Actor{

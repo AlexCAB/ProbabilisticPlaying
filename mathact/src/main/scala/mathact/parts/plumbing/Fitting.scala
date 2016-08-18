@@ -24,7 +24,7 @@ trait Fitting {
   private[mathact] val pump: Pump
 
   type Plug[T] = fitting.Plug[T]
-  type Socket[T] = fitting.Jack[T]
+  type Jack[T] = fitting.Jack[T]
   type Outlet[T] = fitting.Outlet[T]
   type Inlet[T] = fitting.Inlet[T]
 
@@ -60,22 +60,32 @@ trait Fitting {
 //
 //  }
 
+
+  //Helper classes
+  trait Filler[H]{ def fill(value: H): Unit }
   //Registration if Outlet
   protected object Outlet{
-    def apply[T,H](out: T with Outlet[H], name: String = ""): T with Plug[H] = { //If pump set, inject it to Outlet and register Outlet
-      Option(pump).foreach(p ⇒ out.injectPump(p, p.addOutlet(out),name))
-      out}}
+    def apply[H](out: Outlet[H], name: String = ""): Plug[H] = {
+      Option(pump).foreach(p ⇒ out.injectPump(p, p.addOutlet(out, name match{case "" ⇒ None; case n ⇒ Some(n)}),name))
+      out}
+    def apply[H](name: String): (Plug[H], Filler[H]) = {
+      val out = new Filler[H] with Outlet[H]{ def fill(value: H): Unit = pour(value) }
+      Option(pump).foreach(p ⇒ out.injectPump(p, p.addOutlet(out, Some(name)),name))
+      (out, out)}
+    def apply[H]: (Plug[H], Filler[H]) = {
+      val out = new Filler[H] with Outlet[H]{ def fill(value: H): Unit = pour(value) }
+      Option(pump).foreach(p ⇒ out.injectPump(p, p.addOutlet(out, None), ""))
+      (out, out)}}
   //Registration if Inlet
   protected object Inlet{
-    def apply[T,H](in: T with Inlet[H], name: String = ""): T with Socket[H] = {
-      Option(pump).foreach(p ⇒ in.injectPump(p, p.addInlet(in), name))
-      in}}
-
-
-
-
-
-
-
-
-}
+    def apply[H](in: Inlet[H], name: String = ""): Jack[H] = {
+      Option(pump).foreach(p ⇒ in.injectPump(p, p.addInlet(in, name match{case "" ⇒ None; case n ⇒ Some(n)}), name))
+      in}
+    def apply[H](name: String)(drainFun: H⇒Unit): Jack[H] = {
+      val in = new Inlet[H]{protected def drain(value: H): Unit = drainFun(value)}
+      Option(pump).foreach(p ⇒ in.injectPump(p, p.addInlet(in, Some(name)), name))
+      in}
+    def apply[H](drainFun: H⇒Unit): Jack[H] = {
+      val in = new Inlet[H]{protected def drain(value: H): Unit = drainFun(value)}
+      Option(pump).foreach(p ⇒ in.injectPump(p, p.addInlet(in, None), ""))
+      in}}}

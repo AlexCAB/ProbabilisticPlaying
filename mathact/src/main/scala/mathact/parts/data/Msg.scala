@@ -53,8 +53,8 @@ private[mathact] object Msg {
   //Object Pump - Pumping (ask)
   case class NewDrive(toolPump: Pump, toolName: String, toolImage: Option[Image])     //Name and image for display in UI
   //Object Pump - Drive (ask)
-  case class AddOutlet(pipe: Outlet[_])
-  case class AddInlet(pipe: Inlet[_])
+  case class AddOutlet(pipe: Outlet[_], name: Option[String])
+  case class AddInlet(pipe: Inlet[_], name: Option[String])
   case class ConnectPipes(out: ()⇒Plug[_], in: ()⇒Jack[_])
   case class DisconnectPipes(out: ()⇒Plug[_], in: ()⇒Jack[_])
   case class UserData[T](outletId: Int, value: T)

@@ -70,8 +70,8 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends ActorBase{
   val outlets = MutMap[Int, OutletData]()  //(Outlet ID, OutletData)
   val inlets = MutMap[Int, InletData]()    //(Inlet ID, OutletData)
 //  val subscribedDrives = MutMap[ActorRef, DrivesData]()
-//  val pendingConnections = MutQueue[Connectivity]()
-//  var pushTimeout: Option[Long] = None   //Time out after each push (depend from current back pressure)
+  val pendingConnections = MutQueue[Either[Msg.ConnectPipes, Msg.DisconnectPipes]]()
+//  var pushTimeout: Option[Long] = None   //Time out after each pour (depend from current back pressure)
 //  val performedTasks = MutMap[Long, MessageProcTask]()
 //  var numberOfNotProcessedSteps = 0
 //
@@ -431,7 +431,7 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends ActorBase{
 //          log.debug(
 //            s"[UserData] Data: $value, sent from outletId: $outletId to ${outlet.subscribers.size} " +
 //              s"subscribers, pushTimeout: $pushTimeout")
-//          //Return push timeout
+//          //Return pour timeout
 //          Right(pushTimeout)
 //        case None ⇒
 //          Left(new IllegalArgumentException(
@@ -462,7 +462,7 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends ActorBase{
 //        case Some(driveData) ⇒
 //          //Update drive load
 //          driveData.driveLoad = maxQueueSize
-//          //Evaluate next push timeout
+//          //Evaluate next pour timeout
 //          subscribedDrives.values.map(_.driveLoad).max match{
 //            case 0 ⇒
 //              pushTimeout = None
