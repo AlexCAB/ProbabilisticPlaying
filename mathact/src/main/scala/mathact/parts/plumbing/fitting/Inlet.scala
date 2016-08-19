@@ -44,7 +44,7 @@ import scala.concurrent.Future
 
 
 //  //Простой медод без синхронизации (один Connector один Inlet)
-//  def apply[Z, A](inlet: Z with Inlet[A], in: ()⇒Plug[A]): Z with Jack[A] = {  //Связание Connector с Inlet
+//  def apply[Z, A](inlet: Z with Inlet[A], in: ()⇒Plug[A]): Z with Socket[A] = {  //Связание Connector с Inlet
 //
 //
 //
@@ -135,7 +135,7 @@ import scala.concurrent.Future
 
 
 
-trait Inlet[T] extends Jack[T] with Pipe[T]{   //Методы обьявдены protected чтобы из не вызывали из вне, но пользователь может реализовть свой методв и оставить его доступным из вне
+trait Inlet[T] extends Socket[T] with Pipe[T]{   //Методы обьявдены protected чтобы из не вызывали из вне, но пользователь может реализовть свой методв и оставить его доступным из вне
 
   private[mathact] def processValue(value: Any): Unit = drain(value.asInstanceOf[T])
 

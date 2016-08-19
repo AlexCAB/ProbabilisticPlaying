@@ -19,7 +19,7 @@ import akka.actor._
 import mathact.parts.ActorBase
 import mathact.parts.data.{WorkMode, StepMode, PipeData, Msg}
 import mathact.parts.plumbing.Pump
-import mathact.parts.plumbing.fitting.{Jack, Plug, Inlet, Outlet}
+import mathact.parts.plumbing.fitting.{Socket, Plug, Inlet, Outlet}
 import scala.collection.mutable.{Map ⇒ MutMap, Queue ⇒ MutQueue}
 import scala.concurrent.duration._
 
@@ -114,18 +114,18 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends ActorBase{
 //
 //
 //
-//  def doConnect(out: ()⇒Plug[_], in: ()⇒Jack[_]): Unit = (out(),in()) match{
+//  def doConnect(out: ()⇒Plug[_], in: ()⇒Socket[_]): Unit = (out(),in()) match{
 //    case (o: Outlet[_], i: Inlet[_]) ⇒
 //      val p = i.getPipeData
 //      p.toolDrive ! Msg.AddConnection(p.pipeId, o.getPipeData)
 //    case (o, i) ⇒
-//      log.error(s"[ConnectPipes.doConnect] Plug or Jack is not an instance of Outlet[_] or Inlet[_], out: $o, in: $i.")}
-//  def doDisconnect(out: ()⇒Plug[_], in: ()⇒Jack[_]): Unit = (out(),in()) match{
+//      log.error(s"[ConnectPipes.doConnect] Plug or Socket is not an instance of Outlet[_] or Inlet[_], out: $o, in: $i.")}
+//  def doDisconnect(out: ()⇒Plug[_], in: ()⇒Socket[_]): Unit = (out(),in()) match{
 //    case (o: Outlet[_], i: Inlet[_]) ⇒
 //      val p = o.getPipeData
 //      p.toolDrive ! Msg.DisconnectFrom(p.pipeId, i.getPipeData)
 //    case (o, i) ⇒
-//      log.error(s"[ConnectPipes.doConnect] Plug or Jack is not an instance of Outlet[_] or Inlet[_], out: $o, in: $i.")}
+//      log.error(s"[ConnectPipes.doConnect] Plug or Socket is not an instance of Outlet[_] or Inlet[_], out: $o, in: $i.")}
 //
 //
 //  def sendBatchOfTasks(): Unit = inlets.values.foreach{ //Send batch of tasks, one from each inlet queue

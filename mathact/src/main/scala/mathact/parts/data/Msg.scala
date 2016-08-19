@@ -55,8 +55,10 @@ private[mathact] object Msg {
   //Object Pump - Drive (ask)
   case class AddOutlet(pipe: Outlet[_], name: Option[String])
   case class AddInlet(pipe: Inlet[_], name: Option[String])
-  case class ConnectPipes(out: ()⇒Plug[_], in: ()⇒Jack[_])
-  case class DisconnectPipes(out: ()⇒Plug[_], in: ()⇒Jack[_])
+
+  case class ConnectPipes(out: ()⇒Plug[_], in: ()⇒Socket[_])
+  case class DisconnectPipes(out: ()⇒Plug[_], in: ()⇒Socket[_])
+
   case class UserData[T](outletId: Int, value: T)
   //Pumping - Drive
   case object BuildDrive //Creating of connections from pending list
@@ -68,10 +70,12 @@ private[mathact] object Msg {
   case object TerminateDrive //Disconnect all connection and terminate
   case object DriveTerminated
   //Drive - Drive
-  case class AddConnection(inletId: Int, outlet: PipeData)
-  case class ConnectTo(outletId: Int, inlet: PipeData)
-  case class DisconnectFrom(outletId: Int, inlet: PipeData)
-  case class DelConnection(inletId: Int, outlet: PipeData)
+  case class AddConnection(initiator: ActorRef, inletId: Int, outlet: PipeData)
+  case class ConnectTo(initiator: ActorRef, outletId: Int, inlet: PipeData)
+  case class PipesConnected(inletId: Int, outlet: PipeData) //???
+  case class DisconnectFrom(initiator: ActorRef, outletId: Int, inlet: PipeData)
+  case class DelConnection(initiator: ActorRef, inletId: Int, outlet: PipeData)
+  case class PipesDisconnected(inletId: Int, outlet: PipeData) //???
   case class UserMessage[T](outletId: Int, inletId: Int, value: T)
   case class DriveLoad(drive: ActorRef, maxQueueSize: Int)
   //Drive - Impeller

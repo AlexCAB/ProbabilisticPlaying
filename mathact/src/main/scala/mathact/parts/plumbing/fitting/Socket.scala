@@ -21,20 +21,20 @@ import mathact.Application
   * Created by CAB on 17.05.2016.
   */
 
-trait Jack[T] extends Connector[T] {
+trait Socket[T] extends Connector[T] {
   //Get Inlet
   private val inlet = this match{
     case in: Inlet[T] ⇒ in
     case _ ⇒ throw new Exception(
-      s"[Jack] This trait must be implemented only with mathact.parts.plumbing.fitting.Inlet, " +
+      s"[Socket] This trait must be implemented only with mathact.parts.plumbing.fitting.Inlet, " +
       s"found implementation: ${this.getClass.getName}")}
   //Methods
-  /** Connecting of this Jack to given Plug
+  /** Connecting of this Socket to given Plug
     * @param plug - Plug[T] */
-  def connectPlug(plug: ⇒Plug[T]): Unit = inlet.getPump.connect(()⇒plug, ()⇒this)
-  /** Disconnecting of this Jack to given Plug
+  def plug(plug: ⇒Plug[T]): Unit = inlet.getPump.connect(()⇒plug, ()⇒this)
+  /** Disconnecting of this Socket to given Plug
     * @param plug - Plug[T] */
-  def disconnectPlug(plug: ⇒Plug[T]): Unit = inlet.getPump.disconnect(()⇒plug, ()⇒this)
+  def unplug(plug: ⇒Plug[T]): Unit = inlet.getPump.disconnect(()⇒plug, ()⇒this)
 
 
 
@@ -43,7 +43,7 @@ trait Jack[T] extends Connector[T] {
 
 
 
-    //!!! Подумать как передать Jack (этот) и ⇒Plug в drive (через Pump).
+    //!!! Подумать как передать Socket (этот) и ⇒Plug в drive (через Pump).
     // Можно добавить дин общий метод принимающих их двоих.
     // И лутьше поднять до Inlet и Outlet
     // ! Для подключения нужно предать ID Inlet'а и ActorRef драйва Inlet'а, драйву Outlet'а (чтобы он рассылал
@@ -59,7 +59,7 @@ trait Jack[T] extends Connector[T] {
 
 
     //!!! Далее здесь:
-    // 1) Проверка действительно ли Jack реализован при помощи Inlet, если так продолжение работы.
+    // 1) Проверка действительно ли Socket реализован при помощи Inlet, если так продолжение работы.
     // 2) Поднятие типа до Inlet
     // 3) упаковка plug в функцию и отправка к Pump вместе с pipeId.
 

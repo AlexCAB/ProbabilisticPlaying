@@ -24,7 +24,7 @@ trait Fitting {
   private[mathact] val pump: Pump
 
   type Plug[T] = fitting.Plug[T]
-  type Jack[T] = fitting.Jack[T]
+  type Socket[T] = fitting.Socket[T]
   type Outlet[T] = fitting.Outlet[T]
   type Inlet[T] = fitting.Inlet[T]
 
@@ -78,14 +78,14 @@ trait Fitting {
       (out, out)}}
   //Registration if Inlet
   protected object Inlet{
-    def apply[H](in: Inlet[H], name: String = ""): Jack[H] = {
+    def apply[H](in: Inlet[H], name: String = ""): Socket[H] = {
       Option(pump).foreach(p ⇒ in.injectPump(p, p.addInlet(in, name match{case "" ⇒ None; case n ⇒ Some(n)}), name))
       in}
-    def apply[H](name: String)(drainFun: H⇒Unit): Jack[H] = {
+    def apply[H](name: String)(drainFun: H⇒Unit): Socket[H] = {
       val in = new Inlet[H]{protected def drain(value: H): Unit = drainFun(value)}
       Option(pump).foreach(p ⇒ in.injectPump(p, p.addInlet(in, Some(name)), name))
       in}
-    def apply[H](drainFun: H⇒Unit): Jack[H] = {
+    def apply[H](drainFun: H⇒Unit): Socket[H] = {
       val in = new Inlet[H]{protected def drain(value: H): Unit = drainFun(value)}
       Option(pump).foreach(p ⇒ in.injectPump(p, p.addInlet(in, None), ""))
       in}}}

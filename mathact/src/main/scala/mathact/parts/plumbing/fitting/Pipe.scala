@@ -64,7 +64,7 @@ trait Pipe[T]{
 
 
   //  //Messaging methods
-//  private[mathact] def connect(out: ()⇒Plug[_], in: ()⇒Jack[_]): Unit = pump match{
+//  private[mathact] def connect(out: ()⇒Plug[_], in: ()⇒Socket[_]): Unit = pump match{
 //    case Some(p) ⇒
 //
 //    case None ⇒
@@ -74,7 +74,7 @@ trait Pipe[T]{
 //
 //
 //
-//  private[mathact] def disconnect(out: ()⇒Plug[_], in: ()⇒Jack[_]): Unit = pump match{
+//  private[mathact] def disconnect(out: ()⇒Plug[_], in: ()⇒Socket[_]): Unit = pump match{
 //    case Some(p) ⇒
 //
 //    case None ⇒
@@ -85,8 +85,8 @@ trait Pipe[T]{
 
 //  private[plumbing] def connectPlug(plug: ⇒Plug[T]): Unit = {}
 //  private[plumbing] def disconnectPlug(plug: ⇒Plug[T]): Unit = {}
-//  private[plumbing] def connectJack(socket: ⇒Jack[T]): Unit = {}
-//  private[plumbing] def disconnectJack(socket: ⇒Jack[T]): Unit = {}
+//  private[plumbing] def connectJack(socket: ⇒Socket[T]): Unit = {}
+//  private[plumbing] def disconnectJack(socket: ⇒Socket[T]): Unit = {}
 
 
 
