@@ -70,7 +70,8 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends ActorBase{
   val outlets = MutMap[Int, OutletData]()  //(Outlet ID, OutletData)
   val inlets = MutMap[Int, InletData]()    //(Inlet ID, OutletData)
 //  val subscribedDrives = MutMap[ActorRef, DrivesData]()
-  val pendingConnections = MutQueue[Either[Msg.ConnectPipes, Msg.DisconnectPipes]]()
+
+  val pendingConnections = MutQueue[Msg]() //MutQueue[Either[Msg.ConnectPipes, Msg.DisconnectPipes]]()
 //  var pushTimeout: Option[Long] = None   //Time out after each pour (depend from current back pressure)
 //  val performedTasks = MutMap[Long, MessageProcTask]()
 //  var numberOfNotProcessedSteps = 0
