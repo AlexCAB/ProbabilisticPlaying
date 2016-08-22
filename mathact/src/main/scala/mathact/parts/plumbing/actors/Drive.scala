@@ -29,7 +29,8 @@ import scala.concurrent.duration._
   * Created by CAB on 15.05.2016.
   */
 
-class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends ActorBase{
+class Drive(pump: Pump, toolName: String, pumping: ActorRef, impeller: ActorRef)
+extends ActorBase with DriveConstruction with DriveConnectivity with DriveMessaging{
   //Parameter
   val pushTimeoutCoefficient = 10  // pushTimeout = maxQueueSize * pushTimeoutCoefficient
   //Supervisor strategy
@@ -38,11 +39,12 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends ActorBase{
   object State extends Enumeration {
     val Creating, Building, Starting, Work, Stopping = Value}
   //Definitions
-  case class OutletData(id: Int, pipe: Outlet[_]){
+  case class OutletData(id: Int, name: Option[String], pipe: Outlet[_]){
     val subscribers = MutMap[(ActorRef, Int), PipeData]() //((subscribe tool drive, inlet ID), SubscriberData)
+    val actionsQueue = MutQueue[Msg]()
 
   }
-//  case class MessageProcTask(taskId: Long, inlet: InletData, publisher: (ActorRef, Int), value: Any){ //publisher: (drive, outletId)
+  case class MessageProcTask(taskId: Long, inlet: InletData, publisher: (ActorRef, Int), value: Any){ //publisher: (drive, outletId)
 //    def toRunTask: Msg.RunTask = Msg.RunTask(
 //      id = taskId,
 //      name = s"[UserMessage] publisher: $publisher, inletId: ${inlet.id}, value: $value",
@@ -51,9 +53,9 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends ActorBase{
 
 
 
-//  }
-  case class InletData(id: Int, pipe: Inlet[_]){
-//    val taskQueue = MutQueue[MessageProcTask]()
+  }
+  case class InletData(id: Int, name: Option[String], pipe: Inlet[_]){
+    val taskQueue = MutQueue[MessageProcTask]()
 //    val publishers = MutMap[(ActorRef, Int), PipeData]() //((publishers tool drive, outlet ID), SubscriberData)
 
 
@@ -64,33 +66,24 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends ActorBase{
 //
 //  }
 //  //Variables
-//  var state = State.Creating
+  var state = State.Creating
 //  var stepMode = StepMode.None
 //  var workMode = WorkMode.Paused
   val outlets = MutMap[Int, OutletData]()  //(Outlet ID, OutletData)
   val inlets = MutMap[Int, InletData]()    //(Inlet ID, OutletData)
 //  val subscribedDrives = MutMap[ActorRef, DrivesData]()
 
-  val pendingConnections = MutQueue[Msg]() //MutQueue[Either[Msg.ConnectPipes, Msg.DisconnectPipes]]()
+
 //  var pushTimeout: Option[Long] = None   //Time out after each pour (depend from current back pressure)
 //  val performedTasks = MutMap[Long, MessageProcTask]()
 //  var numberOfNotProcessedSteps = 0
 //
 //
-//  //Worker actor
-//  val impeller = context.actorOf(Props(new Impeller(self)), "ImpellerOf" + toolName)
-//  context.watch(impeller)
-//  //Functions
-//
-//
 
 
-
-
-
-
-
-
+  //On start
+  stateToLog(state)
+  context.watch(impeller)
 
 
 //  //Далее здесь:
@@ -100,7 +93,64 @@ class Drive(pump: Pump, toolName: String, pumping: ActorRef) extends ActorBase{
 
 
   def reaction = {
-    case m ⇒ println("TODO: " + m)
+    //Workflow
+    case Msg.BuildDrive ⇒
+    case Msg.StartDrive ⇒
+    case Msg.StopDrive ⇒
+    case Msg.TerminateDrive ⇒
+    case massage ⇒
+      //Match other message
+      massage match{
+        //Construction, adding pipes
+        case Msg.AddOutlet(pipe, name) ⇒ sender ! addOutlet(pipe, name)
+        case Msg.AddInlet(pipe, name) ⇒ sender ! addInlet(pipe, name)
+        //Connectivity
+        case message: Msg.ConnectPipes ⇒ connectPipes(message)
+
+
+
+
+
+      }
+      //State handling
+      state match{
+        case State.Creating ⇒ massage match{
+          case _: Msg.PipesConnected ⇒ isAllConnected match{
+            case true ⇒ pumping ! Msg.DriveBuilt
+            case false ⇒ log.error(s"[State handling] Not all pipes connected: $pendingConnections.")}}
+        case State.Building ⇒
+        case State.Starting ⇒
+        case State.Work ⇒
+        case State.Stopping ⇒
+
+
+      }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   }
 
 

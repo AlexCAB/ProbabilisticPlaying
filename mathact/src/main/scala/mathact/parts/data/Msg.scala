@@ -58,7 +58,6 @@ private[mathact] object Msg {
   case class AddOutlet(pipe: Outlet[_], name: Option[String]) extends Msg
   case class AddInlet(pipe: Inlet[_], name: Option[String]) extends Msg
   case class ConnectPipes(out: ()⇒Plug[_], in: ()⇒Socket[_]) extends Msg
-  case class DisconnectPipes(out: ()⇒Plug[_], in: ()⇒Socket[_]) extends Msg
   case class UserData[T](outletId: Int, value: T) extends Msg
   //Pumping - Drive
   case object BuildDrive extends Msg //Creating of connections from pending list
@@ -70,14 +69,11 @@ private[mathact] object Msg {
   case object TerminateDrive extends Msg //Disconnect all connection and terminate
   case object DriveTerminated extends Msg
   //Drive - Drive
-  case class AddConnection(initiator: ActorRef, inletId: Int, outlet: PipeData) extends Msg
-  case class ConnectTo(initiator: ActorRef, outletId: Int, inlet: PipeData) extends Msg
-  case class ConnectionAdded(inletId: Int, outletId: Int) extends Msg
+  case class AddConnection(connectionId: Int, initiator: ActorRef, outletId: Int, inlet: PipeData) extends Msg  //Sends to outlet in case connection started in inlet
+
+  //  case class ConnectTo(initiator: ActorRef, outletId: Int, inlet: PipeData) extends Msg
+//  case class ConnectionAdded(inletId: Int, outletId: Int) extends Msg
   case class PipesConnected(inletId: Int, outletId: Int) extends Msg
-  case class DelConnection(initiator: ActorRef, outletId: Int, inlet: PipeData) extends Msg
-  case class DisconnectFrom(initiator: ActorRef, inletId: Int, outlet: PipeData) extends Msg
-  case class ConnectionDeleted(inletId: Int, outletId: Int) extends Msg
-  case class PipesDisconnected(inletId: Int, outletId: Int) extends Msg
   case class UserMessage[T](outletId: Int, inletId: Int, value: T) extends Msg
   case class DriveLoad(drive: ActorRef, maxQueueSize: Int) extends Msg
   //Drive - Impeller

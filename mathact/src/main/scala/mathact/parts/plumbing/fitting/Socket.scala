@@ -32,10 +32,6 @@ trait Socket[T] extends Connector[T] {
   /** Connecting of this Socket to given Plug
     * @param plug - Plug[T] */
   def plug(plug: ⇒Plug[T]): Unit = inlet.getPump.connect(()⇒plug, ()⇒this)
-  /** Disconnecting of this Socket to given Plug
-    * @param plug - Plug[T] */
-  def unplug(plug: ⇒Plug[T]): Unit = inlet.getPump.disconnect(()⇒plug, ()⇒this)
-
 
 
 
