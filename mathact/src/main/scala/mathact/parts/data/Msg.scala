@@ -55,8 +55,8 @@ private[mathact] object Msg {
   //Object Pump - Pumping (ask)
   case class NewDrive(toolPump: Pump, toolName: String, toolImage: Option[Image]) extends Msg     //Name and image for display in UI
   //Object Pump - Drive (ask)
-  case class AddOutlet(pipe: Outlet[_], name: Option[String]) extends Msg
-  case class AddInlet(pipe: Inlet[_], name: Option[String]) extends Msg
+  case class AddOutlet(pipe: OutPipe[_], name: Option[String]) extends Msg
+  case class AddInlet(pipe: InPipe[_], name: Option[String]) extends Msg
   case class ConnectPipes(out: ()⇒Plug[_], in: ()⇒Socket[_]) extends Msg
   case class UserData[T](outletId: Int, value: T) extends Msg
   //Pumping - Drive
@@ -69,11 +69,9 @@ private[mathact] object Msg {
   case object TerminateDrive extends Msg //Disconnect all connection and terminate
   case object DriveTerminated extends Msg
   //Drive - Drive
-  case class AddConnection(connectionId: Int, initiator: ActorRef, outletId: Int, inlet: PipeData) extends Msg  //Sends to outlet in case connection started in inlet
-
-  //  case class ConnectTo(initiator: ActorRef, outletId: Int, inlet: PipeData) extends Msg
-//  case class ConnectionAdded(inletId: Int, outletId: Int) extends Msg
-  case class PipesConnected(inletId: Int, outletId: Int) extends Msg
+  case class AddConnection(connectionId: Int, initiator: ActorRef, inletId: Int, outlet: OutletData) extends Msg
+  case class ConnectTo(connectionId: Int, initiator: ActorRef, outletId: Int, inlet: InletData) extends Msg
+  case class PipesConnected(connectionId: Int, outletId: Int, inletId: Int) extends Msg
   case class UserMessage[T](outletId: Int, inletId: Int, value: T) extends Msg
   case class DriveLoad(drive: ActorRef, maxQueueSize: Int) extends Msg
   //Drive - Impeller

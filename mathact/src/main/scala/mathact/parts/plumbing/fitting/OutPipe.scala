@@ -12,13 +12,31 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.data
+package mathact.parts.plumbing.fitting
 
-import akka.actor.ActorRef
+import mathact.parts.data.{OutletData, Msg}
+import mathact.parts.plumbing.Pump
 
 
-/** Pipe data
-  * Created by CAB on 05.07.2016.
+/** Wrapper for Outlet
+  * Created by CAB on 24.08.2016.
   */
 
-case class PipeData(toolDrive: ActorRef, toolName: String, pipeId: Int, pipeName: String)
+private [mathact] class OutPipe[H](
+  out: Outlet[H],
+  protected val pipeName: Option[String],
+  protected val pump: Pump)
+extends Pipe[H] with Plug[H]{
+  //Construction
+  protected val pipeId: Int = pump.addOutlet(this, pipeName)
+  out.injectOutPipe(this)
+  //Fields
+  lazy val pipeData = OutletData(pump.drive, pump.toolName, pipeId, pipeName)
+  //Methods
+  override def toString: String = s"OutPipe(in: $out, pipeName: $pipeName, pump: $pump)"
+
+
+
+
+
+}

@@ -17,9 +17,9 @@ package mathact.parts.plumbing.actors
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor._
 import mathact.parts.ActorBase
-import mathact.parts.data.{WorkMode, StepMode, PipeData, Msg}
+import mathact.parts.data.{OutletData, InletData, Msg}
 import mathact.parts.plumbing.Pump
-import mathact.parts.plumbing.fitting.{Socket, Plug, Inlet, Outlet}
+import mathact.parts.plumbing.fitting._
 import scala.collection.mutable.{Map ⇒ MutMap, Queue ⇒ MutQueue}
 import scala.concurrent.duration._
 
@@ -39,8 +39,8 @@ extends ActorBase with DriveConstruction with DriveConnectivity with DriveMessag
   object State extends Enumeration {
     val Creating, Building, Starting, Work, Stopping = Value}
   //Definitions
-  case class OutletData(id: Int, name: Option[String], pipe: Outlet[_]){
-    val subscribers = MutMap[(ActorRef, Int), PipeData]() //((subscribe tool drive, inlet ID), SubscriberData)
+  case class OutletState(id: Int, name: Option[String], pipe: OutPipe[_]){
+    val subscribers = MutMap[(ActorRef, Int), InletData]() //((subscribe tool drive, inlet ID), SubscriberData)
     val actionsQueue = MutQueue[Msg]()
 
   }
@@ -54,24 +54,24 @@ extends ActorBase with DriveConstruction with DriveConnectivity with DriveMessag
 
 
   }
-  case class InletData(id: Int, name: Option[String], pipe: Inlet[_]){
+  case class InletState(id: Int, name: Option[String], pipe: InPipe[_]){
     val taskQueue = MutQueue[MessageProcTask]()
-//    val publishers = MutMap[(ActorRef, Int), PipeData]() //((publishers tool drive, outlet ID), SubscriberData)
+    val publishers = MutMap[(ActorRef, Int), OutletData]() //((publishers tool drive, outlet ID), SubscriberData)
 
 
   }
-//  case class DrivesData(drive: ActorRef){
-//   var driveLoad: Int = 0
-//
-//
-//  }
+  case class DrivesData(drive: ActorRef){
+   var driveLoad: Int = 0
+
+
+  }
 //  //Variables
   var state = State.Creating
 //  var stepMode = StepMode.None
 //  var workMode = WorkMode.Paused
-  val outlets = MutMap[Int, OutletData]()  //(Outlet ID, OutletData)
-  val inlets = MutMap[Int, InletData]()    //(Inlet ID, OutletData)
-//  val subscribedDrives = MutMap[ActorRef, DrivesData]()
+  val outlets = MutMap[Int, OutletState]()  //(Outlet ID, OutletData)
+  val inlets = MutMap[Int, InletState]()    //(Inlet ID, OutletData)
+  val subscribedDrives = MutMap[ActorRef, DrivesData]()
 
 
 //  var pushTimeout: Option[Long] = None   //Time out after each pour (depend from current back pressure)
@@ -95,27 +95,39 @@ extends ActorBase with DriveConstruction with DriveConnectivity with DriveMessag
   def reaction = {
     //Workflow
     case Msg.BuildDrive ⇒
+      state = State.Building
+      doConnectivity()
     case Msg.StartDrive ⇒
     case Msg.StopDrive ⇒
     case Msg.TerminateDrive ⇒
     case massage ⇒
       //Match other message
-      massage match{
-        //Construction, adding pipes
-        case Msg.AddOutlet(pipe, name) ⇒ sender ! addOutlet(pipe, name)
-        case Msg.AddInlet(pipe, name) ⇒ sender ! addInlet(pipe, name)
-        //Connectivity
-        case message: Msg.ConnectPipes ⇒ connectPipes(message)
+      state.handle{
+        case State.Creating ⇒ massage.handle{
+          //Construction, adding pipes, ask from object
+          case Msg.AddOutlet(pipe, name) ⇒ addOutlet(pipe, name)
+          case Msg.AddInlet(pipe, name) ⇒ addInlet(pipe, name)
+          //Connectivity, ask from object
+          case message: Msg.ConnectPipes ⇒ connectPipes(message)}
+        case State.Building ⇒ massage.handle{
+          //Connectivity, internal
+          case Msg.AddConnection(connectionId, initiator, inletId, outlet) ⇒ addConnection(connectionId, initiator, inletId, outlet)
+          case Msg.ConnectTo(connectionId, initiator, outletId, inlet) ⇒ connectTo(connectionId, initiator, outletId, inlet)
+          case Msg.PipesConnected(connectionId, inletId, outletId) ⇒ pipesConnected(connectionId, inletId, outletId)}
+        case State.Starting ⇒
 
 
 
+
+        case State.Work ⇒
+        case State.Stopping ⇒
 
 
       }
       //State handling
-      state match{
-        case State.Creating ⇒ massage match{
-          case _: Msg.PipesConnected ⇒ isAllConnected match{
+      state.handle{
+        case State.Creating ⇒ massage.apply{
+          case _: Msg.PipesConnected | Msg.BuildDrive ⇒ isAllConnected match{
             case true ⇒ pumping ! Msg.DriveBuilt
             case false ⇒ log.error(s"[State handling] Not all pipes connected: $pendingConnections.")}}
         case State.Building ⇒

@@ -19,7 +19,7 @@ import akka.event.Logging
 import akka.pattern.ask
 import akka.util.Timeout
 import mathact.parts.data.Msg
-import mathact.parts.plumbing.fitting.{Socket, Plug, Inlet, Outlet}
+import mathact.parts.plumbing.fitting._
 import mathact.parts.{WorkbenchContext, OnStart, OnStop}
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -55,11 +55,13 @@ class Pump(context: WorkbenchContext, val tool: Fitting, val toolName: String, v
         akkaLog.error(s"[Pump.addPipe] Error on adding of pipe, msg: $msg, error: $t")
         throw t},
       d ⇒ {
-        akkaLog.debug(s"[Pump.addPipe] Pump added, isAdded: $d")
+        akkaLog.debug(s"[Pump.addPipe] Pump added, pipeId: $d")
         d})
+  //Overridden methods
+  override def toString: String = s"Pump(toolName: $toolName)"
   //Methods
-  private[mathact] def addOutlet(pipe: Outlet[_], name: Option[String]): Int = addPipe(Msg.AddOutlet(pipe, name))
-  private[mathact] def addInlet(pipe: Inlet[_], name: Option[String]): Int = addPipe(Msg.AddInlet(pipe, name))
+  private[mathact] def addOutlet(pipe: OutPipe[_], name: Option[String]): Int = addPipe(Msg.AddOutlet(pipe, name))
+  private[mathact] def addInlet(pipe: InPipe[_], name: Option[String]): Int = addPipe(Msg.AddInlet(pipe, name))
   private[mathact] def connect(out: ()⇒Plug[_], in: ()⇒Socket[_]): Unit = drive ! Msg.ConnectPipes(out, in)
   private[mathact] def toolStart(): Unit = tool match{
     case os: OnStart ⇒ os.doStart()

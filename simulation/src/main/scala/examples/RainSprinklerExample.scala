@@ -29,7 +29,7 @@
 ////  val simulator1 = new Simulator{
 ////
 ////
-////    val out1 = new Connector[Double]{}
+////    val out1 = new Flange[Double]{}
 ////
 ////
 ////

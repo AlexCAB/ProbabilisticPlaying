@@ -40,6 +40,7 @@ class TestActor(name: String, customReceive: ActorRef⇒PartialFunction[Any, Any
         case SendTo(to, msg) ⇒
           to ! msg
         case msg ⇒
+          println("[TestActor] Receive message: " + msg)
           lastMessage = Some(msg)
           sender ! customReceive(self).apply(msg)}}),
     name)

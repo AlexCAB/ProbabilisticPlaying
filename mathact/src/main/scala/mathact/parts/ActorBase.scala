@@ -48,7 +48,16 @@ abstract class ActorBase extends Actor{
   /** Generate next integer ID
     * @return - Int ID */
   def nextIntId: Int = {intIdCounter += 1; intIdCounter}
+  /** Generate next long ID
+    * @return - Long ID */
   def nextLongId: Long = {longIdCounter += 1; longIdCounter}
+  //Extra methods
+  implicit class AnyEx(value: Any){
+    def handle(handler: PartialFunction[Any, Unit]): Unit = handler.applyOrElse[Any, Unit](value, _ ⇒ {
+      log.error(
+        s"[ActorBase.AnyEx.handle] Not handled value: $value, " +
+        s"stack: \n ${Thread.currentThread().getStackTrace.mkString("\n")}")})
+    def apply(handler: PartialFunction[Any, Unit]): Unit = handler.applyOrElse[Any, Unit](value, _ ⇒ Unit)}
   //Messages handling with logging
   def stateToLog(state: ⇒Any): Unit = { stateToLogFun = Some(()⇒state) }
   def reaction: PartialFunction[Any, Unit]

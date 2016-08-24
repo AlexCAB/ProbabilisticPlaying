@@ -14,7 +14,7 @@
 
 package mathact.parts.plumbing.actors
 
-import mathact.parts.plumbing.fitting.{Inlet, Outlet}
+import mathact.parts.plumbing.fitting.{InPipe, OutPipe}
 
 
 /** Drive construction
@@ -26,32 +26,32 @@ trait DriveConstruction { _: Drive ⇒
     * @param pipe - Outlet[_]
     * @param name - Option[String]
     * @return - Either[Throwable, pipeId] */
-  def addOutlet(pipe: Outlet[_], name: Option[String]): Either[Throwable, Int] = {
+  def addOutlet(pipe: OutPipe[_], name: Option[String]): Unit = {
     //Check of already added
-    outlets.values.filter(_.pipe == pipe) match{
+    sender ! (outlets.values.filter(_.pipe == pipe) match{
       case Nil ⇒
         //Create and add
         val id = nextIntId
-        outlets += (id → OutletData(id, name, pipe))
+        outlets += (id → OutletState(id, name, pipe))
         log.debug(s"[DriveConstruction.addOutlet] Outlet: $pipe, added with ID: $id")
         Right(id)
       case o :: _ ⇒
         //Double creating
         log.warning(s"[DriveConstruction.addOutlet] Outlet: $pipe, is registered more then once")
-        Right(o.id)}}
+        Right(o.id)})}
   /** Adding of new inlet, called from object
     * @param pipe - Inlet[_]
     * @param name - Option[String]
     * @return - Either[Throwable, pipeId] */
-  def addInlet(pipe: Inlet[_], name: Option[String]): Either[Throwable, Int] = {
-    inlets.values.filter(_.pipe == pipe) match{
+  def addInlet(pipe: InPipe[_], name: Option[String]): Unit = {
+    sender ! (inlets.values.filter(_.pipe == pipe) match{
       case Nil ⇒
         //Create and add
         val id = nextIntId
-        inlets += (id → InletData(id, name, pipe))
+        inlets += (id → InletState(id, name, pipe))
         log.debug(s"[DriveConstruction.addInlet] Inlet: $pipe, added with ID: $id")
         Right(id)
       case o :: _ ⇒
         //Double creating
         log.warning(s"[DriveConstruction.addInlet] Inlet: $pipe, is registered more then once")
-        Right(o.id)}}}
+        Right(o.id)})}}

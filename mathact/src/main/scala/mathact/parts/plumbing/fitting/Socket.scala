@@ -21,17 +21,17 @@ import mathact.Application
   * Created by CAB on 17.05.2016.
   */
 
-trait Socket[T] extends Connector[T] {
-  //Get Inlet
-  private val inlet = this match{
-    case in: Inlet[T] ⇒ in
-    case _ ⇒ throw new Exception(
-      s"[Socket] This trait must be implemented only with mathact.parts.plumbing.fitting.Inlet, " +
-      s"found implementation: ${this.getClass.getName}")}
+trait Socket[H] extends Flange[H] { _: InPipe[H] ⇒
+//  //Get Inlet
+//  private val inlet = this match{
+//    case in: Inlet[T] ⇒ in
+//    case _ ⇒ throw new Exception(
+//      s"[Socket] This trait must be implemented only with mathact.parts.plumbing.fitting.Inlet, " +
+//      s"found implementation: ${this.getClass.getName}")}
   //Methods
   /** Connecting of this Socket to given Plug
     * @param plug - Plug[T] */
-  def plug(plug: ⇒Plug[T]): Unit = inlet.getPump.connect(()⇒plug, ()⇒this)
+  def plug(plug: ⇒Plug[H]): Unit = pump.connect(()⇒plug, ()⇒this)
 
 
 

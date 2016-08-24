@@ -29,9 +29,9 @@ import scala.concurrent.Future
 
 
 
-  //!!! Возможно стоит перенести эти методы в Connector (или его скрытое расширение), и использовать как flange.connect(inlet)
-  //так же перенести в Connector disconnect
-  //Концептуально это будет правельно: Connector это штука которая соединяет/разьединяет Inlet и Outlet
+  //!!! Возможно стоит перенести эти методы в Flange (или его скрытое расширение), и использовать как flange.connect(inlet)
+  //так же перенести в Flange disconnect
+  //Концептуально это будет правельно: Flange это штука которая соединяет/разьединяет Inlet и Outlet
 
   //В целом стоит сделать MaleFlange к коотрому будет приводится Outlet FemaleFlange к которому будет приводится Inlet,
   //каждяй из интерфейсов будет иметь методы connect и disconnect, которые можно будет вызывать откуда угодно,
@@ -43,8 +43,8 @@ import scala.concurrent.Future
   //гед они определены, в чатности помпу котрая буде процессировать обработку событий
 
 
-//  //Простой медод без синхронизации (один Connector один Inlet)
-//  def apply[Z, A](inlet: Z with Inlet[A], in: ()⇒Plug[A]): Z with Socket[A] = {  //Связание Connector с Inlet
+//  //Простой медод без синхронизации (один Flange один Inlet)
+//  def apply[Z, A](inlet: Z with Inlet[A], in: ()⇒Plug[A]): Z with Socket[A] = {  //Связание Flange с Inlet
 //
 //
 //
@@ -60,7 +60,7 @@ import scala.concurrent.Future
 
 
 
-  //Методы ниже принимают несколько Connector и компонуют их в один Inlet,
+  //Методы ниже принимают несколько Flange и компонуют их в один Inlet,
   //Нужно перерабоать их чтобы они поддержывали следующие виды компоновка:
   // 1) Барьерная - drain вызывается только когда на всех выходах есть значение, после вызова сохранённые значения сбрасывабтся
   // 2) Барьерная с сохраением - drain не вызыватся пока все значения не заполнятся, после заполения вызывается
@@ -76,9 +76,9 @@ import scala.concurrent.Future
   //  class Line2(name: String) extends Inlet[(Double, String)]{
   //    def drain(v: (Double, String)): Unit = println("Handle: " + v)
   //
-  //    def of(in1: ⇒Connector[Double], in2: ⇒Connector[String]): Unit = {
+  //    def of(in1: ⇒Flange[Double], in2: ⇒Flange[String]): Unit = {
   //
-  //      connect(new Mixer(in1,in2))    //Mixer компонует два Connector[Double] в один Connector[Double], который подключается к Inlet
+  //      connect(new Mixer(in1,in2))    //Mixer компонует два Flange[Double] в один Flange[Double], который подключается к Inlet
   //
   //    }
   //
@@ -117,14 +117,14 @@ import scala.concurrent.Future
   //
 
 //
-//  def apply[Z,A](inlet: Z with Inlet[A], in:(()⇒Plug[A])*): Z = { //Связание нескольких Connector с Inlet
+//  def apply[Z,A](inlet: Z with Inlet[A], in:(()⇒Plug[A])*): Z = { //Связание нескольких Flange с Inlet
 //
 //    ???
 //
 //  }
 //
 //
-//  def apply[Z,A,B](inlet: Z with Inlet[(A,B)], in1: ()⇒Plug[A], in2: ()⇒Plug[B]): Z = { //Связание нескольких Connector разных типов с Inlet
+//  def apply[Z,A,B](inlet: Z with Inlet[(A,B)], in1: ()⇒Plug[A], in2: ()⇒Plug[B]): Z = { //Связание нескольких Flange разных типов с Inlet
 //
 //    ???
 //
@@ -135,7 +135,7 @@ import scala.concurrent.Future
 
 
 
-trait Inlet[T] extends Socket[T] with Pipe[T]{   //Методы обьявдены protected чтобы из не вызывали из вне, но пользователь может реализовть свой методв и оставить его доступным из вне
+trait Inlet[T] extends Incut{   //Методы обьявдены protected чтобы из не вызывали из вне, но пользователь может реализовть свой методв и оставить его доступным из вне
 
   private[mathact] def processValue(value: Any): Unit = drain(value.asInstanceOf[T])
 
@@ -146,12 +146,12 @@ trait Inlet[T] extends Socket[T] with Pipe[T]{   //Методы обьявден
 //  drain(value)
 
 
-  protected def drain(value: T): Unit    //Вызыватеся каждый раз при получении нового значения из Connector
+  protected def drain(value: T): Unit    //Вызыватеся каждый раз при получении нового значения из Flange
 
 
 
-//  protected def disconnect(flange: Connector[_]): Boolean = ???    //Отключение указаного Connector, true если было выполенео, false если не найдено
-//  protected def disconnectAll: Boolean = ???    //Отключение dct[ Connector, true если было выполенео, false если нет ни одного
+//  protected def disconnect(flange: Flange[_]): Boolean = ???    //Отключение указаного Flange, true если было выполенео, false если не найдено
+//  protected def disconnectAll: Boolean = ???    //Отключение dct[ Flange, true если было выполенео, false если нет ни одного
 
 
   //??? Нужны ли методы ниже.
@@ -172,7 +172,7 @@ trait Inlet[T] extends Socket[T] with Pipe[T]{   //Методы обьявден
 
 
 //}
-//  def disconnect(in:()⇒Connector[Double]): Unit = {
+//  def disconnect(in:()⇒Flange[Double]): Unit = {
 //
 //  ???
 //
