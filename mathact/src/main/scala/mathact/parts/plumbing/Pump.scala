@@ -55,7 +55,7 @@ class Pump(context: WorkbenchContext, val tool: Fitting, val toolName: String, v
         akkaLog.error(s"[Pump.addPipe] Error on adding of pipe, msg: $msg, error: $t")
         throw t},
       d ⇒ {
-        akkaLog.debug(s"[Pump.addPipe] Pump added, pipeId: $d")
+        akkaLog.debug(s"[Pump.addPipe] Pipe added, pipeId: $d")
         d})
   //Overridden methods
   override def toString: String = s"Pump(toolName: $toolName)"

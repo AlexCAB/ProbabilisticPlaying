@@ -116,25 +116,43 @@ extends ActorBase with DriveConstruction with DriveConnectivity with DriveMessag
           case Msg.PipesConnected(connectionId, inletId, outletId) ⇒ pipesConnected(connectionId, inletId, outletId)}
         case State.Starting ⇒
 
-
-
+          //???
 
         case State.Work ⇒
+
+          //???
+
         case State.Stopping ⇒
 
 
       }
       //State handling
       state.handle{
-        case State.Creating ⇒ massage.apply{
+        case State.Creating ⇒
+
+          //???
+
+        case State.Building ⇒ massage.apply{
           case _: Msg.PipesConnected | Msg.BuildDrive ⇒ isAllConnected match{
-            case true ⇒ pumping ! Msg.DriveBuilt
-            case false ⇒ log.error(s"[State handling] Not all pipes connected: $pendingConnections.")}}
-        case State.Building ⇒
+            case true ⇒
+              log.debug(s"[State handling] all pipes connected, send Msg.DriveBuilt.")
+              pumping ! Msg.DriveBuilt
+            case false ⇒
+              log.debug(s"[State handling] Not all pipes connected: $pendingConnections.")}}
+
+
+
         case State.Starting ⇒
+
+          //???
+
         case State.Work ⇒
+
+          //???
+
         case State.Stopping ⇒
 
+          //???
 
       }
 

@@ -45,7 +45,7 @@ class ImpellerTest extends ActorTestSpec with WordSpecLike with Matchers{
       throw req._2}}
   //Testing
   it should{
-    "run task on RunTask and response with TaskDone on end of execution" in new TestCase {
+    "run task on RunTask and data with TaskDone on end of execution" in new TestCase {
       //Run 3 tasks
       (1 to 3).foreach{ i ⇒
         //Start task

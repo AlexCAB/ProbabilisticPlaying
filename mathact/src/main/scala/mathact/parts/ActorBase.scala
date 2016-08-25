@@ -53,10 +53,12 @@ abstract class ActorBase extends Actor{
   def nextLongId: Long = {longIdCounter += 1; longIdCounter}
   //Extra methods
   implicit class AnyEx(value: Any){
-    def handle(handler: PartialFunction[Any, Unit]): Unit = handler.applyOrElse[Any, Unit](value, _ ⇒ {
-      log.error(
-        s"[ActorBase.AnyEx.handle] Not handled value: $value, " +
-        s"stack: \n ${Thread.currentThread().getStackTrace.mkString("\n")}")})
+    def handle(handler: PartialFunction[Any, Unit]): Unit = {
+      log.debug(s"[ActorBase.AnyEx.handle] Handle for value: $value")
+      handler.applyOrElse[Any, Unit](value, _ ⇒ {
+        log.error(
+          s"[ActorBase.AnyEx.handle] Not handled value: $value, " +
+          s"stack: \n ${Thread.currentThread().getStackTrace.mkString("\n")}")})}
     def apply(handler: PartialFunction[Any, Unit]): Unit = handler.applyOrElse[Any, Unit](value, _ ⇒ Unit)}
   //Messages handling with logging
   def stateToLog(state: ⇒Any): Unit = { stateToLogFun = Some(()⇒state) }
@@ -64,9 +66,8 @@ abstract class ActorBase extends Actor{
   //Receive
   def receive: PartialFunction[Any, Unit] = { case m ⇒
     val stateText = stateToLogFun.map(s ⇒ s", STATE: ${s()}").getOrElse("")
-    reaction.lift(m) match{
-      case Some(_) ⇒ log.debug(s"FROM: $sender$stateText, MESSAGE: $m")
-      case None ⇒ log.warning(s"FROM: $sender$stateText, NOT HANDLED MESSAGE: $m")}}
+    log.debug(s"FROM: $sender$stateText, MESSAGE: $m")
+    reaction.applyOrElse[Any, Unit](m, _ ⇒ log.warning(s"LAST MESSAGE NOT HANDLED: $m"))}
 
 
   //TODO Add more

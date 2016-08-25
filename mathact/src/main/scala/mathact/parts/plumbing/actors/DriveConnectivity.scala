@@ -36,7 +36,9 @@ trait DriveConnectivity { _: Drive ⇒
   def connectPipes(message: Msg.ConnectPipes): Unit = state match{
     case State.Creating ⇒
       //On create store to pending connections
-      pendingConnections += (nextIntId → message)
+      val id = nextIntId
+      pendingConnections += (id → message)
+      log.debug(s"[DriveConnectivity.connectPipes] Connection added to pending list, id: $id")
     case st ⇒
       //Error in case state not Creating
       log.error(s"[DriveConnectivity.connectPipes] Incorrect state $st, can be called only it State.Creating.")}
@@ -83,7 +85,7 @@ trait DriveConnectivity { _: Drive ⇒
   def pipesConnected(connectionId: Int, inletId: Int, outletId: Int): Unit = pendingConnections
     .contains(connectionId) match{
       case true ⇒
-        log.debug(s"[DriveConnectivity.pipesConnected] Connected: ${pendingConnections(connectionId)}.")
+        log.debug(s"[DriveConnectivity.pipesConnected] Connected, connectionId: $connectionId.")
         pendingConnections -= connectionId
       case false ⇒
         log.error(s"[DriveConnectivity.pipesConnected] Unknown connection with connectionId: $connectionId.")}
