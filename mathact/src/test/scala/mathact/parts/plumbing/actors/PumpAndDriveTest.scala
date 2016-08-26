@@ -16,6 +16,7 @@ package mathact.parts.plumbing.actors
 
 import akka.actor.{Terminated, ActorRef, Props}
 import akka.testkit.TestProbe
+import com.typesafe.config.ConfigFactory
 import mathact.parts.plumbing.fitting._
 import mathact.parts._
 import mathact.parts.data.Msg
@@ -40,50 +41,49 @@ class PumpAndDriveTest extends ActorTestSpec{
       pendingConnections: Map[Int, Msg.ConnectPipes])
     //Helpers actors
     lazy val testController = TestProbe("TestController_" + randomString())
+    lazy val userLogging = TestProbe("UserLogging_" + randomString())
     lazy val testImpeller = TestProbe("TestImpeller_" + randomString())
     lazy val testPumping = TestActor("TestPumping_" + randomString())(self ⇒ {
-      case Msg.NewDrive(toolPump, toolName, toolImage) ⇒
-        println(s"[PumpAndDriveTest.testPumping.NewDrive] Creating of drive for tool: $toolName")
-       Some{ Right{ system.actorOf(Props(
-          new Drive(toolPump,  "TestTool", self, testImpeller.ref){
+      case Msg.NewDrive(toolPump, toolName, toolImage) ⇒ Some{ Right{
+        val drive = system.actorOf(Props(
+          new Drive(toolPump,  "TestTool", self, testImpeller.ref, userLogging.ref){
             //Get actor state
             override def receive: PartialFunction[Any, Unit]  = {
               case GetDriveState ⇒ sender ! DriveState(
                 outlets = outlets.map{ case (id, d) ⇒ (id, d.pipe) }.toMap,
                 inlets = inlets.map{ case (id, d) ⇒ (id, (d.pipe, d.taskQueue.size)) }.toMap,
-                pendingConnections.toMap)
+                getPendingList)
               case m ⇒ super.receive.apply(m)}}),
-          "Drive_" + randomString())}}})
-    lazy val otherDriver = TestActor("TestOtherDriver_" + randomString())(self ⇒ {
-      case Msg.AddOutlet(pipe, _) ⇒ Some(Right(1))
-      case Msg.AddInlet(pipe, _) ⇒  Some(Right(2))
-
-
-    })
-
-
+          "Drive_" + randomString())
+        println(s"[PumpAndDriveTest.testPumping.NewDrive] Created of drive for tool: $toolName, drive: $drive")
+        drive}}})
     //Test workbench context
-    lazy val testWorkbenchContext = new WorkbenchContext(system, testController.ref, testPumping.ref){
-      override val pumping: ActorRef = testPumping.ref}
+    lazy val testWorkbenchContext =
+      new WorkbenchContext(system, testController.ref, testPumping.ref, ConfigFactory.load()){
+        override val pumping: ActorRef = testPumping.ref}
     //Test tools
-    lazy val testTool = new Fitting with OnStart with OnStop{
-      //Variable
-      @volatile private var onStartCall = false
-      @volatile private var onStopCall = false
-      //Pump
-      val pump: Pump = new Pump(testWorkbenchContext, this, "TestTool", None)
-      //Pipes
-      val testPipe = new TestIncut[Double]
-      lazy val outlet = Outlet(testPipe, "testOutlet")
-      lazy val inlet = Inlet(testPipe, "testInlet")
-      //On start and stop
-      protected def onStart() = { onStartCall = true }
-      protected def onStop() = { onStopCall = true }
-      //Helpers methods
-      def isOnStartCalled: Boolean = onStartCall
-      def isOnStopCalled: Boolean = onStopCall}
-    lazy val testDrive = testTool.pump.drive
-    lazy val otherTool = new Fitting{
+    object tools{
+      lazy val testTool = new Fitting with OnStart with OnStop{
+        //Variable
+        @volatile private var onStartCall = false
+        @volatile private var onStopCall = false
+        //Pump
+        val pump: Pump = new Pump(testWorkbenchContext, this, "TestTool", None)
+        //Pipes
+        val testPipe = new TestIncut[Double]
+        lazy val outlet = Outlet(testPipe, "testOutlet")
+        lazy val inlet = Inlet(testPipe, "testInlet")
+        //On start and stop
+        protected def onStart() = { onStartCall = true }
+        protected def onStop() = { onStopCall = true }
+        //Helpers methods
+        def isOnStartCalled: Boolean = onStartCall
+        def isOnStopCalled: Boolean = onStopCall}
+      lazy val testDrive = testTool.pump.drive
+      lazy val otherDriver = TestActor("TestOtherDriver_" + randomString())(self ⇒ {
+        case Msg.AddOutlet(pipe, _) ⇒ Some(Right(1))
+        case Msg.AddInlet(pipe, _) ⇒  Some(Right(2))})
+      lazy val otherTool = new Fitting{
         //Pump
         val pump: Pump = new Pump(testWorkbenchContext, this, "OtherTool", None){
           override val drive = otherDriver.ref}
@@ -91,125 +91,256 @@ class PumpAndDriveTest extends ActorTestSpec{
         val testIncut = new TestIncut[Double]
         lazy val outlet = Outlet(testIncut, "otherOutlet")
         lazy val inlet = Inlet(testIncut, "otherInlet")}
-    lazy val startedTestTool = {
-      testDrive
-      testPumping.request(testDrive, Msg.BuildDrive).expectResponseMsg(Msg.DriveBuilt)
-      testPumping.request(testDrive, Msg.StartDrive).expectResponseMsg(Msg.DriveStarted)
-      testTool.isOnStopCalled shouldEqual false
-      testTool}
-//    lazy val connectedTools = {
-//      //Tools
-//      startedTestTool
-//      otherTool
-//      //First connection
-//      val otherOutlet = otherTool.outlet.asInstanceOf[Pipe[Double]].getPipeData
-//      val testInlet = startedTestTool.inlet.asInstanceOf[Pipe[Double]].getPipeData
-//      startedTestTool.inlet.plug(otherTool.outlet)
-//      val connectTo = otherDriver.expectMsgType[Msg.ConnectTo]
-//      connectTo.outletId     shouldEqual otherOutlet.pipeId
-//      connectTo.inlet.pipeId shouldEqual testInlet.pipeId
-//      otherDriver.send(testDrive, Msg.ConnectionAdded(testInlet.pipeId, otherOutlet.pipeId))
-//      //Second connection
-//      val testOutlet = startedTestTool.outlet.asInstanceOf[Pipe[Double]].getPipeData
-//      val otherInlet = otherTool.inlet.asInstanceOf[Pipe[Double]].getPipeData
-//      startedTestTool.outlet.attach(otherTool.inlet)
-//      val addConnection = otherDriver.expectMsgType[Msg.AddConnection]
-//      addConnection.inletId       shouldEqual otherInlet.pipeId
-//      addConnection.outlet.pipeId shouldEqual testOutlet.pipeId
-//      otherDriver.send(testDrive, Msg.ConnectTo(addConnection.initiator, testOutlet.pipeId, otherInlet))
-//      val connectionAdded = otherDriver.expectMsgType[Msg.ConnectionAdded]
-//      connectionAdded.inletId  shouldEqual otherInlet.pipeId
-//      connectionAdded.outletId shouldEqual testOutlet.pipeId
-//      otherDriver.send(testDrive, Msg.PipesConnected(otherInlet.pipeId, testOutlet.pipeId))
-//      (testInlet, testOutlet, otherInlet, otherOutlet)}
+      lazy val builtTool = {
+        testPumping.send(testTool.pump.drive, Msg.BuildDrive)
+        testPumping.expectMsg(Msg.DriveBuilt)
+        testTool.isOnStartCalled shouldEqual false
+        testTool}
+      lazy val startedTool = {
+        testPumping.send(testTool.pump.drive, Msg.BuildDrive)
+        testPumping.expectMsg(Msg.DriveBuilt)
+        testPumping.send(testTool.pump.drive, Msg.StartDrive)
+        testPumping.expectMsg(Msg.DriveStarted)
+        testTool.isOnStopCalled shouldEqual false
+        testTool}
+
+
+
+
+      //    lazy val connectedTools = {
+      //      //Tools
+      //      startedTestTool
+      //      otherTool
+      //      //First connection
+      //      val otherOutlet = otherTool.outlet.asInstanceOf[Pipe[Double]].getPipeData
+      //      val testInlet = startedTestTool.inlet.asInstanceOf[Pipe[Double]].getPipeData
+      //      startedTestTool.inlet.plug(otherTool.outlet)
+      //      val connectTo = otherDriver.expectMsgType[Msg.ConnectTo]
+      //      connectTo.outletId     shouldEqual otherOutlet.pipeId
+      //      connectTo.inlet.pipeId shouldEqual testInlet.pipeId
+      //      otherDriver.send(testDrive, Msg.ConnectionAdded(testInlet.pipeId, otherOutlet.pipeId))
+      //      //Second connection
+      //      val testOutlet = startedTestTool.outlet.asInstanceOf[Pipe[Double]].getPipeData
+      //      val otherInlet = otherTool.inlet.asInstanceOf[Pipe[Double]].getPipeData
+      //      startedTestTool.outlet.attach(otherTool.inlet)
+      //      val addConnection = otherDriver.expectMsgType[Msg.AddConnection]
+      //      addConnection.inletId       shouldEqual otherInlet.pipeId
+      //      addConnection.outlet.pipeId shouldEqual testOutlet.pipeId
+      //      otherDriver.send(testDrive, Msg.ConnectTo(addConnection.initiator, testOutlet.pipeId, otherInlet))
+      //      val connectionAdded = otherDriver.expectMsgType[Msg.ConnectionAdded]
+      //      connectionAdded.inletId  shouldEqual otherInlet.pipeId
+      //      connectionAdded.outletId shouldEqual testOutlet.pipeId
+      //      otherDriver.send(testDrive, Msg.PipesConnected(otherInlet.pipeId, testOutlet.pipeId))
+      //      (testInlet, testOutlet, otherInlet, otherOutlet)}
+
+
+
+
+    }
+
+
+
+
+
+
+
+
+
   }
   //Testing
-  "on start and on end" should{
+//  "On starting" should{
 //    "adding of Outlet and Inlet" in new TestCase {
 //      //Preparing
-//      val outletId = testTool.outlet.asInstanceOf[OutPipe[Double]].pipeData.pipeId
-//      val inletId = testTool.inlet.asInstanceOf[InPipe[Double]].pipeData.pipeId
-//      otherTool.outlet
-//      otherTool.inlet
+//      val outletId = tools.testTool.outlet.asInstanceOf[OutPipe[Double]].pipeData.pipeId
+//      val inletId = tools.testTool.inlet.asInstanceOf[InPipe[Double]].pipeData.pipeId
+//      tools.otherTool.outlet
+//      tools.otherTool.inlet
 //       //Testing
-//      val DriveState(outlets, inlets, _) = testDrive.askForState[DriveState]
+//      val DriveState(outlets, inlets, _) = tools.testDrive.askForState[DriveState]
 //      outlets should have size 1
 //      inlets should have size 1
 //      outlets.keys should contain (outletId)
 //      inlets.keys should contain (inletId)}
 //    "before BuildDrive, add new connections to pending list" in new TestCase {
 //      //Preparing
-//      val testOutlet1 = testTool.outlet
-//      val testInlet1 = testTool.inlet
-//      val otherOutlet1 = otherTool.outlet
-//      val otherInlet1 =otherTool.inlet
+//      val testOutlet1 = tools.testTool.outlet
+//      val testInlet1 = tools.testTool.inlet
+//      val otherOutlet1 = tools.otherTool.outlet
+//      val otherInlet1 =tools.otherTool.inlet
 //      //Connecting and disconnecting
-//      testTool.outlet.attach(otherInlet1)
-//      testTool.inlet.plug(otherOutlet1)
+//      tools.testTool.outlet.attach(otherInlet1)
+//      tools.testTool.inlet.plug(otherOutlet1)
 //      //Testing
-//      val pendingCon = testDrive.askForState[DriveState].pendingConnections
+//      val pendingCon = tools.testDrive.askForState[DriveState].pendingConnections
 //      pendingCon should have size 2}
 //    "by BuildDrive, create connections from pending list and reply with DriveBuilt (for 'plug')" in new TestCase {
 //      //Preparing
-//      val outlet = otherTool.outlet.asInstanceOf[OutPipe[Double]].pipeData
-//      val inlet = testTool.inlet.asInstanceOf[InPipe[Double]].pipeData
+//      val outlet = tools.otherTool.outlet.asInstanceOf[OutPipe[Double]].pipeData
+//      val inlet = tools.testTool.inlet.asInstanceOf[InPipe[Double]].pipeData
 //      //Connecting (test tool have inlet)
-//      testTool.inlet.plug(otherTool.outlet)
-//      testDrive.askForState[DriveState].pendingConnections should have size 1
+//      tools.testTool.inlet.plug(tools.otherTool.outlet)
+//      tools.testDrive.askForState[DriveState].pendingConnections should have size 1
 //      //Send BuildDrive
-//      val connectTo = otherDriver.request(testDrive, Msg.BuildDrive).expectResponseType[Msg.ConnectTo]
+//      tools.otherDriver.send(tools.testDrive, Msg.BuildDrive)
+//      val connectTo = tools.otherDriver.expectMsgType[Msg.ConnectTo]
 //      //Test connecting
 //      println(s"[PumpAndDriveTest] connectTo: $connectTo")
-//      connectTo.initiator    shouldEqual testDrive
+//      connectTo.initiator    shouldEqual tools.testDrive
 //      connectTo.outletId     shouldEqual outlet.pipeId
 //      connectTo.inlet.pipeId shouldEqual inlet.pipeId
 //      //Send Msg.PipesConnected and expect Msg.DriveBuilt
-//      testPumping
-//        .request(connectTo.initiator, Msg.PipesConnected(connectTo.connectionId, inlet.pipeId, outlet.pipeId))
-//        .expectResponseMsg(Msg.DriveBuilt)
+//      testPumping.send(connectTo.initiator, Msg.PipesConnected(connectTo.connectionId, inlet.pipeId, outlet.pipeId))
+//      testPumping.expectMsg(Msg.DriveBuilt)
 //      //Check pending list
 //      sleep(500.millis) //Wait for processing of PipesConnected by testTool
-//      testDrive.askForState[DriveState].pendingConnections should have size 0}
+//      tools.testDrive.askForState[DriveState].pendingConnections should have size 0}
 //    "by BuildDrive, create connections from pending list and reply with DriveBuilt (for 'attach')" in new TestCase {
 //      //Preparing
-//      val outlet = testTool.outlet.asInstanceOf[Pipe[Double]].getPipeData
-//      val inlet = otherTool.inlet.asInstanceOf[Pipe[Double]].getPipeData
+//      val outlet = tools.testTool.outlet.asInstanceOf[OutPipe[Double]].pipeData
+//      val inlet = tools.otherTool.inlet.asInstanceOf[InPipe[Double]].pipeData
 //      //Connecting (test tool have outlet)
-//      testTool.outlet.attach(otherTool.inlet)
-//      testTool.outlet.detach(otherTool.inlet)
-//      testDrive.askForState[DriveState].pendingConnections should have size 2
+//      tools.testTool.outlet.attach(tools.otherTool.inlet)
+//      tools.testDrive.askForState[DriveState].pendingConnections should have size 1
 //      //Send BuildDrive
-//      testPumping.send(testDrive, Msg.BuildDrive)
+//      testPumping.send(tools.testDrive, Msg.BuildDrive)
 //      //Test connecting
-//      val addConnection = otherDriver.expectMsgType[Msg.AddConnection]
-//      addConnection.initiator     shouldEqual testDrive
+//      val addConnection = tools.otherDriver.expectMsgType[Msg.AddConnection]
+//      addConnection.initiator     shouldEqual tools.testDrive
 //      addConnection.inletId       shouldEqual inlet.pipeId
 //      addConnection.outlet.pipeId shouldEqual outlet.pipeId
-//      otherDriver.send(testDrive, Msg.ConnectTo(addConnection.initiator, outlet.pipeId, inlet))
-//      val connectionAdded = otherDriver.expectMsgType[Msg.ConnectionAdded]
-//      connectionAdded.inletId  shouldEqual inlet.pipeId
-//      connectionAdded.outletId shouldEqual outlet.pipeId
-//      otherDriver.send(testDrive, Msg.PipesConnected(inlet.pipeId, outlet.pipeId))
-//      //Test disconnecting
-//      val disconnectFrom = otherDriver.expectMsgType[Msg.DisconnectFrom]
-//      disconnectFrom.initiator    shouldEqual testDrive
-//      disconnectFrom.inletId     shouldEqual inlet.pipeId
-//      disconnectFrom.outlet.pipeId shouldEqual outlet
-//      otherDriver.send(testDrive, Msg.ConnectionDeleted(inlet.pipeId, outlet.pipeId))
+//      tools.otherDriver.send(tools.testDrive, Msg.ConnectTo(addConnection.connectionId, addConnection.initiator, outlet.pipeId, inlet))
 //      //Expect DriveBuilt
 //      testPumping.expectMsg(Msg.DriveBuilt)
 //      sleep(500.millis) //Wait for processing of PipesConnected by testTool
-//      testDrive.askForState[DriveState].pendingConnections should have size 0}
+//      tools.testDrive.askForState[DriveState].pendingConnections should have size 0}
 //    "by StartDrive, run user init function and reply with DriveStarted" in new TestCase {
 //      //Preparing
-//      testTool
-//      testPumping.send(testDrive, Msg.BuildDrive)
-//      testPumping.expectMsg(Msg.DriveBuilt)
-//      testTool.isOnStartCalled shouldEqual false
+//      tools.builtTool
 //      //Test
-//      testPumping.send(testDrive, Msg.StartDrive)
+//      testPumping.send(tools.testDrive, Msg.StartDrive)
+//      val runTask = testImpeller.expectMsgType[Msg.RunTask[_]]
+//      println("[PumpAndDriveTest] runTask: " + runTask)
+//      runTask.task()
+//      testImpeller.send(tools.testDrive, Msg.TaskDone(runTask.name, 1.second, Unit))
 //      testPumping.expectMsg(Msg.DriveStarted)
-//      testTool.isOnStartCalled shouldEqual true}
+//      tools.testTool.isOnStartCalled shouldEqual true}
+//    "by StartDrive, for case TaskTimeout send LogWarning to user logging actor and keep working" in new TestCase {
+//      //Preparing
+//      tools.builtTool
+//      //Test
+//      testPumping.send(tools.testDrive, Msg.StartDrive)
+//      val runTask = testImpeller.expectMsgType[Msg.RunTask[_]]
+//      println("[PumpAndDriveTest] runTask: " + runTask)
+//      testImpeller.send(tools.testDrive, Msg.TaskTimeout(runTask.name, 5.second))
+//      val logWarning = userLogging.expectMsgType[Msg.LogWarning]
+//      println("[PumpAndDriveTest] logWarning: " + logWarning)
+//      runTask.task()
+//      testImpeller.send(tools.testDrive, Msg.TaskDone(runTask.name, 1.second, Unit))
+//      testPumping.expectMsg(Msg.DriveStarted)
+//      tools.testTool.isOnStartCalled shouldEqual true}
+//    "by StartDrive, for case TaskTimeout send LogError to user logging actor and keep working" in new TestCase {
+//      //Preparing
+//      tools.builtTool
+//      //Test
+//      testPumping.send(tools.testDrive, Msg.StartDrive)
+//      val runTask = testImpeller.expectMsgType[Msg.RunTask[_]]
+//      println("[PumpAndDriveTest] runTask: " + runTask)
+//      testImpeller.send(tools.testDrive, Msg.TaskFailed(runTask.name, 5.second, new Exception("Oops!!")))
+//      runTask.task()
+//      val logError = userLogging.expectMsgType[Msg.LogError]
+//      println("[PumpAndDriveTest] logError: " + logError)
+//      testPumping.expectMsg(Msg.DriveStarted)
+//      tools.testTool.isOnStartCalled shouldEqual true}
+//  }
+  "On user message" should{
+
+
+
+
+    "by call pour(value), send UserData, to all inlets of connected drives" in new TestCase {
+      //Preparing
+      val (testInlet, testOutlet, otherInlet, otherOutlet) = connectedTools
+      val value1 = randomDouble()
+      val value2 = randomDouble()
+      //Call pour(value) for other tool
+      otherTool.testPipe.sendValue(value1)
+      val userData = otherDriver.expectMsgType[Msg.UserData[Double]]
+      userData.outletId shouldEqual otherOutlet.pipeId
+      userData.value    shouldEqual value1
+      //Call pour(value) test tool
+      testTool.testPipe.sendValue(value2)
+      val userMessage = otherDriver.expectMsgType[Msg.UserMessage[Double]]
+      userMessage.outletId shouldEqual testOutlet.pipeId
+      userMessage.inletId  shouldEqual otherInlet.pipeId
+      userMessage.value    shouldEqual value2}
+
+
+
+//    "by UserMessage, put user message to queue and reply with DriveLoad" in new TestCase {
+//      //Preparing
+//      val (testInlet, testOutlet, otherInlet, otherOutlet) = connectedTools
+//      val value1 = randomDouble()
+//      val value2 = randomDouble()
+//      //First message, reply with DriveLoad and start processing
+//      otherDriver.send(testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value1))
+//      val driveLoad1 = otherDriver.expectMsgType[Msg.DriveLoad]
+//      driveLoad1.drive        shouldEqual testDrive
+//      driveLoad1.maxQueueSize shouldEqual 0
+//      val runTask1 = testImpeller.expectMsgType[Msg.RunTask]
+//      testDrive.askForState[DriveState].inlets(testInlet.pipeId)._2 shouldEqual 1
+//      //Second message, reply with DriveLoad and put user message to queue
+//      otherDriver.send(testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value2))
+//      val driveLoad2 = otherDriver.expectMsgType[Msg.DriveLoad]
+//      driveLoad2.drive        shouldEqual testDrive
+//      driveLoad2.maxQueueSize shouldEqual 1
+//      testImpeller.expectNoMsg()
+//      testDrive.askForState[DriveState].inlets(testInlet.pipeId)._2 shouldEqual 2
+//      //Start of processing of second message
+//      testImpeller.send(testDrive, Msg.TaskDone(runTask1.name, 1.second, Unit))
+//      val runTask2 = testImpeller.expectMsgType[Msg.RunTask]
+//      testDrive.askForState[DriveState].inlets(testInlet.pipeId)._2 shouldEqual 1
+//      //Done process second task
+//      testImpeller.send(testDrive, Msg.TaskDone(runTask2.name, 1.second, Unit))
+//      testDrive.askForState[DriveState].inlets(testInlet.pipeId)._2 shouldEqual 0}
+//    "dequeue user message and call user message handling function" in new TestCase {
+//      //Preparing
+//      val (testInlet, testOutlet, otherInlet, otherOutlet) = connectedTools
+//      val value1 = randomDouble()
+//      //Send message
+//      otherDriver.send(testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value1))
+//      otherDriver.expectMsgType[Msg.DriveLoad]
+//      val runTask1 = testImpeller.expectMsgType[Msg.RunTask]
+//      //Run task
+//      testTool.testPipe.getReceivedValues shouldBe empty
+//      runTask1.task()
+//      testTool.testPipe.getReceivedValues should have size 1
+//      testTool.testPipe.getReceivedValues.head shouldEqual value1}
+//    "on Terminate after disconnect inlets, handle all usr messages before disconnect outlets" in new TestCase {
+//
+//    }
+//    "by DriveLoad, evaluate message handling timeout" in new TestCase {
+//
+//    }
+  }
+//  "On stopping" should{
+//    "do something" in new TestCase {
+//
+//
+//
+//    }
+//  }
+
+
+
+
+
+
+
+
+
+
+
+
 //    "by StopDrive, run user stopping function and reply with DriveStopped" in new TestCase {
 //      //Preparing
 //      testTool
@@ -268,7 +399,13 @@ class PumpAndDriveTest extends ActorTestSpec{
 //      //Terminated
 //      testPumping.expectMsg(Msg.DriveTerminated)
 //      val t = testPumping.expectMsgType[Terminated]().actor shouldEqual testDrive}
-  }
+//  }
+
+
+
+
+
+
 //  "on connect and disconnect" should{
 //    "connect and disconnect to another drive with 'plug' and 'unplug'" in new TestCase {
 //      //Preparing

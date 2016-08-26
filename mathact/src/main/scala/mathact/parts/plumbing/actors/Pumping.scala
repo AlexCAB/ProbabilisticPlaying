@@ -28,7 +28,7 @@ import scala.concurrent.duration._
   * Created by CAB on 15.05.2016.
   */
 
-class Pumping(controller: ActorRef, sketch: Sketch) extends ActorBase{
+class Pumping(controller: ActorRef, sketch: Sketch, userLogging: ActorRef) extends ActorBase{
   //Parameters
   val driveBuildingTimeout = 5.second
   val driveStartingTimeout = 10.second
@@ -96,7 +96,7 @@ class Pumping(controller: ActorRef, sketch: Sketch) extends ActorBase{
         case State.Creating | State.Building | State.Starting | State.Work⇒
           //New actor
           val impeller = context.actorOf(Props(new Impeller(self)), "ImpellerOf" + name)
-          val drive = context.actorOf(Props(new Drive(pump, name, self, impeller)), "DriveOf" + name)
+          val drive = context.actorOf(Props(new Drive(pump, name, self, impeller, userLogging)), "DriveOf" + name)
           context.watch(drive)
           //Do init if pumping in started or in work stepMode
           state match{

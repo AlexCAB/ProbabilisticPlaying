@@ -17,6 +17,7 @@ package mathact.parts.control.actors
 import java.util.concurrent.ExecutionException
 
 import akka.actor._
+import com.typesafe.config.Config
 import mathact.parts.{WorkbenchContext, ActorBase}
 import mathact.parts.data.{SketchStatus, Sketch, Msg}
 import mathact.parts.gui.SelectSketchWindow
@@ -31,7 +32,7 @@ import scala.concurrent.duration._
   * Created by CAB on 20.06.2016.
   */
 
-class MainController(doStop: Int⇒Unit) extends ActorBase{
+class MainController(doStop: Int⇒Unit, config: Config) extends ActorBase{
   //Parameters
   val sketchStartTimeout = 5.seconds
   //Messages
@@ -107,7 +108,7 @@ class MainController(doStop: Int⇒Unit) extends ActorBase{
         case (Some(s), Some(cn)) if s.sketch.className == cn ⇒
           //Create WorkbenchContext
           val controller = context.actorOf(
-            Props(new WorkbenchController(s.sketch, self)),
+            Props(new WorkbenchController(s.sketch, self, config)),
             "WorkbenchControllerActor_" + s.sketch.className)
           context.watch(controller)
           currentSketch = currentSketch.map(_.withController(controller))

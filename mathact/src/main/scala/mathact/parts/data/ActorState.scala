@@ -12,13 +12,21 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.plumbing.actors
+package mathact.parts.data
 
 
-/** Handling of messages
-  * Created by CAB on 22.08.2016.
+/** Base trait for state values
+  * Created by CAB on 26.08.2016.
   */
 
-private [mathact] trait DriveMessaging { _: Drive ⇒
+trait ActorState
+
+object ActorState{
+  case object Creating extends ActorState
+  case object Building extends ActorState
+  case object Starting extends ActorState
+
+
+
 
 }

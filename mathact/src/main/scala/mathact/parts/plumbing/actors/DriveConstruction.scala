@@ -21,7 +21,7 @@ import mathact.parts.plumbing.fitting.{InPipe, OutPipe}
   * Created by CAB on 22.08.2016.
   */
 
-trait DriveConstruction { _: Drive ⇒
+private [mathact] trait DriveConstruction { _: Drive ⇒
   /** Adding of new outlet, called from object
     * @param pipe - Outlet[_]
     * @param name - Option[String]

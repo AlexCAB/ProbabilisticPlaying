@@ -15,6 +15,7 @@
 package mathact.parts.plumbing.actors
 
 import akka.actor.ActorRef
+import mathact.parts.IdGenerator
 import mathact.parts.data.{InletData, OutletData, Msg}
 import mathact.parts.plumbing.fitting._
 import scala.collection.mutable.{Map ⇒ MutMap, Queue ⇒ MutQueue}
@@ -24,24 +25,20 @@ import scala.collection.mutable.{Map ⇒ MutMap, Queue ⇒ MutQueue}
   * Created by CAB on 22.08.2016.
   */
 
-trait DriveConnectivity { _: Drive ⇒
+private [mathact] trait DriveConnectivity { _: Drive ⇒
 
 
   //Variables
-  val pendingConnections = MutMap[Int, Msg.ConnectPipes]()
+  private val pendingConnections = MutMap[Int, Msg.ConnectPipes]()
 
   //Methods
   /** Adding of ConnectPipes to pending connections
     * @param message = ConnectPipes */
-  def connectPipes(message: Msg.ConnectPipes): Unit = state match{
-    case State.Creating ⇒
-      //On create store to pending connections
-      val id = nextIntId
-      pendingConnections += (id → message)
-      log.debug(s"[DriveConnectivity.connectPipes] Connection added to pending list, id: $id")
-    case st ⇒
-      //Error in case state not Creating
-      log.error(s"[DriveConnectivity.connectPipes] Incorrect state $st, can be called only it State.Creating.")}
+  def connectPipes(message: Msg.ConnectPipes): Unit = {
+    //On create store to pending connections
+    val id = nextIntId
+    pendingConnections += (id → message)
+    log.debug(s"[DriveConnectivity.connectPipes] Connection added to pending list, id: $id")}
   /** Connecting of pipes on build of drive
     * Sends Msg.AddConnection to all inlets drive from pendingConnections list */
   def doConnectivity(): Unit = pendingConnections.foreach{
@@ -75,7 +72,8 @@ trait DriveConnectivity { _: Drive ⇒
         val inDrive = inlet.toolDrive
         outlet.subscribers += ((inDrive, inlet.pipeId) → inlet)
         subscribedDrives.getOrElse(inDrive, {subscribedDrives += (inDrive → DrivesData(inDrive))})
-        log.info(s"[ConnectTo] Connection added, from: $outlet, to: $inlet")
+        initiator ! Msg.PipesConnected(connectionId, outletId, inlet.pipeId)
+        log.debug(s"[ConnectTo] Connection added, from: $outlet, to: $inlet")
       case None ⇒
         log.error(s"[DriveConnectivity.connectTo] Outlet with id: $outletId, not exist.")}
   /** Remove connected connection from pendingConnections list
@@ -92,6 +90,9 @@ trait DriveConnectivity { _: Drive ⇒
   /** Check if all connections connected
     * @return - true if all connected */
   def isAllConnected: Boolean = pendingConnections.isEmpty
+
+
+  def getPendingList: Map[Int, Msg.ConnectPipes] = pendingConnections.toMap
 
 
 

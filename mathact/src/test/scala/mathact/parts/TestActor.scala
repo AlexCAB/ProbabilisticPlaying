@@ -42,8 +42,12 @@ class TestActor(name: String, customReceive: ActorRef⇒PartialFunction[Any, Opt
           to ! msg
         case msg ⇒
           println("[TestActor] Receive message: " + msg)
-          lastMessage = Some(msg)
-          customReceive(self).applyOrElse[Any, Option[Any]](msg, _ ⇒ None).foreach(m ⇒ sender ! m)}}),
+          lastMessage = None
+          customReceive(self)
+            .applyOrElse[Any, Option[Any]](msg, _ ⇒ {
+              lastMessage = Some(msg)
+              None})
+            .foreach(m ⇒ sender ! m)}}),
     name)
   //Classes
   class Response(data: Option[Any]){
@@ -61,96 +65,49 @@ class TestActor(name: String, customReceive: ActorRef⇒PartialFunction[Any, Opt
   /** Sending of any message to given actor
     * @param to - ActorRef, target actor
     * @param msg - Any, message */
-  def send(to: ActorRef, msg: Any): Unit = ref ! SendTo(to, msg)
-  /** Send given message and expect data
-    * @param sendMsg - Message to send
-    * @param duration - FiniteDuration, wait timeout
-    * @return - Some(data) or None if timeout */
-  def request(to: ActorRef, sendMsg: Any)(implicit duration: FiniteDuration = expectMsgTimeout): Response = {
-    //Clean
+  def send(to: ActorRef, msg: Any): Unit = {
     lastMessage = None
-    //Send
-    ref ! SendTo(to, sendMsg)
-    //Expect data
+    ref ! SendTo(to, msg)
+    println(s"[TestActor] Send message: $msg, to: $to")}
+  /** Expectation of receiving of any message
+    * @param duration - FiniteDuration, wait timeout
+    * @return - Option[Any], None if timeout, Some(message) otherwise */
+  def expectAnyMsg(implicit duration: FiniteDuration = expectMsgTimeout): Option[Any] = {
     var counter = duration.toMillis / 10
-    var expMsg = lastMessage
-    while (expMsg.isEmpty && counter > 0){
+    var msg = lastMessage
+    while (msg.isEmpty && counter > 0){
       Thread.sleep(10)
-      expMsg = lastMessage
+      msg = lastMessage
       counter -= 1}
-    new Response(expMsg)}
-
-
-
-
-
-
-//  /** Clean before expect next message  */
-//  def clean(): Unit = {lastMessage = None}
-//  /** Expectation of receiving of any message
-//    * @param duration - FiniteDuration, wait timeout
-//    * @return - Option[Any], None if timeout, Some(message) otherwise */
-//  def expectAnyMsg(implicit duration: FiniteDuration = expectMsgTimeout): Option[Any] = {
-//    var counter = duration.toMillis / 10
-//    var msg = lastMessage
-//    while (msg.isEmpty && counter > 0){
-//      Thread.sleep(10)
-//      msg = lastMessage
-//      counter -= 1}
-//    msg}
-//  /** Wait and get last message
-//    * @param wait - FiniteDuration, wait timeout
-//    * @return - Option[Any] */
-//  def lastMessage(wait: FiniteDuration = waitMsgTimeout):  Option[Any] = {
-//    Thread.sleep(wait.toMillis)
-//    lastMessage}
-//  /** Expectation of receiving of given message
-//    * @param msg - Any, to check
-//    * @param duration - FiniteDuration, wait timeout
-//    * @return - Any, received message of throw AssertionError */
-//  def expectMsg(msg: Any)(implicit duration: FiniteDuration = expectMsgTimeout): Any = {
-//    val opMsg = expectAnyMsg(duration)
-//    assert(opMsg.nonEmpty, s"timeout ($duration) during expectMsg while waiting for $msg")
-//    assert(opMsg.get == msg, s"expected $msg, found ${opMsg.get}")
-//    opMsg.get}
-//  /** Expectation of receiving of message with given type
-//    * @param duration - FiniteDuration, wait timeout
-//    * @tparam T - expected type
-//    * @return - message */
-//  def expectMsgType[T : ClassTag](implicit duration: FiniteDuration = expectMsgTimeout): T = {
-//    val opMsg = expectAnyMsg(duration)
-//    val clazz = classTag[T]
-//    assert(opMsg.nonEmpty, s"timeout ($duration) during expectMsg while waiting for type $clazz")
-//    val msg = opMsg.get
-//    assert(opMsg.get.getClass == clazz.runtimeClass, s"expected $clazz, found ${msg.getClass} ($msg)")
-//    msg.asInstanceOf[T]}
-//  /** Get and check last
-//    * @param msg - Any, to check
-//    * @param wait - FiniteDuration, wait timeout
-//    * @return - Any, received message of throw AssertionError */
-//  def lastMsg(msg: Any, wait: FiniteDuration = waitMsgTimeout): Any = {
-//    val opMsg = lastMessage(wait)
-//    assert(opMsg.nonEmpty, s"no last message while waiting for $msg")
-//    assert(opMsg.get == msg, s"expected $msg, found ${opMsg.get}")
-//    opMsg.get}
-//  /** Get last message with given type
-//    * @param wait - FiniteDuration, wait timeout
-//    * @tparam T - waited type
-//    * @return - T, message*/
-//  def lastMsgType[T : ClassTag](wait: FiniteDuration = waitMsgTimeout): T = {
-//    val opMsg = lastMessage(wait)
-//    val clazz = classTag[T]
-//    assert(opMsg.nonEmpty, s"no last message for type $clazz")
-//    val msg = opMsg.get
-//    assert(opMsg.get.getClass == clazz.runtimeClass, s"expected $clazz, found ${msg.getClass} ($msg)")
-//    msg.asInstanceOf[T]}
+    lastMessage = None
+    msg}
+  /** Expectation of receiving of given message
+    * @param msg - Any, to check
+    * @param duration - FiniteDuration, wait timeout
+    * @return - Any, received message of throw AssertionError */
+  def expectMsg(msg: Any)(implicit duration: FiniteDuration = expectMsgTimeout): Any = {
+    val opMsg = expectAnyMsg(duration)
+    assert(opMsg.nonEmpty, s"timeout ($duration) during expectMsg while waiting for $msg")
+    assert(opMsg.get == msg, s"expected $msg, found ${opMsg.get}")
+    opMsg.get}
+  /** Expectation of receiving of message with given type
+    * @param duration - FiniteDuration, wait timeout
+    * @tparam T - expected type
+    * @return - message */
+  def expectMsgType[T : ClassTag](implicit duration: FiniteDuration = expectMsgTimeout): T = {
+    val opMsg = expectAnyMsg(duration)
+    val clazz = classTag[T]
+    assert(opMsg.nonEmpty, s"timeout ($duration) during expectMsg while waiting for type $clazz")
+    val msg = opMsg.get
+    assert(opMsg.get.getClass == clazz.runtimeClass, s"expected $clazz, found ${msg.getClass} ($msg)")
+    msg.asInstanceOf[T]}
   /** Watch for given actor
     * @param actor - ActorRef */
   def watch(actor: ActorRef): Unit = ref ! WatchFor(actor)
 
 
 
-    //TODO
+    //TODO Add more
 
 }
 

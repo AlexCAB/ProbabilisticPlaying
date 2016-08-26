@@ -32,8 +32,6 @@ abstract class ActorBase extends Actor{
   implicit val execContext = context.system.dispatcher
   //Variables
   private var stateToLogFun: Option[()⇒Any] = None
-  private var intIdCounter = 0
-  private var longIdCounter = 0L
   //Helpers
   /** Run block and akkaLog error
     * @param block - code to run
@@ -45,21 +43,15 @@ abstract class ActorBase extends Actor{
       log.error(s"[ActorBase.tryToRun] Error: ${sw.toString}")
       t.printStackTrace()
       throw t}
-  /** Generate next integer ID
-    * @return - Int ID */
-  def nextIntId: Int = {intIdCounter += 1; intIdCounter}
-  /** Generate next long ID
-    * @return - Long ID */
-  def nextLongId: Long = {longIdCounter += 1; longIdCounter}
-  //Extra methods
-  implicit class AnyEx(value: Any){
-    def handle(handler: PartialFunction[Any, Unit]): Unit = {
-      log.debug(s"[ActorBase.AnyEx.handle] Handle for value: $value")
-      handler.applyOrElse[Any, Unit](value, _ ⇒ {
-        log.error(
-          s"[ActorBase.AnyEx.handle] Not handled value: $value, " +
-          s"stack: \n ${Thread.currentThread().getStackTrace.mkString("\n")}")})}
-    def apply(handler: PartialFunction[Any, Unit]): Unit = handler.applyOrElse[Any, Unit](value, _ ⇒ Unit)}
+//  //Extra methods
+//  implicit class AnyEx(value: Any){
+//    def handle(handler: PartialFunction[Any, Unit]): Unit = {
+//      log.debug(s"[ActorBase.AnyEx.handle] Handle for value: $value")
+//      handler.applyOrElse[Any, Unit](value, _ ⇒ {
+//        log.error(
+//          s"[ActorBase.AnyEx.handle] Not handled value: $value, " +
+//          s"stack: \n ${Thread.currentThread().getStackTrace.mkString("\n")}")})}
+//    def apply(handler: PartialFunction[Any, Unit]): Unit = handler.applyOrElse[Any, Unit](value, _ ⇒ Unit)}
   //Messages handling with logging
   def stateToLog(state: ⇒Any): Unit = { stateToLogFun = Some(()⇒state) }
   def reaction: PartialFunction[Any, Unit]

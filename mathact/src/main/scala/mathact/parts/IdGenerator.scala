@@ -12,13 +12,21 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.plumbing.actors
+package mathact.parts
 
 
-/** Handling of messages
-  * Created by CAB on 22.08.2016.
+/** Generator of IDs
+  * Created by CAB on 26.08.2016.
   */
 
-private [mathact] trait DriveMessaging { _: Drive ⇒
-
-}
+trait IdGenerator {
+  //Variables
+  private var intIdCounter = 0
+  private var longIdCounter = 0L
+  //Methods
+  /** Generate next integer ID
+    * @return - Int ID */
+  def nextIntId: Int = {intIdCounter += 1; intIdCounter}
+  /** Generate next long ID
+    * @return - Long ID */
+  def nextLongId: Long = {longIdCounter += 1; longIdCounter}}

@@ -16,8 +16,8 @@ package mathact.parts.plumbing.actors
 
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor._
-import mathact.parts.ActorBase
-import mathact.parts.data.{OutletData, InletData, Msg}
+import mathact.parts.{IdGenerator, StateActorBase, ActorBase}
+import mathact.parts.data._
 import mathact.parts.plumbing.Pump
 import mathact.parts.plumbing.fitting._
 import scala.collection.mutable.{Map ⇒ MutMap, Queue ⇒ MutQueue}
@@ -29,15 +29,29 @@ import scala.concurrent.duration._
   * Created by CAB on 15.05.2016.
   */
 
-class Drive(pump: Pump, toolName: String, pumping: ActorRef, impeller: ActorRef)
-extends ActorBase with DriveConstruction with DriveConnectivity with DriveMessaging{
+private [mathact] class Drive(
+  val pump: Pump,
+  val toolName: String,
+  val pumping: ActorRef,
+  val impeller: ActorRef,
+  val userLogging: ActorRef)
+extends StateActorBase(ActorState.Creating) with IdGenerator
+with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMessaging{
+  import ActorState._
   //Parameter
-  val pushTimeoutCoefficient = 10  // pushTimeout = maxQueueSize * pushTimeoutCoefficient
+
+
+
+//  val pushTimeoutCoefficient = 10  // pushTimeout = maxQueueSize * pushTimeoutCoefficient
   //Supervisor strategy
   override val supervisorStrategy = OneForOneStrategy(){ case _: Exception ⇒ Resume }
   //Enums
-  object State extends Enumeration {
-    val Creating, Building, Starting, Work, Stopping = Value}
+//  object State extends Enumeration {
+//    val Creating, Building, Starting, Work, Stopping = Value}
+
+
+
+
   //Definitions
   case class OutletState(id: Int, name: Option[String], pipe: OutPipe[_]){
     val subscribers = MutMap[(ActorRef, Int), InletData]() //((subscribe tool drive, inlet ID), SubscriberData)
@@ -66,7 +80,7 @@ extends ActorBase with DriveConstruction with DriveConnectivity with DriveMessag
 
   }
 //  //Variables
-  var state = State.Creating
+//  var state = State.Creating
 //  var stepMode = StepMode.None
 //  var workMode = WorkMode.Paused
   val outlets = MutMap[Int, OutletState]()  //(Outlet ID, OutletData)
@@ -82,7 +96,7 @@ extends ActorBase with DriveConstruction with DriveConnectivity with DriveMessag
 
 
   //On start
-  stateToLog(state)
+
   context.watch(impeller)
 
 
@@ -90,91 +104,37 @@ extends ActorBase with DriveConstruction with DriveConnectivity with DriveMessag
 //  // 1. Перепистаь соглачно концепции удаления режымов и шагов.
 //  // 2. Подумать как лучше оформить код (может вынести всё в функции или наоборот).
 
-
-
-  def reaction = {
-    //Workflow
+  //Receives
+  /** Reaction on StateMsg'es */
+  def onStateMsg: PartialFunction[StateMsg, Unit] = {
     case Msg.BuildDrive ⇒
-      state = State.Building
+      state = Building
       doConnectivity()
     case Msg.StartDrive ⇒
+      state = Starting
+      doStarting()
     case Msg.StopDrive ⇒
     case Msg.TerminateDrive ⇒
-    case massage ⇒
-      //Match other message
-      state.handle{
-        case State.Creating ⇒ massage.handle{
-          //Construction, adding pipes, ask from object
-          case Msg.AddOutlet(pipe, name) ⇒ addOutlet(pipe, name)
-          case Msg.AddInlet(pipe, name) ⇒ addInlet(pipe, name)
-          //Connectivity, ask from object
-          case message: Msg.ConnectPipes ⇒ connectPipes(message)}
-        case State.Building ⇒ massage.handle{
-          //Connectivity, internal
-          case Msg.AddConnection(connectionId, initiator, inletId, outlet) ⇒ addConnection(connectionId, initiator, inletId, outlet)
-          case Msg.ConnectTo(connectionId, initiator, outletId, inlet) ⇒ connectTo(connectionId, initiator, outletId, inlet)
-          case Msg.PipesConnected(connectionId, inletId, outletId) ⇒ pipesConnected(connectionId, inletId, outletId)}
-        case State.Starting ⇒
-
-          //???
-
-        case State.Work ⇒
-
-          //???
-
-        case State.Stopping ⇒
 
 
-      }
-      //State handling
-      state.handle{
-        case State.Creating ⇒
+  }
 
-          //???
-
-        case State.Building ⇒ massage.apply{
-          case _: Msg.PipesConnected | Msg.BuildDrive ⇒ isAllConnected match{
-            case true ⇒
-              log.debug(s"[State handling] all pipes connected, send Msg.DriveBuilt.")
-              pumping ! Msg.DriveBuilt
-            case false ⇒
-              log.debug(s"[State handling] Not all pipes connected: $pendingConnections.")}}
-
-
-
-        case State.Starting ⇒
-
-          //???
-
-        case State.Work ⇒
-
-          //???
-
-        case State.Stopping ⇒
-
-          //???
-
-      }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  /** Handling after reaction executed */
+  def postHandling: PartialFunction[(Msg, ActorState), Unit] = {
+    //Check if all pipes connected in Building state
+    case (_: Msg.PipesConnected | Msg.BuildDrive, Building) ⇒ isAllConnected match{
+      case true ⇒
+        log.debug(s"[Drive.postHandling @ Building] All pipes connected, send Msg.DriveBuilt.")
+        pumping ! Msg.DriveBuilt
+      case false ⇒
+        log.debug(s"[Drive.postHandling @ Building] Not all pipes connected.")}
+    //Check if user start function executed in Starting state
+    case (Msg.StartDrive | _: Msg.TaskDone | _: Msg.TaskFailed, Starting) ⇒ isStarted match{
+      case true ⇒
+        log.debug(s"[Drive.postHandling @ Starting] Started, send Msg.DriveStarted.")
+        pumping ! Msg.DriveStarted
+      case false ⇒
+        log.debug(s"[Drive.postHandling@ Starting] Not started yet.")}
 
 
 
@@ -183,7 +143,129 @@ extends ActorBase with DriveConstruction with DriveConnectivity with DriveMessag
 
   }
 
+  /** Actor reaction on messages */
+  def reaction: PartialFunction[(Msg, ActorState), Unit] = {
+    //Construction, adding pipes, ask from object
+    case (Msg.AddOutlet(pipe, name), Creating) ⇒ addOutlet(pipe, name)
+    case (Msg.AddInlet(pipe, name), Creating) ⇒ addInlet(pipe, name)
+    //Connectivity, ask from object
+    case (message: Msg.ConnectPipes, Creating) ⇒ connectPipes(message)
+    //Connectivity, internal
+    case (Msg.AddConnection(id, initiator, inletId, outlet), Building) ⇒ addConnection(id, initiator, inletId, outlet)
+    case (Msg.ConnectTo(id, initiator, outletId, inlet), Building) ⇒ connectTo(id, initiator, outletId, inlet)
+    case (Msg.PipesConnected(id, inletId, outletId), Building) ⇒ pipesConnected(id, inletId, outletId)
+    //Starting
+    case (Msg.TaskDone(name, time, _), Starting) ⇒ startingTaskDone(name, time)
+    case (Msg.TaskTimeout(name, time), Starting) ⇒ startingTaskTimeout(name, time)
+    case (Msg.TaskFailed(name, time, error), Starting) ⇒ startingTaskFailed(name, time, error)
+    //
 
+
+
+
+
+  }
+
+
+
+
+
+
+
+
+
+//  def reaction = {               //<--- Перереботать reaction так чтобы убрать handle и apply
+//    //Workflow
+//    case Msg.BuildDrive ⇒
+//      state = State.Building
+//      doConnectivity()
+//    case Msg.StartDrive ⇒
+//    case Msg.StopDrive ⇒
+//    case Msg.TerminateDrive ⇒
+//    case massage ⇒
+//      //Match other message
+//      state.handle{
+//        case State.Creating ⇒ massage.handle{
+//          //Construction, adding pipes, ask from object
+//          case Msg.AddOutlet(pipe, name) ⇒ addOutlet(pipe, name)
+//          case Msg.AddInlet(pipe, name) ⇒ addInlet(pipe, name)
+//          //Connectivity, ask from object
+//          case message: Msg.ConnectPipes ⇒ connectPipes(message)}
+//        case State.Building ⇒ massage.handle{
+//          //Connectivity, internal
+//          case Msg.AddConnection(connectionId, initiator, inletId, outlet) ⇒ addConnection(connectionId, initiator, inletId, outlet)
+//          case Msg.ConnectTo(connectionId, initiator, outletId, inlet) ⇒ connectTo(connectionId, initiator, outletId, inlet)
+//          case Msg.PipesConnected(connectionId, inletId, outletId) ⇒ pipesConnected(connectionId, inletId, outletId)}
+//        case State.Starting ⇒
+//
+//          //???
+//
+//        case State.Work ⇒
+//
+//          //???
+//
+//        case State.Stopping ⇒
+//
+//
+//      }
+//      //State handling
+//      state.handle{
+//        case State.Creating ⇒
+//
+//          //???
+//
+//        case State.Building ⇒ massage.apply{
+//          case _: Msg.PipesConnected | Msg.BuildDrive ⇒ isAllConnected match{
+//            case true ⇒
+//              log.debug(s"[State handling] all pipes connected, send Msg.DriveBuilt.")
+//              pumping ! Msg.DriveBuilt
+//            case false ⇒
+//              log.debug(s"[State handling] Not all pipes connected: $pendingConnections.")}}
+//
+//
+//
+//        case State.Starting ⇒
+//
+//          //???
+//
+//        case State.Work ⇒
+//
+//          //???
+//
+//        case State.Stopping ⇒
+//
+//          //???
+//
+//      }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//
+//
+//
+//  }
+//
+//
 
 
 

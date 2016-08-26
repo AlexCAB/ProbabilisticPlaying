@@ -12,13 +12,23 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.plumbing.actors
+package mathact.parts.control.actors
+
+import akka.actor.{ActorRef, Actor}
 
 
-/** Handling of messages
-  * Created by CAB on 22.08.2016.
+/** Logging to user UI console
+  * Created by CAB on 26.08.2016.
   */
 
-private [mathact] trait DriveMessaging { _: Drive ⇒
+class UserLogging(workbenchController: ActorRef) extends Actor{
+
+
+  def receive = {
+
+    case m ⇒ println("[UserLogging] Message: " + m)
+
+
+  }
 
 }

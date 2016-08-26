@@ -32,7 +32,10 @@ import scalafx.scene.image.Image
 
 class Pump(context: WorkbenchContext, val tool: Fitting, val toolName: String, val toolImage: Option[Image]) {
   //Parameters
-  private implicit val askTimeout = Timeout(5.seconds)
+  val askTimeout = Timeout(5.second)
+  val pushTimeoutCoefficient = context.config.getInt("plumbing.push.timeout.coefficient")
+  val startFunctionTimeout = context.config.getInt("plumbing.start.function.timeout").millis
+  val stopFunctionTimeout = context.config.getInt("plumbing.stop.function.timeout").millis
   //Logging
   private val akkaLog = Logging.getLogger(context.system, this)
   akkaLog.info(s"[Pump.<init>] Creating of tool: $tool, name: $toolName")
@@ -43,12 +46,13 @@ class Pump(context: WorkbenchContext, val tool: Fitting, val toolName: String, v
     def error(msg: String): Unit = akkaLog.error(s"[$toolName] $msg")  }
   //Actors
   private[mathact] val drive: ActorRef = Await
-    .result(ask(context.pumping, Msg.NewDrive(this, toolName, toolImage)).mapTo[Either[Throwable,ActorRef]], askTimeout.duration)
+    .result(ask(context.pumping, Msg.NewDrive(this, toolName, toolImage))(askTimeout)
+      .mapTo[Either[Throwable,ActorRef]], askTimeout.duration)
     .fold(t ⇒ throw t, d ⇒ d)
   //Functions
   private def addPipe(msg: Any): Int = Await //Return: pipe ID
     .result(
-      ask(drive, msg).mapTo[Either[Throwable,Int]],
+      ask(drive, msg)(askTimeout).mapTo[Either[Throwable,Int]],
       askTimeout.duration)
     .fold(
       t ⇒ {
@@ -71,7 +75,7 @@ class Pump(context: WorkbenchContext, val tool: Fitting, val toolName: String, v
     case _ ⇒ akkaLog.debug(s"[Pump.toolStop] Tool $toolName not have doStop method.")}
   private[mathact] def pushUserMessage(msg: Msg.UserData[_]): Unit = Await
     .result(
-      ask(drive, msg).mapTo[Either[Throwable, Option[Long]]],  //Either(error,  Option[sleep timeout])
+      ask(drive, msg)(askTimeout).mapTo[Either[Throwable, Option[Long]]],  //Either(error,  Option[sleep timeout])
       askTimeout.duration)
     .fold(
       error ⇒ {

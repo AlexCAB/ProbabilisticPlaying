@@ -18,6 +18,7 @@ import javafx.stage.{Stage => jStage}
 
 import akka.actor._
 import akka.event.Logging
+import com.typesafe.config.Config
 import mathact.parts.{WorkbenchContext, ActorBase}
 import mathact.parts.data.{WorkMode, Sketch, StepMode, Msg}
 import mathact.parts.gui.{SelectSketchWindow, SketchControlWindow}
@@ -40,7 +41,7 @@ import scalafx.stage.Stage
   * Created by CAB on 21.05.2016.
   */
 
-class WorkbenchController(sketch: Sketch, mainController: ActorRef) extends ActorBase{
+class WorkbenchController(sketch: Sketch, mainController: ActorRef, config: Config) extends ActorBase{
   //Enums
   object State extends Enumeration {val Creating, Starting, Work, Stopping, Failing, Ended  = Value}
   //Messages
@@ -59,13 +60,15 @@ class WorkbenchController(sketch: Sketch, mainController: ActorRef) extends Acto
     def switchMode(stepMode: StepMode) = {self ! Msg.SwitchStepMode(stepMode)}
     def windowClosed(): Unit = {self ! HitWindowClose}}
   //Actors
-  val pumping = context.actorOf(Props(new Pumping(self, sketch)), "Pumping_" + sketch.className)
+  val userLogging = context.actorOf(Props(new UserLogging(self)), "UserLogging_" + sketch.className)
+  context.watch(userLogging)
+  val pumping = context.actorOf(Props(new Pumping(self, sketch, userLogging)), "Pumping_" + sketch.className)
   context.watch(pumping)
   //Messages handling
   def reaction = {
     //Init of workbench controller, creating of WorkbenchContext
     case  Msg.WorkbenchControllerInit(workbenchSender) ⇒
-      workbenchSender ! Right(new WorkbenchContext(context.system, mainController, pumping))
+      workbenchSender ! Right(new WorkbenchContext(context.system, mainController, pumping, config))
     //Handling of starting
     case Msg.WorkbenchControllerStart if state == State.Creating ⇒
       //Show sketch UI

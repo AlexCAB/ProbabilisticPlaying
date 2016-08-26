@@ -17,6 +17,7 @@ package mathact
 import akka.actor.{PoisonPill, Props, ActorRef, ActorSystem}
 import akka.event.Logging
 import akka.util.Timeout
+import com.typesafe.config.ConfigFactory
 import mathact.parts.WorkbenchContext
 import mathact.parts.control.actors.MainController
 import mathact.parts.data.{SketchStatus, Sketch, Msg}
@@ -47,9 +48,10 @@ private [mathact] object Application{
   private val system = ActorSystem("MathActActorSystem")
   private implicit val execContext = system.dispatcher
   private val log = Logging.getLogger(system, this)
+  private val config = ConfigFactory.load()
   log.info(s"[Application] Starting of program...")
   //Main controller
-  private val mainController: ActorRef = system.actorOf(Props(new MainController(doStop)), "MainControllerActor")
+  private val mainController: ActorRef = system.actorOf(Props(new MainController(doStop, config)), "MainControllerActor")
   //Stop proc
   private def doStop(exitCode: Int): Unit = Future{
     state = State.Stopping
