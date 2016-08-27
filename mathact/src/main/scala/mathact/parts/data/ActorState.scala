@@ -22,9 +22,11 @@ package mathact.parts.data
 trait ActorState
 
 object ActorState{
-  case object Creating extends ActorState
   case object Building extends ActorState
   case object Starting extends ActorState
+  case object Working extends ActorState
+  case object Stopping extends ActorState
+  case object Terminating extends ActorState
 
 
 

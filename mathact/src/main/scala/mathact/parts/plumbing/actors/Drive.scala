@@ -35,7 +35,7 @@ private [mathact] class Drive(
   val pumping: ActorRef,
   val impeller: ActorRef,
   val userLogging: ActorRef)
-extends StateActorBase(ActorState.Creating) with IdGenerator
+extends StateActorBase(ActorState.Building) with IdGenerator
 with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMessaging{
   import ActorState._
   //Parameter
@@ -53,22 +53,22 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
 
 
   //Definitions
-  case class OutletState(id: Int, name: Option[String], pipe: OutPipe[_]){
+  case class OutletState(outletId: Int, name: Option[String], pipe: OutPipe[_]){
     val subscribers = MutMap[(ActorRef, Int), InletData]() //((subscribe tool drive, inlet ID), SubscriberData)
-    val actionsQueue = MutQueue[Msg]()
+    var pushTimeout: Option[Long] = None
 
   }
-  case class MessageProcTask(taskId: Long, inlet: InletData, publisher: (ActorRef, Int), value: Any){ //publisher: (drive, outletId)
+  case class MessageProcTask(inletId: Int, publisher: (ActorRef, Int), value: Any){ //publisher: (drive, outletId)
 //    def toRunTask: Msg.RunTask = Msg.RunTask(
-//      id = taskId,
-//      name = s"[UserMessage] publisher: $publisher, inletId: ${inlet.id}, value: $value",
+//      outletId = taskId,
+//      name = s"[UserMessage] publisher: $publisher, inletId: ${inlet.outletId}, value: $value",
 //      task = ()⇒{inlet.pipe.processValue(value)})
 
 
 
 
   }
-  case class InletState(id: Int, name: Option[String], pipe: InPipe[_]){
+  case class InletState(inletId: Int, name: Option[String], pipe: InPipe[_]){
     val taskQueue = MutQueue[MessageProcTask]()
     val publishers = MutMap[(ActorRef, Int), OutletData]() //((publishers tool drive, outlet ID), SubscriberData)
 
@@ -76,6 +76,7 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
   }
   case class DrivesData(drive: ActorRef){
    var driveLoad: Int = 0
+
 
 
   }
@@ -107,12 +108,8 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
   //Receives
   /** Reaction on StateMsg'es */
   def onStateMsg: PartialFunction[StateMsg, Unit] = {
-    case Msg.BuildDrive ⇒
-      state = Building
-      doConnectivity()
-    case Msg.StartDrive ⇒
-      state = Starting
-      doStarting()
+    case Msg.BuildDrive ⇒ doConnectivity()
+    case Msg.StartDrive ⇒ doStarting()
     case Msg.StopDrive ⇒
     case Msg.TerminateDrive ⇒
 
@@ -124,14 +121,19 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
     //Check if all pipes connected in Building state
     case (_: Msg.PipesConnected | Msg.BuildDrive, Building) ⇒ isAllConnected match{
       case true ⇒
-        log.debug(s"[Drive.postHandling @ Building] All pipes connected, send Msg.DriveBuilt.")
+        log.debug(s"[Drive.postHandling @ Building] All pipes connected, send Msg.DriveBuilt, and switch to Working mode.")
+        state = Starting
         pumping ! Msg.DriveBuilt
       case false ⇒
         log.debug(s"[Drive.postHandling @ Building] Not all pipes connected.")}
     //Check if user start function executed in Starting state
     case (Msg.StartDrive | _: Msg.TaskDone | _: Msg.TaskFailed, Starting) ⇒ isStarted match{
       case true ⇒
-        log.debug(s"[Drive.postHandling @ Starting] Started, send Msg.DriveStarted.")
+        log.debug(s"[Drive.postHandling @ Starting] Started, send Msg.DriveStarted and switch to Working mode.")
+        state = Working
+
+          //TODO здесь запуск процессорования сообщений из очередй входов
+
         pumping ! Msg.DriveStarted
       case false ⇒
         log.debug(s"[Drive.postHandling@ Starting] Not started yet.")}
@@ -146,10 +148,10 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
   /** Actor reaction on messages */
   def reaction: PartialFunction[(Msg, ActorState), Unit] = {
     //Construction, adding pipes, ask from object
-    case (Msg.AddOutlet(pipe, name), Creating) ⇒ addOutlet(pipe, name)
-    case (Msg.AddInlet(pipe, name), Creating) ⇒ addInlet(pipe, name)
+    case (Msg.AddOutlet(pipe, name), state) ⇒ sender ! addOutletAsk(pipe, name, state)
+    case (Msg.AddInlet(pipe, name), state) ⇒ sender ! addInletAsk(pipe, name, state)
     //Connectivity, ask from object
-    case (message: Msg.ConnectPipes, Creating) ⇒ connectPipes(message)
+    case (message: Msg.ConnectPipes, state) ⇒ sender ! connectPipesAsk(message, state)
     //Connectivity, internal
     case (Msg.AddConnection(id, initiator, inletId, outlet), Building) ⇒ addConnection(id, initiator, inletId, outlet)
     case (Msg.ConnectTo(id, initiator, outletId, inlet), Building) ⇒ connectTo(id, initiator, outletId, inlet)
@@ -158,7 +160,11 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
     case (Msg.TaskDone(name, time, _), Starting) ⇒ startingTaskDone(name, time)
     case (Msg.TaskTimeout(name, time), Starting) ⇒ startingTaskTimeout(name, time)
     case (Msg.TaskFailed(name, time, error), Starting) ⇒ startingTaskFailed(name, time, error)
-    //
+    //Messaging, ask from object
+    case (Msg.UserData(outletId, value), state) ⇒ sender ! userDataAsk(outletId, value, state)
+    //Messaging
+    case (Msg.UserMessage(outletId, inletId, value), state) ⇒ userMessage(outletId, inletId, value, state)
+    case (Msg.DriveLoad(drive, maxQueueSize), Starting | Working | Stopping) ⇒ driveLoad(drive, maxQueueSize)
 
 
 
@@ -397,14 +403,14 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
 //      val outletId = outlets.values.filter(_.pipe == pipe) match{
 //        case Nil ⇒
 //          //Create and add
-//          val id = nextIntId
-//          outlets += (id → OutletData(id, pipe))
-//          log.debug(s"[AddOutlet] Outlet: $pipe, added with ID: $id")
-//          id
+//          val outletId = nextIntId
+//          outlets += (outletId → OutletData(outletId, pipe))
+//          log.debug(s"[AddOutlet] Outlet: $pipe, added with ID: $outletId")
+//          outletId
 //        case o :: _ ⇒
 //          //Double creating
 //          log.warning(s"[AddOutlet] Outlet: $pipe, is registered more then once")
-//          o.id}
+//          o.outletId}
 //      sender ! Right(outletId)
 //    //Adding of Inlet
 //    case Msg.AddInlet(pipe) ⇒
@@ -412,14 +418,14 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
 //      val inletId = inlets.values.filter(_.pipe == pipe) match{
 //        case Nil ⇒
 //          //Create and add
-//          val id = nextIntId
-//          inlets += (id → InletData(id, pipe))
-//          log.debug(s"[AddInlet] Inlet: $pipe, added with ID: $id")
-//          id
+//          val outletId = nextIntId
+//          inlets += (outletId → InletData(outletId, pipe))
+//          log.debug(s"[AddInlet] Inlet: $pipe, added with ID: $outletId")
+//          outletId
 //        case o :: _ ⇒
 //          //Double creating
 //          log.warning(s"[AddInlet] Inlet: $pipe, is registered more then once")
-//          o.id}
+//          o.outletId}
 //      sender ! Right(inletId)
 //    //Connecting
 //    case Msg.ConnectPipes(out, in) ⇒ state match{
@@ -444,7 +450,7 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
 //      case Some(inlet) ⇒
 //        inlet.publishers += ((outlet.toolDrive, outlet.pipeId) → outlet)
 //        outlet.toolDrive ! Msg.ConnectTo(outlet.pipeId, inlet.pipe.getPipeData)
-//      case None ⇒ log.error(s"[AddConnection] Inlet with id: $inletId, not exist.")}
+//      case None ⇒ log.error(s"[AddConnection] Inlet with outletId: $inletId, not exist.")}
 //    //Connect to given inlet
 //    case Msg.ConnectTo(outletId, inlet) ⇒ outlets.get(outletId) match{
 //      case Some(outlet) ⇒
@@ -452,7 +458,7 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
 //        outlet.subscribers += ((inDrive, inlet.pipeId) → inlet)
 //        subscribedDrives.getOrElse(inDrive, {subscribedDrives += (inDrive → DrivesData(inDrive))})
 //        log.info(s"[ConnectTo] Connection added, from: $outlet, to: $inlet")
-//      case None ⇒ log.error(s"[ConnectTo] Outlet with id: $outletId, not exist.")}
+//      case None ⇒ log.error(s"[ConnectTo] Outlet with outletId: $outletId, not exist.")}
 //    //Disconnect from given inlet
 //    case Msg.DisconnectFrom(outletId, inlet) ⇒ outlets.get(outletId) match{
 //      case Some(outlet) ⇒ outlet.subscribers.contains((inlet.toolDrive, inlet.pipeId)) match{
@@ -470,7 +476,7 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
 //            s"subscribedDrives: $subscribedDrives ")
 //        case false ⇒
 //          log.error(s"[DisconnectFrom] Inlet not in subscribers list, inlet: $inlet")}
-//      case None ⇒ log.error(s"[DisconnectFrom] Outlet with id: $outletId, not exist.")}
+//      case None ⇒ log.error(s"[DisconnectFrom] Outlet with outletId: $outletId, not exist.")}
 //    //Delete disconnected connection
 //    case Msg.DelConnection(inletId, outlet) ⇒ inlets.get(inletId) match{
 //      case Some(inlet) ⇒ inlet.publishers.contains((outlet.toolDrive, outlet.pipeId)) match{
@@ -479,7 +485,7 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
 //          log.info(s"[DelConnection] Connection deleted, from: $outlet, to: $inlet")
 //        case false ⇒
 //          log.error(s"[DelConnection] Outlet not in publishers list, outlet: $inlet")}
-//      case None ⇒ log.error(s"[DelConnection] Inlet with id: $inletId, not exist.")}
+//      case None ⇒ log.error(s"[DelConnection] Inlet with outletId: $inletId, not exist.")}
 //    //Starting
 //    case Msg.StartDrive ⇒
 //      state = State.Starting
@@ -568,7 +574,7 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
 
     //Далее здесь:
     // 1) Обдумать как лучше и реализовать DriveGo для разных режымов
-    // 2) Релизовать Msg.TaskDone(id, name), действие в зависимости от режыма работа.
+    // 2) Релизовать Msg.TaskDone(outletId, name), действие в зависимости от режыма работа.
     // 3) Заврешение рабоаты скетча.
 
 
@@ -598,7 +604,7 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
 //          Right(pushTimeout)
 //        case None ⇒
 //          Left(new IllegalArgumentException(
-//            s"[UserData] Outlet with id: $outletId, not exist."))}
+//            s"[UserData] Outlet with outletId: $outletId, not exist."))}
 //      case _ ⇒
 //        Left(new IllegalStateException(
 //          s"[UserData] User data can be processed only in Stepping or Running state, current state: $state"))})
@@ -618,7 +624,7 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
 //            runNextMsgTask()
 //          case _ ⇒
 //            log.debug(s"[UserMessage] Task not send to impeller, maxQueueSize: $maxQueueSize, workMode: $workMode")}
-//      case None ⇒ log.error(s"[UserMessage] Inlet with id: $inletId, not exist.")}
+//      case None ⇒ log.error(s"[UserMessage] Inlet with outletId: $inletId, not exist.")}
 //    //Other drive load
 //    case Msg.DriveLoad(drive, maxQueueSize) ⇒
 //      subscribedDrives.get(drive) match{

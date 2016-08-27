@@ -23,7 +23,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import akka.pattern.ask
 
-import scala.reflect.ClassTag
+import scala.reflect._
 
 
 /** Base class for testing of actors
@@ -42,6 +42,13 @@ with WordSpecLike with Matchers with BeforeAndAfterAll with FutureHelpers with R
   implicit class ActorRefEx(actor: ActorRef){
     def askFor[R : ClassTag](msg: AnyRef): R = Await.result(ask(actor, msg).mapTo[R], askTimeout.duration)
     def askForState[R : ClassTag]: R = askFor(GetDriveState)}
+  //Test helpers
+  implicit class AnySeqEx(seq: Seq[Any]){
+    def getOneWithType[T : ClassTag]: T = {
+      val clazz = classTag[T].runtimeClass
+      val value = seq.find(_.getClass == clazz)
+      assert(value.nonEmpty, s"for type $clazz value not found in seq $seq")
+      value.get.asInstanceOf[T]}}
 
   //TODO Add more
 

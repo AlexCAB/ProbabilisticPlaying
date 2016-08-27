@@ -31,7 +31,8 @@ class TestActor(name: String, customReceive: ActorRef⇒PartialFunction[Any, Opt
   private case class SendTo(to: ActorRef, msg: Any)
   private case class WatchFor(to: ActorRef)
   //Variables
-  @volatile private var lastMessage: Option[Any] = None
+  @volatile private var receivedMessages = List[Any]()
+  @volatile private var processedMessages = List[Any]()
   //Actor
   val ref: ActorRef = system.actorOf(
     Props(new Actor{
@@ -41,13 +42,14 @@ class TestActor(name: String, customReceive: ActorRef⇒PartialFunction[Any, Opt
         case SendTo(to, msg) ⇒
           to ! msg
         case msg ⇒
-          println("[TestActor] Receive message: " + msg)
-          lastMessage = None
-          customReceive(self)
-            .applyOrElse[Any, Option[Any]](msg, _ ⇒ {
-              lastMessage = Some(msg)
-              None})
-            .foreach(m ⇒ sender ! m)}}),
+          customReceive(self).lift(msg) match{
+            case Some(res) ⇒
+              println("[TestActor] Processed message: " + msg)
+              processedMessages :+= msg
+              res.foreach(m ⇒ sender ! m)
+            case None ⇒
+              println("[TestActor] Received message: " + msg)
+              receivedMessages :+= msg}}}),
     name)
   //Classes
   class Response(data: Option[Any]){
@@ -66,27 +68,27 @@ class TestActor(name: String, customReceive: ActorRef⇒PartialFunction[Any, Opt
     * @param to - ActorRef, target actor
     * @param msg - Any, message */
   def send(to: ActorRef, msg: Any): Unit = {
-    lastMessage = None
+    receivedMessages = List()
     ref ! SendTo(to, msg)
     println(s"[TestActor] Send message: $msg, to: $to")}
-  /** Expectation of receiving of any message
-    * @param duration - FiniteDuration, wait timeout
-    * @return - Option[Any], None if timeout, Some(message) otherwise */
-  def expectAnyMsg(implicit duration: FiniteDuration = expectMsgTimeout): Option[Any] = {
+  /** Receive given number of messages and return
+    * @param number - Int
+    * @return - Seq[Any], received messages */
+  def expectNMsg(number: Int)(implicit duration: FiniteDuration = expectMsgTimeout): List[Any] = {
     var counter = duration.toMillis / 10
-    var msg = lastMessage
-    while (msg.isEmpty && counter > 0){
+    var msg = receivedMessages
+    while (msg.size < number && counter > 0){
       Thread.sleep(10)
-      msg = lastMessage
+      msg = receivedMessages
       counter -= 1}
-    lastMessage = None
+    receivedMessages = List()
     msg}
   /** Expectation of receiving of given message
     * @param msg - Any, to check
     * @param duration - FiniteDuration, wait timeout
     * @return - Any, received message of throw AssertionError */
   def expectMsg(msg: Any)(implicit duration: FiniteDuration = expectMsgTimeout): Any = {
-    val opMsg = expectAnyMsg(duration)
+    val opMsg = expectNMsg(1)(duration).headOption
     assert(opMsg.nonEmpty, s"timeout ($duration) during expectMsg while waiting for $msg")
     assert(opMsg.get == msg, s"expected $msg, found ${opMsg.get}")
     opMsg.get}
@@ -95,7 +97,7 @@ class TestActor(name: String, customReceive: ActorRef⇒PartialFunction[Any, Opt
     * @tparam T - expected type
     * @return - message */
   def expectMsgType[T : ClassTag](implicit duration: FiniteDuration = expectMsgTimeout): T = {
-    val opMsg = expectAnyMsg(duration)
+    val opMsg = expectNMsg(1)(duration).headOption
     val clazz = classTag[T]
     assert(opMsg.nonEmpty, s"timeout ($duration) during expectMsg while waiting for type $clazz")
     val msg = opMsg.get
@@ -104,6 +106,9 @@ class TestActor(name: String, customReceive: ActorRef⇒PartialFunction[Any, Opt
   /** Watch for given actor
     * @param actor - ActorRef */
   def watch(actor: ActorRef): Unit = ref ! WatchFor(actor)
+  /** Return list of processed messages
+    * @return - List[Any] */
+  def getProcessedMessages: List[Any] = processedMessages
 
 
 

@@ -275,8 +275,8 @@ class Pumping(controller: ActorRef, sketch: Sketch, userLogging: ActorRef) exten
 //                log.debug(s"[DriveStepDone] All drives down, send PumpingStopped.")
 //                workMode = WorkMode.Paused
 //                controller ! Msg.PumpingStopped(stepMode)}
-//          case (sm, id) ⇒
-//           log.debug(s"[DriveStepDone] New tick not started, stepMode: $sm, allIsDone: $id.")}
+//          case (sm, outletId) ⇒
+//           log.debug(s"[DriveStepDone] New tick not started, stepMode: $sm, allIsDone: $outletId.")}
 //      case None ⇒
 //        log.error(s"[DriveStepDone] Unknown drive: $sender")}
 //    //Process tick

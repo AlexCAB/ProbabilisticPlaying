@@ -14,6 +14,7 @@
 
 package mathact.parts.plumbing.actors
 
+import mathact.parts.data.ActorState
 import mathact.parts.plumbing.fitting.{InPipe, OutPipe}
 
 
@@ -26,32 +27,47 @@ private [mathact] trait DriveConstruction { _: Drive ⇒
     * @param pipe - Outlet[_]
     * @param name - Option[String]
     * @return - Either[Throwable, pipeId] */
-  def addOutlet(pipe: OutPipe[_], name: Option[String]): Unit = {
-    //Check of already added
-    sender ! (outlets.values.filter(_.pipe == pipe) match{
-      case Nil ⇒
-        //Create and add
-        val id = nextIntId
-        outlets += (id → OutletState(id, name, pipe))
-        log.debug(s"[DriveConstruction.addOutlet] Outlet: $pipe, added with ID: $id")
-        Right(id)
-      case o :: _ ⇒
-        //Double creating
-        log.warning(s"[DriveConstruction.addOutlet] Outlet: $pipe, is registered more then once")
-        Right(o.id)})}
+  def addOutletAsk(pipe: OutPipe[_], name: Option[String], state: ActorState): Either[Throwable,Int] = state match {
+    case ActorState.Building ⇒
+      //Check of already added
+      outlets.values.filter(_.pipe == pipe) match{
+        case Nil ⇒
+          //Create and add
+          val id = nextIntId
+          outlets += (id → OutletState(id, name, pipe))
+          log.debug(s"[DriveConstruction.addOutletAsk] Outlet: $pipe, added with ID: $id")
+          Right(id)
+        case o :: _ ⇒
+          //Double creating
+          val msg = s"[DriveConstruction.addOutletAsk] Outlet: $pipe, is registered more then once"
+          log.error(msg)
+          Left(new IllegalArgumentException(msg))}
+    case s ⇒
+      //Incorrect state
+      val msg = s"[DriveConstruction.addOutletAsk] Incorrect state $s, required Building"
+      log.error(msg)
+      Left(new IllegalStateException(msg))}
   /** Adding of new inlet, called from object
     * @param pipe - Inlet[_]
     * @param name - Option[String]
     * @return - Either[Throwable, pipeId] */
-  def addInlet(pipe: InPipe[_], name: Option[String]): Unit = {
-    sender ! (inlets.values.filter(_.pipe == pipe) match{
-      case Nil ⇒
-        //Create and add
-        val id = nextIntId
-        inlets += (id → InletState(id, name, pipe))
-        log.debug(s"[DriveConstruction.addInlet] Inlet: $pipe, added with ID: $id")
-        Right(id)
-      case o :: _ ⇒
-        //Double creating
-        log.warning(s"[DriveConstruction.addInlet] Inlet: $pipe, is registered more then once")
-        Right(o.id)})}}
+  def addInletAsk(pipe: InPipe[_], name: Option[String], state: ActorState): Either[Throwable,Int] = state match {
+    case ActorState.Building ⇒
+      //Check if pipe already added
+      inlets.values.filter(_.pipe == pipe) match{
+        case Nil ⇒
+          //Create and add
+          val id = nextIntId
+          inlets += (id → InletState(id, name, pipe))
+          log.debug(s"[DriveConstruction.addInletAsk] Inlet: $pipe, added with ID: $id")
+          Right(id)
+        case o :: _ ⇒
+          //Double creating
+          val msg = s"[DriveConstruction.addInletAsk] Inlet: $pipe, is registered more then once"
+          log.error(msg)
+          Left(new IllegalArgumentException(msg))}
+    case s ⇒
+      //Incorrect state
+      val msg = s"[DriveConstruction.addInletAsk] Incorrect state $s, required Building"
+      log.error(msg)
+      Left(new IllegalStateException(msg))}}

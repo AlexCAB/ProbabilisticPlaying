@@ -61,8 +61,8 @@ private [mathact] trait Pipe[H]{
 
 //
 //  private[plumbing] def pushUserData(value: T): Unit = (pump, pipeId) match{
-//    case (Some(p), Some(id)) ⇒ this match{
-//      case _: Outlet[T] ⇒ p.pushUserMessage(Msg.UserData[T](outletId = id, value))
+//    case (Some(p), Some(outletId)) ⇒ this match{
+//      case _: Outlet[T] ⇒ p.pushUserMessage(Msg.UserData[T](outletId = outletId, value))
 //      case t ⇒ p.log.error(s"[Pipe.pushUserData] This pipe is not an Outlet[T], class name ${this.getClass.getName}.")}
 //    case s ⇒ throw new IllegalStateException(s"[Pipe.pushUserData] Pump not injected, state: $s.")}
 

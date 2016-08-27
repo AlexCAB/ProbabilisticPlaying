@@ -16,7 +16,7 @@ package mathact.parts.plumbing.actors
 
 import akka.actor.ActorRef
 import mathact.parts.IdGenerator
-import mathact.parts.data.{InletData, OutletData, Msg}
+import mathact.parts.data.{ActorState, InletData, OutletData, Msg}
 import mathact.parts.plumbing.fitting._
 import scala.collection.mutable.{Map ⇒ MutMap, Queue ⇒ MutQueue}
 
@@ -34,11 +34,18 @@ private [mathact] trait DriveConnectivity { _: Drive ⇒
   //Methods
   /** Adding of ConnectPipes to pending connections
     * @param message = ConnectPipes */
-  def connectPipes(message: Msg.ConnectPipes): Unit = {
-    //On create store to pending connections
-    val id = nextIntId
-    pendingConnections += (id → message)
-    log.debug(s"[DriveConnectivity.connectPipes] Connection added to pending list, id: $id")}
+  def connectPipesAsk(message: Msg.ConnectPipes, state: ActorState): Either[Throwable,Int] = state match{
+    case ActorState.Building ⇒
+      //On create store to pending connections
+      val connectionId = nextIntId
+      pendingConnections += (connectionId → message)
+      log.debug(s"[DriveConnectivity.connectPipes] Connection added to pending list, connectionId: $connectionId")
+      Right(connectionId)
+    case s ⇒
+      //Incorrect state
+      val msg = s"[DriveConnectivity.connectPipes] Incorrect state $s, required Building"
+      log.error(msg)
+      Left(new IllegalStateException(msg))}
   /** Connecting of pipes on build of drive
     * Sends Msg.AddConnection to all inlets drive from pendingConnections list */
   def doConnectivity(): Unit = pendingConnections.foreach{
@@ -75,7 +82,7 @@ private [mathact] trait DriveConnectivity { _: Drive ⇒
         initiator ! Msg.PipesConnected(connectionId, outletId, inlet.pipeId)
         log.debug(s"[ConnectTo] Connection added, from: $outlet, to: $inlet")
       case None ⇒
-        log.error(s"[DriveConnectivity.connectTo] Outlet with id: $outletId, not exist.")}
+        log.error(s"[DriveConnectivity.connectTo] Outlet with outletId: $outletId, not exist.")}
   /** Remove connected connection from pendingConnections list
     * @param connectionId - Int
     * @param inletId - Int
