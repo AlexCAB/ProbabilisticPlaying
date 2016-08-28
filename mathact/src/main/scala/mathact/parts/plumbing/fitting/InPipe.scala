@@ -33,7 +33,7 @@ extends Pipe[H] with Socket[H]{
   lazy val pipeData = InletData(pump.drive, pump.toolName, pipeId, pipeName)
   //Methods
   override def toString: String = s"InPipe(in: $in, pipeName: $pipeName, pump: $pump)"
-
+  def processValue(value: Any): Unit = in.processValue(value)
 
 
 

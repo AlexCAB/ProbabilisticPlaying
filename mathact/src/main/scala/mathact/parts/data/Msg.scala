@@ -76,11 +76,11 @@ private[mathact] object Msg {
   case class UserMessage[T](outletId: Int, inletId: Int, value: T) extends Msg
   case class DriveLoad(drive: ActorRef, maxQueueSize: Int) extends Msg
   //Drive - Impeller
-  case class RunTask[R](name: String, timeout: FiniteDuration, task: ()⇒R) extends Msg
+  case class RunTask[R](id: Int, name: String, timeout: FiniteDuration, task: ()⇒R) extends Msg
   case object SkipCurrentTask  extends Msg //Makes impeller to skip the current task, but not terminate it (impeller just will not wait for this more)
-  case class TaskDone(name: String, execTime: FiniteDuration, taskRes: Any) extends Msg
-  case class TaskTimeout(name: String, timeFromStart: FiniteDuration) extends Msg
-  case class TaskFailed(name: String, execTime: FiniteDuration, error: Throwable) extends Msg
+  case class TaskDone(id: Int, name: String, execTime: FiniteDuration, taskRes: Any) extends Msg
+  case class TaskTimeout(id: Int, name: String, timeFromStart: FiniteDuration) extends Msg
+  case class TaskFailed(id: Int, name: String, execTime: FiniteDuration, error: Throwable) extends Msg
   //User logging
   case class LogWarning(toolName: String, message: String) extends Msg
   case class LogError(toolName: String, error: Option[Throwable], message: String) extends Msg

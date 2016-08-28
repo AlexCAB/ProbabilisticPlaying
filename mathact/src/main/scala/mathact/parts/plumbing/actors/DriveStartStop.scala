@@ -19,7 +19,7 @@ import mathact.parts.OnStart
 import mathact.parts.data.Msg
 import mathact.parts.plumbing.Pump
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.Duration
 
 
 /** Handling of staring and stopping
@@ -40,28 +40,25 @@ private [mathact] trait DriveStartStop { _: Drive ⇒
     pump.tool match{
       case task: OnStart ⇒
         log.debug("[DriveStartStop.doStarting] Try to run starting user function.")
-        impeller ! Msg.RunTask[Unit]("DoStaring", pump.startFunctionTimeout, ()⇒{ task.doStart() })
+        impeller ! Msg.RunTask[Unit](-1, "DoStaring", pump.startFunctionTimeout, ()⇒{ task.doStart() })
       case _ ⇒
         log.debug("[DriveStartStop.doStarting] Starting user function not defined, nothing to do.")
         started = true}}
   /** Starting task done, set of started
-    * @param name - String, "DoStaring"
-    * @param execTime - FiniteDuration */
-  def startingTaskDone(name: String, execTime: FiniteDuration): Unit = {
-    log.debug(s"[DriveStartStop.startingTaskDone] name: $name, execTime: $execTime.")
+    * @param execTime - Duration */
+  def startingTaskDone(execTime: Duration): Unit = {
+    log.debug(s"[DriveStartStop.startingTaskDone] execTime: $execTime.")
     started = true}
   /** Starting task timeout, log to user console
-    * @param name -  String, "DoStaring"
-    * @param execTime - FiniteDuration */
-  def startingTaskTimeout(name: String, execTime: FiniteDuration): Unit = {
-    log.warning(s"[DriveStartStop.startingTaskTimeout] name: $name, execTime: $execTime.")
+    * @param execTime - Duration */
+  def startingTaskTimeout(execTime: Duration): Unit = {
+    log.warning(s"[DriveStartStop.startingTaskTimeout]  execTime: $execTime.")
     userLogging ! Msg.LogWarning(toolName, s"Starting function timeout on $execTime, keep waiting.")}
   /** Starting task failed, set of started, log to user console
-    * @param name - String, "DoStaring"
-    * @param execTime - FiniteDuration
+    * @param execTime - Duration
     * @param error - Throwable */
-  def startingTaskFailed(name: String, execTime: FiniteDuration, error: Throwable): Unit = {
-    log.error(s"[DriveStartStop.startingTaskTimeout] name: $name, execTime: $execTime, error: $error.")
+  def startingTaskFailed(execTime: Duration, error: Throwable): Unit = {
+    log.error(s"[DriveStartStop.startingTaskTimeout] execTime: $execTime, error: $error.")
     started = true
     userLogging ! Msg.LogError(toolName, Some(error), s"Starting function failed on $execTime.")}
 

@@ -34,57 +34,57 @@ class Impeller(drive: ActorRef) extends ActorBase{
   case class TaskFailure(taskNumber: Long, err: Throwable)
   //Variables
   var taskCounter = 0L
-  var currentTask: Option[(Long, String, Long)] = None // (task number, task name, start time)
+  var currentTask: Option[(Long, Int, String, Long)] = None // (task number, task ID, task name, start time)
   //Messages handling
   def reaction = {
     //Starting of task in separate thread and start of task timeout
-    case Msg.RunTask(name, timeout, task) if sender == drive ⇒ currentTask match{
+    case Msg.RunTask(id, name, timeout, task) if sender == drive ⇒ currentTask match{
       case None ⇒
         val taskNumber = {taskCounter += 1; taskCounter}
         log.debug(s"[Impeller.RunTask] Try to run task, taskNumber: $taskNumber, name: $name")
         context.system.scheduler.scheduleOnce(timeout, self, TaskTimeout(taskNumber, timeout))
-        currentTask = Some((taskNumber, name, System.currentTimeMillis))
+        currentTask = Some((taskNumber, id, name, System.currentTimeMillis))
         Future{task()}.onComplete{
           case Success(res) ⇒ self ! TaskSuccess(taskNumber, res)
           case Failure(err) ⇒ self ! TaskFailure(taskNumber, err)}
-      case Some((curNum, curName, startTime)) ⇒
+      case Some((curNum, curId, curName, startTime)) ⇒
         val msg = s"[Impeller.RunTask] Can't run new task '$name', since current task '$curName' is not done."
         log.error(msg)
-        drive ! Msg.TaskFailed(name, (System.currentTimeMillis - startTime).millis, new Exception(msg))}
+        drive ! Msg.TaskFailed(id, name, (System.currentTimeMillis - startTime).millis, new Exception(msg))}
     //Remove current task
     case Msg.SkipCurrentTask if sender == drive ⇒ currentTask match{
-      case Some((curNum, curName, startTime)) ⇒
+      case Some((curNum, id, curName, startTime)) ⇒
         val msg = s"[Impeller.SkipCurrentTask] Current task will skip, number: $curNum, name: $curName"
         log.warning(msg)
         currentTask = None
-        drive ! Msg.TaskFailed(curName, (System.currentTimeMillis - startTime).millis, new Exception(msg))
+        drive ! Msg.TaskFailed(id, curName, (System.currentTimeMillis - startTime).millis, new Exception(msg))
       case None ⇒
         log.debug("[Impeller.SkipCurrentTask] Nothing to skip.")}
     //Task timeout, send time out and restart timer
     case TaskTimeout(taskNumber, timeout) ⇒ currentTask match{
-      case Some((`taskNumber`, name, startTime)) ⇒
+      case Some((`taskNumber`, id, name, startTime)) ⇒
         log.debug(s"[Impeller.TaskTimeout] Task timeout, name: '$name', taskNumber: $taskNumber, after $timeout wait.")
-        drive ! Msg.TaskTimeout(name, (System.currentTimeMillis - startTime).millis)
+        drive ! Msg.TaskTimeout(id, name, (System.currentTimeMillis - startTime).millis)
         context.system.scheduler.scheduleOnce(timeout, self, TaskTimeout(taskNumber, timeout))
       case _ ⇒
         log.debug("[Impeller.TaskTimeout] Task done or skip, stop timer.")}
     //Task done, send report to driver
     case TaskSuccess(taskNumber, res) ⇒ currentTask match{
-      case Some((curNum, curName, startTime)) ⇒
+      case Some((curNum, id, curName, startTime)) ⇒
         val execTime = (System.currentTimeMillis - startTime).millis
         log.debug(s"[Impeller.TaskSuccess] Task done, number: $curNum, name: $curName, res: $res, execTime: $execTime" )
         currentTask = None
-        drive ! Msg.TaskDone(curName, execTime, res)
+        drive ! Msg.TaskDone(id, curName, execTime, res)
       case None ⇒
         log.warning(
           s"[Impeller.TaskSuccess] Completed not a current task (probably current been skipped), taskNumber: $taskNumber.")}
     //Task failed, send report to driver
     case TaskFailure(taskNumber, err) ⇒ currentTask match{
-      case Some((curNum, curName, startTime)) ⇒
+      case Some((curNum, id, curName, startTime)) ⇒
         val execTime = (System.currentTimeMillis - startTime).millis
         log.debug(s"[Impeller.TaskFailure] Task fail, number: $curNum, name: $curName, err: $err, execTime: $execTime" )
         currentTask = None
-        drive ! Msg.TaskFailed(curName, execTime, err)
+        drive ! Msg.TaskFailed(id, curName, execTime, err)
       case None ⇒
         log.warning(
           s"[Impeller.TaskFailure] Failed not a current task (probably current been skipped), taskNumber: $taskNumber.")}}}

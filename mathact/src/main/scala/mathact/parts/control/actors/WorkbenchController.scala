@@ -50,7 +50,7 @@ class WorkbenchController(sketch: Sketch, mainController: ActorRef, config: Conf
   //Variables
   var state: State.Value = State.Creating
 
-  stateToLog(state)
+
   //UI definitions
   val uiSketchControl = new SketchControlWindow(log){
     def hitStart(): Unit = {self ! Msg.HitStart}

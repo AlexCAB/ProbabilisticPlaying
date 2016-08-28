@@ -35,6 +35,7 @@ class Pump(context: WorkbenchContext, val tool: Fitting, val toolName: String, v
   val askTimeout = Timeout(5.second)
   val pushTimeoutCoefficient = context.config.getInt("plumbing.push.timeout.coefficient")
   val startFunctionTimeout = context.config.getInt("plumbing.start.function.timeout").millis
+  val messageProcessingTimeout = context.config.getInt("plumbing.message.processing.timeout").millis
   val stopFunctionTimeout = context.config.getInt("plumbing.stop.function.timeout").millis
   //Logging
   private val akkaLog = Logging.getLogger(context.system, this)

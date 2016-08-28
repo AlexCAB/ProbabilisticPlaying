@@ -33,7 +33,6 @@ private [mathact] class Drive(
   val pump: Pump,
   val toolName: String,
   val pumping: ActorRef,
-  val impeller: ActorRef,
   val userLogging: ActorRef)
 extends StateActorBase(ActorState.Building) with IdGenerator
 with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMessaging{
@@ -58,35 +57,26 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
     var pushTimeout: Option[Long] = None
 
   }
-  case class MessageProcTask(inletId: Int, publisher: (ActorRef, Int), value: Any){ //publisher: (drive, outletId)
-//    def toRunTask: Msg.RunTask = Msg.RunTask(
-//      outletId = taskId,
-//      name = s"[UserMessage] publisher: $publisher, inletId: ${inlet.outletId}, value: $value",
-//      task = ()⇒{inlet.pipe.processValue(value)})
-
-
-
-
-  }
+//  case class MessageProcTask(inletId: Int, publisher: (ActorRef, Int), value: Any){ //publisher: (drive, outletId)
+//
+//  }
   case class InletState(inletId: Int, name: Option[String], pipe: InPipe[_]){
-    val taskQueue = MutQueue[MessageProcTask]()
+    val taskQueue = MutQueue[Msg.RunTask[_]]()
+    var currentTask: Option[Msg.RunTask[_]] = None
     val publishers = MutMap[(ActorRef, Int), OutletData]() //((publishers tool drive, outlet ID), SubscriberData)
 
-
   }
-  case class DrivesData(drive: ActorRef){
-   var driveLoad: Int = 0
-
-
-
-  }
+//  case class DrivesData(drive: ActorRef){
+//   var driveLoad: Int = 0
+//
+//  }
 //  //Variables
 //  var state = State.Creating
 //  var stepMode = StepMode.None
 //  var workMode = WorkMode.Paused
   val outlets = MutMap[Int, OutletState]()  //(Outlet ID, OutletData)
   val inlets = MutMap[Int, InletState]()    //(Inlet ID, OutletData)
-  val subscribedDrives = MutMap[ActorRef, DrivesData]()
+//  val subscribedDrives = MutMap[ActorRef, DrivesData]()
 
 
 //  var pushTimeout: Option[Long] = None   //Time out after each pour (depend from current back pressure)
@@ -97,7 +87,7 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
 
 
   //On start
-
+  val impeller = context.actorOf(Props(new Impeller(self)), "ImpellerOf_" + toolName)
   context.watch(impeller)
 
 
@@ -121,7 +111,8 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
     //Check if all pipes connected in Building state
     case (_: Msg.PipesConnected | Msg.BuildDrive, Building) ⇒ isAllConnected match{
       case true ⇒
-        log.debug(s"[Drive.postHandling @ Building] All pipes connected, send Msg.DriveBuilt, and switch to Working mode.")
+        log.debug(
+          s"[Drive.postHandling @ Building] All pipes connected, send Msg.DriveBuilt, and switch to Working mode.")
         state = Starting
         pumping ! Msg.DriveBuilt
       case false ⇒
@@ -129,14 +120,14 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
     //Check if user start function executed in Starting state
     case (Msg.StartDrive | _: Msg.TaskDone | _: Msg.TaskFailed, Starting) ⇒ isStarted match{
       case true ⇒
-        log.debug(s"[Drive.postHandling @ Starting] Started, send Msg.DriveStarted and switch to Working mode.")
+        log.debug(
+          s"[Drive.postHandling @ Starting] Started, send Msg.DriveStarted, " +
+          s"run message processing and switch to Working mode.")
         state = Working
-
-          //TODO здесь запуск процессорования сообщений из очередй входов
-
+        startUserMessageProcessing()
         pumping ! Msg.DriveStarted
       case false ⇒
-        log.debug(s"[Drive.postHandling@ Starting] Not started yet.")}
+        log.debug(s"[Drive.postHandling @ Starting] Not started yet.")}
 
 
 
@@ -157,16 +148,17 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
     case (Msg.ConnectTo(id, initiator, outletId, inlet), Building) ⇒ connectTo(id, initiator, outletId, inlet)
     case (Msg.PipesConnected(id, inletId, outletId), Building) ⇒ pipesConnected(id, inletId, outletId)
     //Starting
-    case (Msg.TaskDone(name, time, _), Starting) ⇒ startingTaskDone(name, time)
-    case (Msg.TaskTimeout(name, time), Starting) ⇒ startingTaskTimeout(name, time)
-    case (Msg.TaskFailed(name, time, error), Starting) ⇒ startingTaskFailed(name, time, error)
+    case (Msg.TaskDone(-1, _, time, _), Starting) ⇒ startingTaskDone(time)
+    case (Msg.TaskTimeout(-1, _, time), Starting) ⇒ startingTaskTimeout(time)
+    case (Msg.TaskFailed(-1, _, time, error), Starting) ⇒ startingTaskFailed(time, error)
     //Messaging, ask from object
     case (Msg.UserData(outletId, value), state) ⇒ sender ! userDataAsk(outletId, value, state)
     //Messaging
     case (Msg.UserMessage(outletId, inletId, value), state) ⇒ userMessage(outletId, inletId, value, state)
     case (Msg.DriveLoad(drive, maxQueueSize), Starting | Working | Stopping) ⇒ driveLoad(drive, maxQueueSize)
-
-
+    case (Msg.TaskDone(inletId, _, time, _), Working | Stopping | Terminating) ⇒ messageTaskDone(inletId, time)
+    case (Msg.TaskTimeout(inletId, _, time), Working | Stopping | Terminating) ⇒ messageTaskTimeout(inletId, time)
+    case (Msg.TaskFailed(inletId, _, time, error), Working | Stopping | Terminating) ⇒ messageTaskFailed(inletId, time, error)
 
 
 

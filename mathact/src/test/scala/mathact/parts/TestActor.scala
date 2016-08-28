@@ -83,6 +83,11 @@ class TestActor(name: String, customReceive: ActorRef⇒PartialFunction[Any, Opt
       counter -= 1}
     receivedMessages = List()
     msg}
+  /** Receive given all of messages during duration and return
+    * @return - Seq[Any], received messages */
+  def expectAllMsg(implicit duration: FiniteDuration = expectMsgTimeout): List[Any] = {
+    Thread.sleep(duration.toMillis)
+    receivedMessages}
   /** Expectation of receiving of given message
     * @param msg - Any, to check
     * @param duration - FiniteDuration, wait timeout
@@ -103,6 +108,11 @@ class TestActor(name: String, customReceive: ActorRef⇒PartialFunction[Any, Opt
     val msg = opMsg.get
     assert(opMsg.get.getClass == clazz.runtimeClass, s"expected $clazz, found ${msg.getClass} ($msg)")
     msg.asInstanceOf[T]}
+  /** Expectation no messages
+    * @param duration - FiniteDuration, wait timeout */
+  def expectNoMsg(implicit duration: FiniteDuration = expectMsgTimeout): Unit = {
+    val allMsg = expectAllMsg(duration)
+    assert(allMsg.isEmpty, s"timeout ($duration) during expectNMsg while receive: $allMsg")}
   /** Watch for given actor
     * @param actor - ActorRef */
   def watch(actor: ActorRef): Unit = ref ! WatchFor(actor)

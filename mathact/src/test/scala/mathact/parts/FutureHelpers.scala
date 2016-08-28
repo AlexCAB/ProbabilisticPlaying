@@ -25,10 +25,10 @@ import scala.concurrent.{Await, Future}
 trait FutureHelpers {
   //Classes
   implicit class FutureEx[T](future: Future[T]){
-    def get(timeout: FiniteDuration = 5.second): T = Await.result(future, timeout)
-    def await(timeout: FiniteDuration = 5.second): Unit = Await.result(future, timeout)}
+    def get(timeout: Duration = 5.second): T = Await.result(future, timeout)
+    def await(timeout: Duration = 5.second): Unit = Await.result(future, timeout)}
   //Methods
-  def sleep(timeout: FiniteDuration):Unit = {
+  def sleep(timeout: Duration):Unit = {
     println(s"[FutureHelpers.sleep] Start of $timeout sleep")
     Thread.sleep(timeout.toMillis)
     println(s"[FutureHelpers.sleep] Done of $timeout sleep")}}

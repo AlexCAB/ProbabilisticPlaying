@@ -72,7 +72,7 @@ class Pumping(controller: ActorRef, sketch: Sketch, userLogging: ActorRef) exten
   val drives = MutMap[ActorRef, PumpData]()
 
 
-  stateToLog((state, stepMode, workMode))
+
   //Functions
   def calcProcessTickTimeout(speed: Double): Long = {
 
@@ -94,9 +94,8 @@ class Pumping(controller: ActorRef, sketch: Sketch, userLogging: ActorRef) exten
       //Check state
       state match{
         case State.Creating | State.Building | State.Starting | State.Work⇒
-          //New actor
-          val impeller = context.actorOf(Props(new Impeller(self)), "ImpellerOf" + name)
-          val drive = context.actorOf(Props(new Drive(pump, name, self, impeller, userLogging)), "DriveOf" + name)
+          //New drive
+          val drive = context.actorOf(Props(new Drive(pump, name, self, userLogging)), "DriveOf" + name)
           context.watch(drive)
           //Do init if pumping in started or in work stepMode
           state match{
