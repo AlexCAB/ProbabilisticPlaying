@@ -14,10 +14,8 @@
 
 package mathact.parts.plumbing.actors
 
-import akka.actor.ActorRef
-import mathact.parts.OnStart
-import mathact.parts.data.Msg
-import mathact.parts.plumbing.Pump
+import mathact.parts.{OnStop, OnStart}
+import mathact.parts.data.{TaskKind, Msg}
 
 import scala.concurrent.duration.Duration
 
@@ -27,23 +25,18 @@ import scala.concurrent.duration.Duration
   */
 
 private [mathact] trait DriveStartStop { _: Drive ⇒
-  //Parameters
-
-
   //Variables
   private var started = false
   private var stopped = false
-
   //Methods
   /** Rus staring task if defined */
-  def doStarting(): Unit = {
-    pump.tool match{
-      case task: OnStart ⇒
-        log.debug("[DriveStartStop.doStarting] Try to run starting user function.")
-        impeller ! Msg.RunTask[Unit](-1, "DoStaring", pump.startFunctionTimeout, ()⇒{ task.doStart() })
-      case _ ⇒
-        log.debug("[DriveStartStop.doStarting] Starting user function not defined, nothing to do.")
-        started = true}}
+  def doStarting(): Unit = pump.tool match{
+    case task: OnStart ⇒
+      log.debug("[DriveStartStop.doStarting] Try to run starting user function.")
+      impeller ! Msg.RunTask[Unit](TaskKind.Start, -1, pump.startFunctionTimeout, ()⇒{ task.doStart() })
+    case _ ⇒
+      log.debug("[DriveStartStop.doStarting] Starting user function not defined, nothing to do.")
+      started = true}
   /** Starting task done, set of started
     * @param execTime - Duration */
   def startingTaskDone(execTime: Duration): Unit = {
@@ -61,21 +54,34 @@ private [mathact] trait DriveStartStop { _: Drive ⇒
     log.error(s"[DriveStartStop.startingTaskTimeout] execTime: $execTime, error: $error.")
     started = true
     userLogging ! Msg.LogError(toolName, Some(error), s"Starting function failed on $execTime.")}
-
-
-
-   //TODO Здесь обработка функции завершкния
-
-
-
-
+  /** Rus stopping task if defined */
+  def doStopping(): Unit = pump.tool match{
+    case task: OnStop ⇒
+      log.debug("[DriveStartStop.doStopping] Try to run stopping user function.")
+      impeller ! Msg.RunTask[Unit](TaskKind.Stop, -1, pump.stopFunctionTimeout, ()⇒{ task.doStop() })
+    case _ ⇒
+      log.debug("[DriveStartStop.doStopping] Stopping user function not defined, nothing to do.")
+      stopped = true}
+  /** Stopping task done, set of stopped
+    * @param execTime - Duration */
+  def stoppingTaskDone(execTime: Duration): Unit = {
+    log.debug(s"[DriveStartStop.stoppingTaskDone] execTime: $execTime.")
+    stopped = true}
+  /** Stopping task timeout, log to user console
+    * @param execTime - Duration */
+  def stoppingTaskTimeout(execTime: Duration): Unit = {
+    log.warning(s"[DriveStartStop.stoppingTaskTimeout]  execTime: $execTime.")
+    userLogging ! Msg.LogWarning(toolName, s"Stopping function timeout on $execTime, keep waiting.")}
+  /** Stopping task failed, set of stopped, log to user console
+    * @param execTime - Duration
+    * @param error - Throwable */
+  def stoppingTaskFailed(execTime: Duration, error: Throwable): Unit = {
+    log.error(s"[DriveStartStop.stoppingTaskFailed] execTime: $execTime, error: $error.")
+    stopped = true
+    userLogging ! Msg.LogError(toolName, Some(error), s"Stopping function failed on $execTime.")}
   /** Check if starting user function is executed
     * @return - true if started */
   def isStarted: Boolean = started
   /** Check if stopping user function is executed
     * @return - true if stopped*/
-  def isStopped: Boolean = started
-
-  //TODO Add more
-
-}
+  def isStopped: Boolean = started}

@@ -74,13 +74,13 @@ private[mathact] object Msg {
   case class ConnectTo(connectionId: Int, initiator: ActorRef, outletId: Int, inlet: InletData) extends Msg
   case class PipesConnected(connectionId: Int, outletId: Int, inletId: Int) extends Msg
   case class UserMessage[T](outletId: Int, inletId: Int, value: T) extends Msg
-  case class DriveLoad(drive: ActorRef, maxQueueSize: Int) extends Msg
+  case class DriveLoad(subscriberId: (ActorRef, Int), outletId: Int, inletQueueSize: Int) extends Msg //subscriberId: (drive, inletId)
   //Drive - Impeller
-  case class RunTask[R](id: Int, name: String, timeout: FiniteDuration, task: ()⇒R) extends Msg
+  case class RunTask[R](kind: TaskKind, id: Int, timeout: FiniteDuration, task: ()⇒R) extends Msg
   case object SkipCurrentTask  extends Msg //Makes impeller to skip the current task, but not terminate it (impeller just will not wait for this more)
-  case class TaskDone(id: Int, name: String, execTime: FiniteDuration, taskRes: Any) extends Msg
-  case class TaskTimeout(id: Int, name: String, timeFromStart: FiniteDuration) extends Msg
-  case class TaskFailed(id: Int, name: String, execTime: FiniteDuration, error: Throwable) extends Msg
+  case class TaskDone(kind: TaskKind, id: Int, execTime: FiniteDuration, taskRes: Any) extends Msg
+  case class TaskTimeout(kind: TaskKind, id: Int, timeFromStart: FiniteDuration) extends Msg
+  case class TaskFailed(kind: TaskKind, id: Int, execTime: FiniteDuration, error: Throwable) extends Msg
   //User logging
   case class LogWarning(toolName: String, message: String) extends Msg
   case class LogError(toolName: String, error: Option[Throwable], message: String) extends Msg

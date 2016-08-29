@@ -15,7 +15,7 @@
 package mathact.parts.plumbing.actors
 
 import akka.actor.ActorRef
-import mathact.parts.data.{ActorState, Msg}
+import mathact.parts.data.{TaskKind, ActorState, Msg}
 import scala.concurrent.duration.Duration
 
 
@@ -34,20 +34,27 @@ private [mathact] trait DriveMessaging { _: Drive ⇒
 //    task = ()⇒{inlet.pipe.processValue(value)})
 
 
+  private def buildTask(inlet: InletState, value: Any): Msg.RunTask[Unit] = Msg.RunTask(
+    kind = TaskKind.Massage,
+    id = inlet.inletId,
+    timeout = pump.messageProcessingTimeout,
+    task = ()⇒{inlet.pipe.processValue(value)})
+
 
   private def enqueueMessageTask(inlet: InletState, value: Any): Unit = {
-    val newRunTask = Msg.RunTask(
-      id = inlet.inletId,
-      name = s"UserMessageTaskOnStarting",
-      timeout = pump.messageProcessingTimeout,
-      task = ()⇒{inlet.pipe.processValue(value)})
+    val newRunTask = buildTask(inlet, value)
     inlet.taskQueue.enqueue(newRunTask)
-    log.debug(s"[DriveMessaging.userMessage] Task added to the queue, task: $newRunTask, queue: ${inlet.taskQueue}")}
+    log.debug(s"[DriveMessaging.enqueueMessageTask] Task added to the queue, task: $newRunTask, queue: ${inlet.taskQueue}")}
 
 
 
+  private def runMsgTask(inlet: InletState, task: Msg.RunTask[_]): Unit = {
+    inlet.currentTask = Some(task)
+    impeller ! task
+    log.debug(s"[DriveMessaging.runMsgTask] Task runs: $task, from inlet: $inlet")}
 
-  private def runNextMsgTask(): Unit = { //Return: Is started
+
+  private def runNextMsgTask(): Option[InletState] = { //Return: inlet for which tusk runs (to call sendLoadMessage)
     //Search for inlet with max queue size
     val maxQueueInlet = inlets.values match{
       case ins if ins.isEmpty ⇒ None
@@ -57,12 +64,26 @@ private [mathact] trait DriveMessaging { _: Drive ⇒
     //Run task
     maxQueueInlet match{
       case Some(inlet) ⇒
-        val task = inlet.taskQueue.dequeue()
-        inlet.currentTask = Some(task)
-        log.debug(s"[DriveMessaging.runNextMsgTask] Run task: $task, from inlet: $inlet")
-        impeller ! task
+        runMsgTask(inlet, inlet.taskQueue.dequeue())
+        Some(inlet)
       case None ⇒
-       log.debug(s"[DriveMessaging.runNextMsgTask] No more tasks to run.")}}
+       log.debug(s"[DriveMessaging.runNextMsgTask] No more tasks to run.")
+       None}}
+
+
+
+  private def enqueueOrRunMessageTask(inlet: InletState, value: Any): Option[InletState] = { //Return: inlet for which queue changed (to call sendLoadMessage)
+    //Check if not run already
+    inlets.values.exists(_.currentTask.nonEmpty) match{
+      case false ⇒
+        val task = buildTask(inlet, value)
+        log.debug(s"[DriveMessaging.enqueueOrRunMessageTask] No other task runs, run this with no enqueue, task: $task")
+        runMsgTask(inlet, task)
+        None   //Queue not changed,  no need to call sendLoadMessage
+      case true ⇒
+        log.debug(s"[DriveMessaging.enqueueOrRunMessageTask] Some other task runs, add this to queue.")
+        enqueueMessageTask(inlet, value)
+        Some(inlet)}}
 
 
 
@@ -70,24 +91,34 @@ private [mathact] trait DriveMessaging { _: Drive ⇒
 
 
 
-  private def runMessageTaskLoop(): Unit = { //Return: Is started
+
+
+
+
+
+
+
+
+
+  private def runMessageTaskLoop(): Option[InletState] = { //Return: inlet for which tusk runs (to call sendLoadMessage)
     //Check if not run already
     inlets.values.exists(_.currentTask.nonEmpty) match{
       case false ⇒
         log.debug(s"[DriveMessaging.runMessageTaskLoop] Run for first message.")
         runNextMsgTask()
       case true ⇒
-        log.debug(s"[DriveMessaging.runMessageTaskLoop] Message task loop already runs.")}}
+        log.debug(s"[DriveMessaging.runMessageTaskLoop] Message task loop already runs.")
+        None}}
 
 
 
   private def cleanCurrentTask(inlet: InletState): Unit = {
-    log.debug(s"[DriveMessaging.messageTaskDone] Executed task: ${inlet.currentTask}.")
+    log.debug(s"[DriveMessaging.cleanCurrentTask] Executed task: ${inlet.currentTask}.")
     inlet.currentTask match{
       case Some(_) ⇒
         inlet.currentTask = None
       case None ⇒
-        log.error(s"[DriveMessaging.messageTaskDone] Not set currentTask, inlet: $inlet.")}}
+        log.error(s"[DriveMessaging.cleanCurrentTask] Not set currentTask, inlet: $inlet.")}}
 
 
 
@@ -101,21 +132,12 @@ private [mathact] trait DriveMessaging { _: Drive ⇒
   //TODO Для yменьшения количества отправленых DriveLoad, нужно использовать что то вроде ПИ
   //TODO регулятора с мёртвой зоной (чтобы DriveLoad рассылалась не по каждому измению размера очереди).
   //TODO Сейчас отправка DriveLoad на каждое измение размера очерели инлета.
-  private def sendLoadMessage(inlet: InletState, initQueueSize: Int): Unit = {
-    //Check if queue size changed
-    initQueueSize != inlet.taskQueue.size match{
-      case true ⇒
-        //Send load messages
-        inlet.publishers.values.foreach{ pub ⇒
-          val load = inlet.taskQueue.size
-          log.debug(s"[DriveMessaging.sendLoadMessage] Send DriveLoad($load), to publisher: $pub.")
-          pub.toolDrive ! Msg.DriveLoad(self, load)}
-      case false ⇒
-        //Queue size not changed
-        log.debug(s"[DriveMessaging.sendLoadMessage] Not send, taskQueue.size is not changed.")}}
-
-
-
+  private def sendLoadMessage(inlet: InletState): Unit = {
+    //Send load messages
+    inlet.publishers.values.foreach{ publisher ⇒
+      val load = inlet.taskQueue.size
+      log.debug(s"[DriveMessaging.sendLoadMessage] Send DriveLoad($load), to publisher: $publisher.")
+      publisher.toolDrive ! Msg.DriveLoad((self, inlet.inletId), publisher.pipeId, load)}}
   //Methods
   /** User data from self outlet, send to all outlet subscribers
     * @param outletId - Int, source ID
@@ -126,8 +148,8 @@ private [mathact] trait DriveMessaging { _: Drive ⇒
         outlets.get(outletId) match{
           case Some(outlet) ⇒
             //Distribution of UserMessage
-            outlet.subscribers.values.foreach{ inlet ⇒
-              inlet.toolDrive ! Msg.UserMessage(outletId, inlet.pipeId, value)}
+            outlet.subscribers.values.foreach{ subscriber ⇒
+              subscriber.inlet.toolDrive ! Msg.UserMessage(outletId, subscriber.inlet.pipeId, value)}
             //Push timeout
             log.debug(
               s"[DriveMessaging.userDataAsk] Data: $value, sent from outletId: $outletId to " +
@@ -154,15 +176,11 @@ private [mathact] trait DriveMessaging { _: Drive ⇒
       state match{
         case ActorState.Starting ⇒
           //Add task to the queue and reply with load message
-          val initQueueSize = inlet.taskQueue.size
           enqueueMessageTask(inlet, value)
-          sendLoadMessage(inlet, initQueueSize)
+          sendLoadMessage(inlet)
         case ActorState.Working | ActorState.Stopping ⇒
           //Put in queue, start processing and reply with DriveLoad
-          val initQueueSize = inlet.taskQueue.size
-          enqueueMessageTask(inlet, value)
-          runMessageTaskLoop()
-          sendLoadMessage(inlet, initQueueSize)
+          enqueueOrRunMessageTask(inlet, value).foreach(inlet ⇒ sendLoadMessage(inlet))
         case s ⇒
           //Incorrect state
           log.error(s"[DriveMessaging.userMessage] Incorrect state: $s, required Starting, Working or Stopping")}
@@ -173,67 +191,60 @@ private [mathact] trait DriveMessaging { _: Drive ⇒
   def startUserMessageProcessing(): Unit = {
     //Run for firs message
     log.error(s"[DriveMessaging.startUserMessageProcessing] Call runMessageTaskLoop().")
-    runMessageTaskLoop()}
+    runMessageTaskLoop().foreach(inlet ⇒ sendLoadMessage(inlet))}
   /** Message processing done, run next task
     * @param inletId - Int
     * @param execTime - Duration */
   def messageTaskDone(inletId: Int, execTime: Duration): Unit = inlets.get(inletId) match{
     case Some(inlet) ⇒
+      log.debug(
+        s"[DriveMessaging.messageTaskFailed] inlet: $inlet, execTime: $execTime, " +
+        s"currentTask: ${inlet.currentTask}, taskQueue: ${inlet.taskQueue}.")
       //Remove current, run next task and send load message
-      val initQueueSize = inlet.taskQueue.size
       cleanCurrentTask(inlet)
-      runNextMsgTask()
-      sendLoadMessage(inlet, initQueueSize)
+      runNextMsgTask().foreach(inlet ⇒ sendLoadMessage(inlet))
     case None ⇒
       //Incorrect inletId
       log.error(s"[DriveMessaging.messageTaskDone] Inlet with inletId: $inletId, not exist.")}
+  /** Message processing take to long time, send warning to user logger
+    * @param inletId - Int
+    * @param execTime - Duration */
+  def messageTaskTimeout(inletId: Int, execTime: Duration): Unit = inlets.get(inletId) match{
+    case Some(inlet) ⇒
+      //Send log message
+      log.warning(s"[DriveMessaging.messageTaskTimeout] inlet: $inlet, execTime: $execTime.")
+      userLogging ! Msg.LogWarning(
+        toolName,
+        s"Message handling timeout for ${inlet.name.getOrElse("")} inlet, on '$execTime', keep waiting.")
+    case None ⇒
+      //Incorrect inletId
+      log.error(s"[DriveMessaging.messageTaskTimeout] Inlet with inletId: $inletId, not exist.")}
+  /** Message processing end with error, send error to user logger
+    * @param inletId - Int
+    * @param execTime - Duration
+    * @param error - Throwable */
+  def messageTaskFailed(inletId: Int, execTime: Duration, error: Throwable): Unit = inlets.get(inletId) match{
+    case Some(inlet) ⇒
+      log.error(
+        s"[DriveMessaging.messageTaskFailed] inlet: $inlet, execTime: $execTime, error: $error, " +
+        s"currentTask: ${inlet.currentTask}, taskQueue: ${inlet.taskQueue}.")
+      //Remove current, run next task and send load message
+      cleanCurrentTask(inlet)
+      runNextMsgTask().foreach(inlet ⇒ sendLoadMessage(inlet))
+      //Send log message
+      userLogging ! Msg.LogError(
+        toolName,
+        Some(error),
+        s"Message handling fail for ${inlet.name.getOrElse("")} inlet, on '$execTime'.")
+    case None ⇒
+      //Incorrect inletId
+      log.error(s"[DriveMessaging.messageTaskFailed] Inlet with inletId: $inletId, not exist.")}
+  /** Check if no messages to process
+    * @return - true if so */
+  def isAllMsgProcessed: Boolean =
+    inlets.values.forall(inlet ⇒ inlet.taskQueue.isEmpty && inlet.currentTask.isEmpty)
 
 
-
-
-
-  def messageTaskTimeout(inletId: Int, execTime: Duration): Unit = {
-
-    ???
-
-  }
-
-  def messageTaskFailed(inletId: Int, execTime: Duration, error: Throwable): Unit = {
-
-    ???
-
-  }
-
-
-
-
-
-
-//    ???
-//
-//    case Msg.UserMessage(outletId, inletId, value) ⇒
-//
-//
-//
-//
-//
-//    inlets.get(inletId) match{
-//      case Some(inlet) ⇒
-//        //Reply with load message
-//        val maxQueueSize = inlets.values.map(_.taskQueue.size).max
-//        sender ! Msg.DriveLoad(self, maxQueueSize)
-//        //Add task to the queue
-//        val newRunTask = MessageProcTask(nextLongId, inlet, publisher = (sender, outletId), value)
-//        inlet.taskQueue += newRunTask
-//        log.debug(s"[UserMessage] Task added to the queue, task: $newRunTask, queue: ${inlet.taskQueue}")
-//        //If queue is empty and state is Running, send task to impeller
-//        (maxQueueSize, workMode) match{
-//          case (0, WorkMode.Runned) ⇒
-//            runNextMsgTask()
-//          case _ ⇒
-//            log.debug(s"[UserMessage] Task not send to impeller, maxQueueSize: $maxQueueSize, workMode: $workMode")}
-//      case None ⇒ log.error(s"[UserMessage] Inlet with outletId: $inletId, not exist.")}
-//
 
 
 
@@ -251,14 +262,28 @@ private [mathact] trait DriveMessaging { _: Drive ⇒
 
 
   /** Inlet drive load, update back pressure time out for given drive.
-    * @param drive - ActorRef, queue of which drive is
-    * @param maxQueueSize - Int */
-  def driveLoad(drive: ActorRef, maxQueueSize: Int): Unit = {
+    * @param subscriberId - (subscriber ActorRef, inlet ID Int), connected drive-subscriber
+    * @param outletId - Int, connected outlet
+    * @param inletQueueSize - Int */
+  def driveLoad(subscriberId: (ActorRef, Int), outletId: Int, inletQueueSize: Int): Unit = outlets.get(outletId) match{
+    case Some(outlet) ⇒ outlet.subscribers.get(subscriberId) match{
+      case Some(subscriber) ⇒
+        log.debug(
+          s"[DriveMessaging.driveLoad] Outlet: $outlet, old pushTimeout: ${outlet.pushTimeout}, " +
+          s" subscriber: $subscriber, old inletQueueSize: ${subscriber.inletQueueSize}")
+        //Update subscriber inletQueueSize
+        subscriber.inletQueueSize = inletQueueSize
+        log.debug(s"[DriveMessaging.driveLoad] Subscriber: $subscriber, new inletQueueSize: $inletQueueSize")
+        //Re-evaluate of pushTimeout
 
-    ???
 
-  }
-
+        ??? //TODO  пересчёт вемени
 
 
-}
+        log.debug(s"[DriveMessaging.driveLoad] Outlet: $outlet, new pushTimeout: ${outlet.pushTimeout}")
+      case None ⇒
+        //Incorrect subscriberId
+        log.error(s"[DriveMessaging.driveLoad] Subscriber with subscriberId: $subscriberId, not exist.")}
+    case None ⇒
+      //Incorrect outletId
+      log.error(s"[DriveMessaging.driveLoad] Outlet with outletId: $outletId, not exist.")}}

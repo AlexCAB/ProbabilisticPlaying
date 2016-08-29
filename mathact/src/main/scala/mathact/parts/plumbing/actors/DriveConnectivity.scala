@@ -77,7 +77,7 @@ private [mathact] trait DriveConnectivity { _: Drive ⇒
     .get(outletId) match{
       case Some(outlet) ⇒
         val inDrive = inlet.toolDrive
-        outlet.subscribers += ((inDrive, inlet.pipeId) → inlet)
+        outlet.subscribers += ((inDrive, inlet.pipeId) → SubscriberData((inDrive, inlet.pipeId), inlet))
 //        subscribedDrives.getOrElse(inDrive, {subscribedDrives += (inDrive → DrivesData(inDrive))})
         initiator ! Msg.PipesConnected(connectionId, outletId, inlet.pipeId)
         log.debug(s"[ConnectTo] Connection added, from: $outlet, to: $inlet")

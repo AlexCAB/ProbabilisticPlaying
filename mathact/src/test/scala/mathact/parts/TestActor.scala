@@ -64,6 +64,10 @@ class TestActor(name: String, customReceive: ActorRef⇒PartialFunction[Any, Opt
       assert(data.get == msg, s"expected $msg, found ${data.get}")
       data.get}}
   //Methods
+  /** Clean old messages */
+  def clean(): Unit = {
+    receivedMessages = List()
+    processedMessages = List()}
   /** Sending of any message to given actor
     * @param to - ActorRef, target actor
     * @param msg - Any, message */

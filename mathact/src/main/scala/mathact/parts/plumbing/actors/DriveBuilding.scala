@@ -22,7 +22,7 @@ import mathact.parts.plumbing.fitting.{InPipe, OutPipe}
   * Created by CAB on 22.08.2016.
   */
 
-private [mathact] trait DriveConstruction { _: Drive ⇒
+private [mathact] trait DriveBuilding { _: Drive ⇒
   /** Adding of new outlet, called from object
     * @param pipe - Outlet[_]
     * @param name - Option[String]
@@ -35,16 +35,16 @@ private [mathact] trait DriveConstruction { _: Drive ⇒
           //Create and add
           val id = nextIntId
           outlets += (id → OutletState(id, name, pipe))
-          log.debug(s"[DriveConstruction.addOutletAsk] Outlet: $pipe, added with ID: $id")
+          log.debug(s"[DriveBuilding.addOutletAsk] Outlet: $pipe, added with ID: $id")
           Right(id)
         case o :: _ ⇒
           //Double creating
-          val msg = s"[DriveConstruction.addOutletAsk] Outlet: $pipe, is registered more then once"
+          val msg = s"[DriveBuilding.addOutletAsk] Outlet: $pipe, is registered more then once"
           log.error(msg)
           Left(new IllegalArgumentException(msg))}
     case s ⇒
       //Incorrect state
-      val msg = s"[DriveConstruction.addOutletAsk] Incorrect state $s, required Building"
+      val msg = s"[DriveBuilding.addOutletAsk] Incorrect state $s, required Building"
       log.error(msg)
       Left(new IllegalStateException(msg))}
   /** Adding of new inlet, called from object
@@ -59,15 +59,31 @@ private [mathact] trait DriveConstruction { _: Drive ⇒
           //Create and add
           val id = nextIntId
           inlets += (id → InletState(id, name, pipe))
-          log.debug(s"[DriveConstruction.addInletAsk] Inlet: $pipe, added with ID: $id")
+          log.debug(s"[DriveBuilding.addInletAsk] Inlet: $pipe, added with ID: $id")
           Right(id)
         case o :: _ ⇒
           //Double creating
-          val msg = s"[DriveConstruction.addInletAsk] Inlet: $pipe, is registered more then once"
+          val msg = s"[DriveBuilding.addInletAsk] Inlet: $pipe, is registered more then once"
           log.error(msg)
           Left(new IllegalArgumentException(msg))}
     case s ⇒
       //Incorrect state
-      val msg = s"[DriveConstruction.addInletAsk] Incorrect state $s, required Building"
+      val msg = s"[DriveBuilding.addInletAsk] Incorrect state $s, required Building"
       log.error(msg)
-      Left(new IllegalStateException(msg))}}
+      Left(new IllegalStateException(msg))}
+
+
+  /** Terminating of this drive, currently here only logging */
+  def doTerminating(): Unit = {
+    log.debug(s"[DriveBuilding.doTerminating] Start of terminating of drive.")}
+
+
+
+
+
+
+
+
+
+
+}

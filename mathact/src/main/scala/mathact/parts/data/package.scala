@@ -29,6 +29,9 @@ package object data {
   //WorkMode
   object WorkMode extends Enumeration {val Paused, Runned, Stopping = Value}
   type WorkMode = WorkMode.Value
+  //TaskKind
+  object TaskKind extends Enumeration {val Start, Massage, Stop = Value}
+  type TaskKind = TaskKind.Value
 
 //TODO Add more
 

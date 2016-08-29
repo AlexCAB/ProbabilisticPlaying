@@ -35,8 +35,9 @@ private [mathact] class Drive(
   val pumping: ActorRef,
   val userLogging: ActorRef)
 extends StateActorBase(ActorState.Building) with IdGenerator
-with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMessaging{
+with DriveBuilding with DriveConnectivity with DriveStartStop with DriveMessaging{
   import ActorState._
+  import TaskKind._
   //Parameter
 
 
@@ -52,8 +53,13 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
 
 
   //Definitions
+  case class SubscriberData(id: (ActorRef, Int), inlet: InletData){
+    var inletQueueSize: Int = 0
+  }
+
+
   case class OutletState(outletId: Int, name: Option[String], pipe: OutPipe[_]){
-    val subscribers = MutMap[(ActorRef, Int), InletData]() //((subscribe tool drive, inlet ID), SubscriberData)
+    val subscribers = MutMap[(ActorRef, Int), SubscriberData]() //((subscribe tool drive, inlet ID), SubscriberData)
     var pushTimeout: Option[Long] = None
 
   }
@@ -98,12 +104,16 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
   //Receives
   /** Reaction on StateMsg'es */
   def onStateMsg: PartialFunction[StateMsg, Unit] = {
-    case Msg.BuildDrive ⇒ doConnectivity()
-    case Msg.StartDrive ⇒ doStarting()
+    case Msg.BuildDrive ⇒
+      doConnectivity()
+    case Msg.StartDrive ⇒
+      doStarting()
     case Msg.StopDrive ⇒
+      state = Stopping
+      doStopping()
     case Msg.TerminateDrive ⇒
-
-
+      state = Terminating
+      doTerminating()
   }
 
   /** Handling after reaction executed */
@@ -128,11 +138,21 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
         pumping ! Msg.DriveStarted
       case false ⇒
         log.debug(s"[Drive.postHandling @ Starting] Not started yet.")}
-
-
-
-
-
+    //Check if user stop function executed in Stopping state
+    case (Msg.StopDrive | _: Msg.TaskDone | _: Msg.TaskFailed, Stopping) ⇒ isStopped match{
+      case true ⇒
+        log.debug(s"[Drive.postHandling @ Stopping] Stopped, send Msg.DriveStopped")
+        pumping ! Msg.DriveStopped
+      case false ⇒
+        log.debug(s"[Drive.postHandling @ Stopping] Not stopped yet.")}
+    //Check if all message queues is empty in Terminating, and if so do terminating
+    case (Msg.TerminateDrive | _: Msg.TaskDone | _: Msg.TaskFailed, Terminating) ⇒ isAllMsgProcessed match{
+      case true ⇒
+        log.debug(s"[Drive.postHandling @ Terminating] Terminated, send Msg.DriveTerminated, and PoisonPill")
+        pumping ! Msg.DriveTerminated
+        self ! PoisonPill
+      case false ⇒
+        log.debug(s"[Drive.postHandling @ Terminating] Not terminated yet.")}
 
   }
 
@@ -148,17 +168,21 @@ with DriveConstruction with DriveConnectivity with DriveStartStop with DriveMess
     case (Msg.ConnectTo(id, initiator, outletId, inlet), Building) ⇒ connectTo(id, initiator, outletId, inlet)
     case (Msg.PipesConnected(id, inletId, outletId), Building) ⇒ pipesConnected(id, inletId, outletId)
     //Starting
-    case (Msg.TaskDone(-1, _, time, _), Starting) ⇒ startingTaskDone(time)
-    case (Msg.TaskTimeout(-1, _, time), Starting) ⇒ startingTaskTimeout(time)
-    case (Msg.TaskFailed(-1, _, time, error), Starting) ⇒ startingTaskFailed(time, error)
+    case (Msg.TaskDone(Start, _, time, _), Starting) ⇒ startingTaskDone(time)
+    case (Msg.TaskTimeout(Start, _, time), Starting) ⇒ startingTaskTimeout(time)
+    case (Msg.TaskFailed(Start, _, time, error), Starting) ⇒ startingTaskFailed(time, error)
     //Messaging, ask from object
     case (Msg.UserData(outletId, value), state) ⇒ sender ! userDataAsk(outletId, value, state)
     //Messaging
     case (Msg.UserMessage(outletId, inletId, value), state) ⇒ userMessage(outletId, inletId, value, state)
-    case (Msg.DriveLoad(drive, maxQueueSize), Starting | Working | Stopping) ⇒ driveLoad(drive, maxQueueSize)
-    case (Msg.TaskDone(inletId, _, time, _), Working | Stopping | Terminating) ⇒ messageTaskDone(inletId, time)
-    case (Msg.TaskTimeout(inletId, _, time), Working | Stopping | Terminating) ⇒ messageTaskTimeout(inletId, time)
-    case (Msg.TaskFailed(inletId, _, time, error), Working | Stopping | Terminating) ⇒ messageTaskFailed(inletId, time, error)
+    case (Msg.DriveLoad(sub, outId, queueSize), Starting | Working | Stopping) ⇒ driveLoad(sub, outId, queueSize)
+    case (Msg.TaskDone(Massage, inletId, time, _), Working | Stopping | Terminating) ⇒ messageTaskDone(inletId, time)
+    case (Msg.TaskTimeout(Massage, inId, time), Working | Stopping | Terminating) ⇒ messageTaskTimeout(inId, time)
+    case (Msg.TaskFailed(Massage, inId, t, err), Working | Stopping | Terminating) ⇒ messageTaskFailed(inId, t, err)
+    //Stopping
+    case (Msg.TaskDone(Stop, _, time, _), Stopping) ⇒ stoppingTaskDone(time)
+    case (Msg.TaskTimeout(Stop, _, time), Stopping) ⇒ stoppingTaskTimeout(time)
+    case (Msg.TaskFailed(Stop, _, time, error), Stopping) ⇒ stoppingTaskFailed(time, error)
 
 
 
