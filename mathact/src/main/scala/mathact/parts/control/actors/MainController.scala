@@ -57,7 +57,7 @@ class MainController(doStop: Int⇒Unit, config: Config) extends ActorBase{
   //Functions
   def setCurrentSketchState(newStat: SketchStatus): Unit = currentSketch.foreach{ cs ⇒
     sketches = sketches.map{
-      case s if s.className == cs.sketch.className ⇒ s.withStatus(newStat)
+      case s if s.className == cs.sketch.className ⇒ s.copy(status = newStat)
       case s ⇒ s}}
   def cleanCurrentSketch(): Unit = {
     currentSketch.foreach(_.controller.foreach(_ ! Msg.StopWorkbenchController))

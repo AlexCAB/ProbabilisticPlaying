@@ -99,25 +99,4 @@ class Pump(context: WorkbenchContext, val tool: Fitting, val toolName: String, v
             Thread.sleep(d)}
           catch {case e: InterruptedException ⇒
             akkaLog.error(s"[Pump.pushUserMessage] Error on Thread.sleep, msg: $msg, error: $e")
-            Thread.currentThread().interrupt()}}})
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  //Нужно добавиь ещё один актор который будет следить за нагрузкой impeller, и регулировать
-    //влечену очереди (подход с обратным давлением)
-    //Нужно предусмотреть след режыми работы: синхронный жосткий, синхронный мягкий (без подтверждений выполения итерации)
-    //и асинхронный.
-
-
-}
+            Thread.currentThread().interrupt()}}})}

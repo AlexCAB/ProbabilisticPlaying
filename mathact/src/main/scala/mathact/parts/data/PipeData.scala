@@ -17,8 +17,10 @@ package mathact.parts.data
 import akka.actor.ActorRef
 
 
-/** Inlet data
-  * Created by CAB on 24.08.2016.
+/** Pipe data
+  * Created by CAB on 05.07.2016.
   */
+
+case class OutletData(toolDrive: ActorRef, toolName: String, pipeId: Int, pipeName: Option[String])
 
 case class InletData(toolDrive: ActorRef, toolName: String, pipeId: Int, pipeName: Option[String])

@@ -15,10 +15,9 @@
 package mathact.parts.plumbing.actors
 
 import akka.actor.ActorRef
-import mathact.parts.IdGenerator
 import mathact.parts.data.{ActorState, InletData, OutletData, Msg}
 import mathact.parts.plumbing.fitting._
-import scala.collection.mutable.{Map ⇒ MutMap, Queue ⇒ MutQueue}
+import scala.collection.mutable.{Map ⇒ MutMap}
 
 
 /** Handling of connections and disconnections
@@ -26,11 +25,8 @@ import scala.collection.mutable.{Map ⇒ MutMap, Queue ⇒ MutQueue}
   */
 
 private [mathact] trait DriveConnectivity { _: Drive ⇒
-
-
   //Variables
   private val pendingConnections = MutMap[Int, Msg.ConnectPipes]()
-
   //Methods
   /** Adding of ConnectPipes to pending connections
     * @param message = ConnectPipes */
@@ -78,7 +74,6 @@ private [mathact] trait DriveConnectivity { _: Drive ⇒
       case Some(outlet) ⇒
         val inDrive = inlet.toolDrive
         outlet.subscribers += ((inDrive, inlet.pipeId) → SubscriberData((inDrive, inlet.pipeId), inlet))
-//        subscribedDrives.getOrElse(inDrive, {subscribedDrives += (inDrive → DrivesData(inDrive))})
         initiator ! Msg.PipesConnected(connectionId, outletId, inlet.pipeId)
         log.debug(s"[ConnectTo] Connection added, from: $outlet, to: $inlet")
       case None ⇒
@@ -97,14 +92,6 @@ private [mathact] trait DriveConnectivity { _: Drive ⇒
   /** Check if all connections connected
     * @return - true if all connected */
   def isAllConnected: Boolean = pendingConnections.isEmpty
-
-
-  def getPendingList: Map[Int, Msg.ConnectPipes] = pendingConnections.toMap
-
-
-
-
-
-
-
-}
+  /** Get of pending list, used in test
+    * @return -  Map[Int, Msg.ConnectPipes] */
+  def getPendingList: Map[Int, Msg.ConnectPipes] = pendingConnections.toMap}

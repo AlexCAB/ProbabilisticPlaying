@@ -23,10 +23,14 @@ trait ActorState
 
 object ActorState{
   case object Building extends ActorState
+  case object Built extends ActorState
   case object Starting extends ActorState
+  case object Started extends ActorState
   case object Working extends ActorState
   case object Stopping extends ActorState
+  case object Stopped extends ActorState
   case object Terminating extends ActorState
+  case object Terminated extends ActorState
 
 
 

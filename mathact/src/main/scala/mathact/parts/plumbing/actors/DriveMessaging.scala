@@ -25,35 +25,19 @@ import scala.concurrent.duration.Duration
 
 private [mathact] trait DriveMessaging { _: Drive ⇒
   //Functions
-
-//  inlet.currentTask = Some(inlet.taskQueue.dequeue())
-//  val task = Msg.RunTask(
-//    id = inlet.inletId,
-//    name = s"UserMessageTask",
-//    timeout = pump.messageProcessingTimeout,
-//    task = ()⇒{inlet.pipe.processValue(value)})
-
-
   private def buildTask(inlet: InletState, value: Any): Msg.RunTask[Unit] = Msg.RunTask(
     kind = TaskKind.Massage,
     id = inlet.inletId,
     timeout = pump.messageProcessingTimeout,
     task = ()⇒{inlet.pipe.processValue(value)})
-
-
   private def enqueueMessageTask(inlet: InletState, value: Any): Unit = {
     val newRunTask = buildTask(inlet, value)
     inlet.taskQueue.enqueue(newRunTask)
     log.debug(s"[DriveMessaging.enqueueMessageTask] Task added to the queue, task: $newRunTask, queue: ${inlet.taskQueue}")}
-
-
-
   private def runMsgTask(inlet: InletState, task: Msg.RunTask[_]): Unit = {
     inlet.currentTask = Some(task)
     impeller ! task
     log.debug(s"[DriveMessaging.runMsgTask] Task runs: $task, from inlet: $inlet")}
-
-
   private def runNextMsgTask(): Option[InletState] = { //Return: inlet for which tusk runs (to call sendLoadMessage)
     //Search for inlet with max queue size
     val maxQueueInlet = inlets.values match{
@@ -69,9 +53,6 @@ private [mathact] trait DriveMessaging { _: Drive ⇒
       case None ⇒
        log.debug(s"[DriveMessaging.runNextMsgTask] No more tasks to run.")
        None}}
-
-
-
   private def enqueueOrRunMessageTask(inlet: InletState, value: Any): Option[InletState] = { //Return: inlet for which queue changed (to call sendLoadMessage)
     //Check if not run already
     inlets.values.exists(_.currentTask.nonEmpty) match{
@@ -84,22 +65,6 @@ private [mathact] trait DriveMessaging { _: Drive ⇒
         log.debug(s"[DriveMessaging.enqueueOrRunMessageTask] Some other task runs, add this to queue.")
         enqueueMessageTask(inlet, value)
         Some(inlet)}}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   private def runMessageTaskLoop(): Option[InletState] = { //Return: inlet for which tusk runs (to call sendLoadMessage)
     //Check if not run already
     inlets.values.exists(_.currentTask.nonEmpty) match{
@@ -109,9 +74,6 @@ private [mathact] trait DriveMessaging { _: Drive ⇒
       case true ⇒
         log.debug(s"[DriveMessaging.runMessageTaskLoop] Message task loop already runs.")
         None}}
-
-
-
   private def cleanCurrentTask(inlet: InletState): Unit = {
     log.debug(s"[DriveMessaging.cleanCurrentTask] Executed task: ${inlet.currentTask}.")
     inlet.currentTask match{
@@ -119,17 +81,7 @@ private [mathact] trait DriveMessaging { _: Drive ⇒
         inlet.currentTask = None
       case None ⇒
         log.error(s"[DriveMessaging.cleanCurrentTask] Not set currentTask, inlet: $inlet.")}}
-
-
-
-
-
-
-
-
-
-
-  //TODO Для yменьшения количества отправленых DriveLoad, нужно использовать что то вроде ПИ
+  //TODO Для уменьшения количества отправленых DriveLoad, нужно использовать что то вроде ПИ
   //TODO регулятора с мёртвой зоной (чтобы DriveLoad рассылалась не по каждому измению размера очереди).
   //TODO Сейчас отправка DriveLoad на каждое измение размера очерели инлета.
   private def sendLoadMessage(inlet: InletState): Unit = {
@@ -243,24 +195,6 @@ private [mathact] trait DriveMessaging { _: Drive ⇒
     * @return - true if so */
   def isAllMsgProcessed: Boolean =
     inlets.values.forall(inlet ⇒ inlet.taskQueue.isEmpty && inlet.currentTask.isEmpty)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   /** Inlet drive load, update back pressure time out for given drive.
     * @param subscriberId - (subscriber ActorRef, inlet ID Int), connected drive-subscriber
     * @param outletId - Int, connected outlet
@@ -275,11 +209,9 @@ private [mathact] trait DriveMessaging { _: Drive ⇒
         subscriber.inletQueueSize = inletQueueSize
         log.debug(s"[DriveMessaging.driveLoad] Subscriber: $subscriber, new inletQueueSize: $inletQueueSize")
         //Re-evaluate of pushTimeout
-
-
-        ??? //TODO  пересчёт вемени
-
-
+        outlet.pushTimeout = outlet.subscribers.values.map(_.inletQueueSize).max match{
+          case mqs if mqs > 0 ⇒ Some(mqs * pump.pushTimeoutCoefficient)
+          case _ ⇒ None}
         log.debug(s"[DriveMessaging.driveLoad] Outlet: $outlet, new pushTimeout: ${outlet.pushTimeout}")
       case None ⇒
         //Incorrect subscriberId

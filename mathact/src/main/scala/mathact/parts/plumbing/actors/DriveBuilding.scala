@@ -71,19 +71,6 @@ private [mathact] trait DriveBuilding { _: Drive ⇒
       val msg = s"[DriveBuilding.addInletAsk] Incorrect state $s, required Building"
       log.error(msg)
       Left(new IllegalStateException(msg))}
-
-
   /** Terminating of this drive, currently here only logging */
   def doTerminating(): Unit = {
-    log.debug(s"[DriveBuilding.doTerminating] Start of terminating of drive.")}
-
-
-
-
-
-
-
-
-
-
-}
+    log.debug(s"[DriveBuilding.doTerminating] Start of terminating of drive.")}}

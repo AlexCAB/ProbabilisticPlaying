@@ -51,8 +51,8 @@ abstract class SelectSketchWindow(log: LoggingAdapter) extends JFXInteraction {
     //Definitions
     class SketchData(sketch: Sketch, onHit: String⇒Unit){
       val className = sketch.className
-      val name = sketch.sName.getOrElse(className)
-      val description = sketch.sDesc.getOrElse("---")
+      val name = sketch.sketchName.getOrElse(className)
+      val description = sketch.sketchDesc.getOrElse("---")
       val status = sketch.status match{
         case SketchStatus.Autorun ⇒ "autorun"
         case SketchStatus.Ready ⇒ "ready"

@@ -38,7 +38,7 @@ abstract class StateActorBase(initState: ActorState) extends Actor{
   def state_= (s: ActorState):Unit = {currentState = s}
   //Receives
   /** Reaction on StateMsg'es */
-  def onStateMsg: PartialFunction[StateMsg, Unit]
+  def onStateMsg: PartialFunction[(StateMsg, ActorState), Unit]
   /** Handling after reaction executed */
   def reaction: PartialFunction[(Msg, ActorState), Unit]
   /** Actor reaction on messages */
@@ -47,8 +47,8 @@ abstract class StateActorBase(initState: ActorState) extends Actor{
   def receive: PartialFunction[Any, Unit] = {
     case message: StateMsg ⇒
       log.debug(s"STATE MESSAGE: $message, FROM: $sender, CURRENT STATE: $currentState")
-      onStateMsg.applyOrElse[StateMsg, Unit](
-        message,
+      onStateMsg.applyOrElse[(StateMsg, ActorState), Unit](
+        (message, currentState),
         _ ⇒ log.error(s"LAST STATE MESSAGE NOT HANDLED: $message"))
       postHandling.applyOrElse[(Msg, ActorState), Unit](
         (message, currentState),

@@ -51,18 +51,24 @@ class WorkbenchController(sketch: Sketch, mainController: ActorRef, config: Conf
   var state: State.Value = State.Creating
 
 
+  //TODO SketchControlWindow, бутет иметь три кнопки:
+  //TODO    "Показать UI всех тнструментов",
+  //TODO    "Пропусть функции с таймаутом",
+  //TODO    "Остановить" - останавливает скетч но не закрывает окно (кнопка окна и закрывает и останавливает)
+
+
   //UI definitions
   val uiSketchControl = new SketchControlWindow(log){
-    def hitStart(): Unit = {self ! Msg.HitStart}
-    def hitStop(): Unit = {self ! Msg.HitStop}
-    def hitStep(): Unit = {self ! Msg.HitStep}
-    def setSpeed(value: Double) = {self ! Msg.SetSpeed(value)}
-    def switchMode(stepMode: StepMode) = {self ! Msg.SwitchStepMode(stepMode)}
+    def hitStart(): Unit = ??? //{self ! Msg.HitStart}
+    def hitStop(): Unit =  ??? //{self ! Msg.HitStop}
+    def hitStep(): Unit =  ??? //{self ! Msg.HitStep}
+    def setSpeed(value: Double) =  ??? //{self ! Msg.SetSpeed(value)}
+    def switchMode(stepMode: StepMode) =  ??? //{self ! Msg.SwitchStepMode(stepMode)}
     def windowClosed(): Unit = {self ! HitWindowClose}}
   //Actors
   val userLogging = context.actorOf(Props(new UserLogging(self)), "UserLogging_" + sketch.className)
   context.watch(userLogging)
-  val pumping = context.actorOf(Props(new Pumping(self, sketch, userLogging)), "Pumping_" + sketch.className)
+  val pumping = context.actorOf(Props(new Pumping(self,  ???, userLogging)), "Pumping_" + sketch.className)
   context.watch(pumping)
   //Messages handling
   def reaction = {
@@ -75,79 +81,79 @@ class WorkbenchController(sketch: Sketch, mainController: ActorRef, config: Conf
       tryToRun{uiSketchControl.init()} match{
         case Success(_) ⇒
           //Starting of Pumping
-          pumping ! Msg.StartPumping(uiSketchControl.getInitWorkMode, uiSketchControl.getInitSpeed)
+          ??? //pumping ! Msg.StartPumping(uiSketchControl.getInitWorkMode, uiSketchControl.getInitSpeed)
           state = State.Starting
         case Failure(e) ⇒
           //Fail on create UI
           self ! ErrorStop(e)}
     //Pumping is ready
-    case Msg.PumpingStarted(workMode) if state == State.Starting ⇒
-      //Enable UI
-      tryToRun{uiSketchControl.setReady(workMode)} match{
-        case Success(_) ⇒
-          //If autorun then start Pumping
-
-          // Добавить autorun метод в Workbench DSL и получать его знаение, если аквтозапуск то посылка Msg.HitStart
-          // Также добавить в DSL методы ля установки InitWorkMode InitSpeed
-
-          //Update state
-          state = State.Work
-        case Failure(e) ⇒
-          self ! ErrorStop(e)}
-
-
-
-       //!!!Далее здесь,
-       // 1) Если автозапуск установлен, посилка сообщения Msg.HitStart
-       // 2) Обработка ошибок и завершения работы pumping-га
-       //    Нормальное завершение это саморазрушение (детектится по Terminated) в состоянии Stopping,
-       //    иначе аварийное завршение.
-       //    Аварийное завршение pumping-га приводи только к соответсвующему сообщению в UI логе. Для завершения
-       //    пользоватль всегда нажымает "закрыть" (чтобы он мог прочитаь лог).
-       // 3) Окно лога в UI должно быть многостроковым чтобы пользователь могпростматировать всю историю запуска
-       //    и выполнения скетча.
-       //    Так же нужно подсвечивать
-
-
-    //UI events passed to Pumping
-    case Msg.HitStart if state == State.Work ⇒
-      pumping ! Msg.HitStart
-    case Msg.HitStop if state == State.Work ⇒
-      pumping ! Msg.HitStop
-    case Msg.HitStep if state == State.Work ⇒
-      pumping ! Msg.HitStep
-    case Msg.SetSpeed(v) if state == State.Work ⇒
-      pumping ! Msg.SetSpeed(v)
-    case Msg.SwitchStepMode(v) if state == State.Work ⇒
-      pumping ! Msg.SwitchStepMode(v)
-    //Mode switched
-    case Msg.StepModeSwitched(stepMode) if state == State.Work ⇒
-      log.debug(s"[StepModeSwitched] Step mode updated to: $stepMode, enable UI.")
-      uiSketchControl.setReady(stepMode)
-    case Msg.PumpingStepDone if state == State.Work ⇒
-      log.debug(s"[PumpingStepDone] Enable UI step button.")
-      uiSketchControl.setStepButtonEnabled(true)
-    case Msg.PumpingStarted if state == State.Work ⇒
-      log.debug(s"[PumpingStepDone] Enable UI stop button.")
-      uiSketchControl.setStopButtonEnabled(true)
-    case Msg.PumpingStopped(stepMode) if state == State.Work ⇒
-      log.debug(s"[PumpingStopped] Enable UI run and step button, stepMode: $stepMode.")
-      uiSketchControl.setReady(stepMode)
-
-
-
-
-
-
-
-
-
-
-
-
-
-    //PumpingError(error: Throwable)
-    case Msg.PumpingError(error) ⇒
+//    case Msg.PumpingStarted(workMode) if state == State.Starting ⇒
+//      //Enable UI
+//      tryToRun{uiSketchControl.setReady(workMode)} match{
+//        case Success(_) ⇒
+//          //If autorun then start Pumping
+//
+//          // Добавить autorun метод в Workbench DSL и получать его знаение, если аквтозапуск то посылка Msg.HitStart
+//          // Также добавить в DSL методы ля установки InitWorkMode InitSpeed
+//
+//          //Update state
+//          state = State.Work
+//        case Failure(e) ⇒
+//          self ! ErrorStop(e)}
+//
+//
+//
+//       //!!!Далее здесь,
+//       // 1) Если автозапуск установлен, посилка сообщения Msg.HitStart
+//       // 2) Обработка ошибок и завершения работы pumping-га
+//       //    Нормальное завершение это саморазрушение (детектится по Terminated) в состоянии Stopping,
+//       //    иначе аварийное завршение.
+//       //    Аварийное завршение pumping-га приводи только к соответсвующему сообщению в UI логе. Для завершения
+//       //    пользоватль всегда нажымает "закрыть" (чтобы он мог прочитаь лог).
+//       // 3) Окно лога в UI должно быть многостроковым чтобы пользователь могпростматировать всю историю запуска
+//       //    и выполнения скетча.
+//       //    Так же нужно подсвечивать
+//
+//
+//    //UI events passed to Pumping
+//    case Msg.HitStart if state == State.Work ⇒
+//      pumping ! Msg.HitStart
+//    case Msg.HitStop if state == State.Work ⇒
+//      pumping ! Msg.HitStop
+//    case Msg.HitStep if state == State.Work ⇒
+//      pumping ! Msg.HitStep
+//    case Msg.SetSpeed(v) if state == State.Work ⇒
+//      pumping ! Msg.SetSpeed(v)
+//    case Msg.SwitchStepMode(v) if state == State.Work ⇒
+//      pumping ! Msg.SwitchStepMode(v)
+//    //Mode switched
+//    case Msg.StepModeSwitched(stepMode) if state == State.Work ⇒
+//      log.debug(s"[StepModeSwitched] Step mode updated to: $stepMode, enable UI.")
+//      uiSketchControl.setReady(stepMode)
+//    case Msg.PumpingStepDone if state == State.Work ⇒
+//      log.debug(s"[PumpingStepDone] Enable UI step button.")
+//      uiSketchControl.setStepButtonEnabled(true)
+//    case Msg.PumpingStarted if state == State.Work ⇒
+//      log.debug(s"[PumpingStepDone] Enable UI stop button.")
+//      uiSketchControl.setStopButtonEnabled(true)
+//    case Msg.PumpingStopped(stepMode) if state == State.Work ⇒
+//      log.debug(s"[PumpingStopped] Enable UI run and step button, stepMode: $stepMode.")
+//      uiSketchControl.setReady(stepMode)
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//    //PumpingError(error: Throwable)
+//    case Msg.PumpingError(error) ⇒
 
       //!!! Здесь обработка ошибки Pumping
 

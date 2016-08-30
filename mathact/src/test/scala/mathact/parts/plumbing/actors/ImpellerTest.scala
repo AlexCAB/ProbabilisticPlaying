@@ -127,5 +127,22 @@ class ImpellerTest extends ActorTestSpec with WordSpecLike with Matchers{
       val doneMsg = testDriver.expectMsgType[Msg.TaskDone]
       doneMsg.id shouldEqual newTaskMsg.id
       doneMsg.kind shouldEqual newTaskMsg.kind}
+    "by SkipTimeoutTask, skip current task if timeout happens" in new TestCase {
+      //Start task
+      val result = randomString()
+      val runMsg = Msg.RunTask(randomTaskKind(), randomInt(), 4.seconds, sleepTask((10.seconds, result)))
+      testDriver.send(impeller, runMsg)
+      sleep(1.second) //Wait some time
+      //Not skip
+      testDriver.send(impeller, Msg.SkipTimeoutTask)
+      testDriver.expectNoMsg(2.second)
+      //Time out
+      val timeoutMsg1 = testDriver.expectMsgType[Msg.TaskTimeout]
+      timeoutMsg1.id shouldEqual runMsg.id
+      //Skip
+      testDriver.send(impeller, Msg.SkipTimeoutTask)
+      val failedMsg = testDriver.expectMsgType[Msg.TaskFailed]
+      failedMsg.id shouldEqual runMsg.id
+      println(s"[ImpellerTest] failedMsg: $failedMsg")}
   }
 }
