@@ -39,6 +39,7 @@ private [mathact] trait Pipe[H]{
   //
   //Abstract params
   protected val pump: Pump
+  protected val toolId: Int
   protected val pipeId: Int
   protected val pipeName: Option[String]
   //Logging methods

@@ -14,11 +14,13 @@
 
 package mathact.parts.plumbing.actors
 
+import java.util.UUID
+
 import akka.actor.SupervisorStrategy.Resume
 import akka.actor._
 import mathact.parts.{IdGenerator, StateActorBase}
 import mathact.parts.data._
-import mathact.parts.plumbing.Pump
+import mathact.parts.plumbing.PumpLike
 import collection.mutable.{Map ⇒ MutMap}
 
 
@@ -26,7 +28,11 @@ import collection.mutable.{Map ⇒ MutMap}
   * Created by CAB on 15.05.2016.
   */
 
-private [mathact] class Pumping(controller: ActorRef, sketchName: String, userLogging: ActorRef)
+private [mathact] class Pumping(
+  controller: ActorRef,
+  sketchName: String,
+  userLogging: ActorRef,
+  visualization: ActorRef)
 extends StateActorBase(ActorState.Building) with IdGenerator{ import ActorState._
   //Supervisor strategy
   override val supervisorStrategy = OneForOneStrategy(){case _: Throwable ⇒ Resume}
@@ -39,22 +45,25 @@ extends StateActorBase(ActorState.Building) with IdGenerator{ import ActorState.
   //Variables
   val drives = MutMap[ActorRef, DriveData]()
   //Functions
-  def createDriveActor(toolPump: Pump, toolName: String): (ActorRef, Int)  = {
+  def createDriveActor(toolPump: PumpLike): (ActorRef, Int) = {
     val toolId = nextIntId
-    val drive = context.actorOf(Props(new Drive(toolId, toolPump, toolName, self, userLogging)), "DriveOf_" + toolName)
+    val drive = context.actorOf(
+      Props(new Drive(toolId, toolPump, self, userLogging, visualization)),
+      "DriveOf_" + toolPump.toolName + "_" + UUID.randomUUID)
     context.watch(drive)
     (drive, toolId)}
-  def newDrive(toolPump: Pump, toolName: String, state: ActorState, actor: (Pump, String)⇒ActorRef): Unit = state match{
+  def newDrive(toolPump: PumpLike, state: ActorState, actor: PumpLike⇒(ActorRef, Int))
+  :Unit = state match{
     case Building ⇒
       //New drive
-      val (drive, toolId) = createDriveActor(toolPump, toolName)
-      log.debug(s"[newDrive] New drive created, toolName: $toolName, drive: $drive")
+      val (drive, toolId) = createDriveActor(toolPump)
+      log.debug(s"[newDrive] New drive created, toolName: ${toolPump.toolName}, drive: $drive")
       drives += (drive → DriveData(drive, toolId))
       //Response
       sender ! Right(drive)
     case s ⇒
       //Incorrect state
-      val msg = s"[newDrive] Creating of drive not in Building state step, toolName: $toolName, state: $s"
+      val msg = s"[newDrive] Creating of drive not in Building state step, toolName: ${toolPump.toolName}, state: $s"
       log.error(msg)
       sender ! Left(new Exception(msg))}
   def setSenderDriveState(state: ActorState): Unit = drives.get(sender) match{
@@ -115,11 +124,11 @@ extends StateActorBase(ActorState.Building) with IdGenerator{ import ActorState.
   /** Actor reaction on messages */
   def reaction: PartialFunction[(Msg, ActorState), Unit] = {
     //Creating of new drive for tool (ask request)
-    case (Msg.NewDrive(toolPump, toolName, toolImage), state) ⇒ newDrive(toolPump, toolName, state, createDriveActor)
+    case (Msg.NewDrive(toolPump), state) ⇒ newDrive(toolPump, state, createDriveActor)
     //Updates of driveState
-    case (Msg.DriveBuilt(info), Building) ⇒ setSenderDriveState(Built)
+    case (Msg.DriveBuilt, Building) ⇒ setSenderDriveState(Built)
     case (Msg.DriveStarted, Starting) ⇒ setSenderDriveState(Started)
     case (Msg.DriveStopped, Stopping) ⇒ setSenderDriveState(Stopped)
     case (Msg.DriveTerminated, Terminating) ⇒ setSenderDriveState(Terminated)
-    //Re send SkipTimeoutTask to all drives
-    case (Msg.SkipTimeoutTask, _) ⇒ drives.values.foreach(_.drive ! Msg.SkipTimeoutTask)}}
+    //Re send SkipAllTimeoutTask to all drives
+    case (Msg.SkipAllTimeoutTask, _) ⇒ drives.values.foreach(_.drive ! Msg.SkipAllTimeoutTask)}}

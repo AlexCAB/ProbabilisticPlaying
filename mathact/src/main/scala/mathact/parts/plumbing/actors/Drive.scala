@@ -18,7 +18,7 @@ import akka.actor.SupervisorStrategy.Resume
 import akka.actor._
 import mathact.parts.{IdGenerator, StateActorBase}
 import mathact.parts.data._
-import mathact.parts.plumbing.Pump
+import mathact.parts.plumbing.PumpLike
 import mathact.parts.plumbing.fitting._
 import scala.collection.mutable.{Map ⇒ MutMap, Queue ⇒ MutQueue}
 
@@ -30,12 +30,12 @@ import scala.collection.mutable.{Map ⇒ MutMap, Queue ⇒ MutQueue}
 
 private [mathact] class Drive(
   val toolId: Int,
-  val pump: Pump,
-  val toolName: String,
+  val pump: PumpLike,
   val pumping: ActorRef,
-  val userLogging: ActorRef)
-extends StateActorBase(ActorState.Building) with IdGenerator
-with DriveBuilding with DriveConnectivity with DriveStartStop with DriveMessaging{ import ActorState._, TaskKind._
+  val userLogging: ActorRef,
+  val visualization: ActorRef)
+extends StateActorBase(ActorState.Building) with IdGenerator with DriveBuilding with DriveConnectivity
+with DriveStartStop with DriveMessaging with DriveUIControl{ import ActorState._, TaskKind._
   //Supervisor strategy
   override val supervisorStrategy = OneForOneStrategy(){ case _: Throwable ⇒ Resume }
   //Definitions
@@ -59,8 +59,9 @@ with DriveBuilding with DriveConnectivity with DriveStartStop with DriveMessagin
   //Variables
   val outlets = MutMap[Int, OutletState]()  //(Outlet ID, OutletData)
   val inlets = MutMap[Int, InletState]()    //(Inlet ID, OutletData)
+  var visualisationLaval: VisualisationLaval = VisualisationLaval.None
   //On start
-  val impeller = context.actorOf(Props(new Impeller(self)), "ImpellerOf_" + toolName)
+  val impeller = context.actorOf(Props(new Impeller(self)), "ImpellerOf_" + pump.toolName)
   context.watch(impeller)
   //Receives
   /** Reaction on StateMsg'es */
@@ -77,13 +78,14 @@ with DriveBuilding with DriveConnectivity with DriveStartStop with DriveMessagin
       doTerminating()}
   /** Handling after reaction executed */
   def postHandling: PartialFunction[(Msg, ActorState), Unit] = {
-    //Check if all pipes connected in Building state
+    //Check if all pipes connected in Building state, if so switch to Starting, send DriveBuilt and ToolBuilt
     case (_: Msg.PipesConnected | Msg.BuildDrive, Building) ⇒ isAllConnected match{
       case true ⇒
         log.debug(
           s"[Drive.postHandling @ Building] All pipes connected, send Msg.DriveBuilt, and switch to Working mode.")
         state = Starting
         pumping ! Msg.DriveBuilt
+        buildAndSendToolBuiltInfo()
       case false ⇒
         log.debug(s"[Drive.postHandling @ Building] Not all pipes connected.")}
     //Check if user start function executed in Starting state
@@ -140,4 +142,7 @@ with DriveBuilding with DriveConnectivity with DriveStartStop with DriveMessagin
     case (Msg.TaskTimeout(Stop, _, time), Stopping) ⇒ stoppingTaskTimeout(time)
     case (Msg.TaskFailed(Stop, _, time, error), Stopping) ⇒ stoppingTaskFailed(time, error)
     //Managing
-    case (Msg.SkipTimeoutTask(tId), _) if tId == toolId  ⇒ impeller ! Msg.SkipTimeoutTask}}
+    case (Msg.SkipAllTimeoutTask, _) ⇒ impeller ! Msg.SkipAllTimeoutTask
+    case (Msg.SetVisualisationLaval(laval), _) ⇒ visualisationLaval = laval
+    case (Msg.ShowToolUi, Starting | Working | Stopping) ⇒ showToolUi()
+    case (Msg.HideToolUi, Starting | Working | Stopping) ⇒ hideToolUi()}}

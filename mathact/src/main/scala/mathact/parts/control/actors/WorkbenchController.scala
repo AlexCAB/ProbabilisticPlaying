@@ -51,10 +51,12 @@ class WorkbenchController(sketch: Sketch, mainController: ActorRef, config: Conf
   var state: State.Value = State.Creating
 
 
-  //TODO SketchControlWindow, бутет иметь три кнопки:
+  //TODO SketchControlWindow, бутет иметь кнопки:
+  //TODO    "Скрыть UI всех тнструментов",
   //TODO    "Показать UI всех тнструментов",
   //TODO    "Пропусть функции с таймаутом",
-  //TODO    "Остановить" - останавливает скетч но не закрывает окно (кнопка окна и закрывает и останавливает)
+  //TODO    "Остановить" - останавливает скетч но не закрывает окно (кнопка окна и закрывает и останавливает),
+  //TODO    "Визуализация" - показать/скрыть UI визуализации
 
 
   //UI definitions
@@ -68,7 +70,9 @@ class WorkbenchController(sketch: Sketch, mainController: ActorRef, config: Conf
   //Actors
   val userLogging = context.actorOf(Props(new UserLogging(self)), "UserLogging_" + sketch.className)
   context.watch(userLogging)
-  val pumping = context.actorOf(Props(new Pumping(self,  ???, userLogging)), "Pumping_" + sketch.className)
+  val visualization = context.actorOf(Props(new Visualization(self)), "UserLogging_" + sketch.className)
+  context.watch(visualization)
+  val pumping = context.actorOf(Props(new Pumping(self,  ???, userLogging, visualization)), "Pumping_" + sketch.className)
   context.watch(pumping)
   //Messages handling
   def reaction = {

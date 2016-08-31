@@ -21,6 +21,6 @@ import akka.actor.ActorRef
   * Created by CAB on 05.07.2016.
   */
 
-case class OutletData(toolDrive: ActorRef, toolName: String, pipeId: Int, pipeName: Option[String])
+case class OutletData(toolId: Int, toolDrive: ActorRef, toolName: String, pipeId: Int, pipeName: Option[String])
 
-case class InletData(toolDrive: ActorRef, toolName: String, pipeId: Int, pipeName: Option[String])
+case class InletData(toolId: Int, toolDrive: ActorRef, toolName: String, pipeId: Int, pipeName: Option[String])

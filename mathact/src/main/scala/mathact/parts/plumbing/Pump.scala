@@ -30,7 +30,12 @@ import scalafx.scene.image.Image
   * Created by CAB on 09.05.2016.
   */
 
-class Pump(context: WorkbenchContext, val tool: Fitting, val toolName: String, val toolImage: Option[Image]) {
+class Pump(
+ context: WorkbenchContext,
+ val tool: Fitting,
+ val toolName: String,
+ val toolImage: Option[Image])
+extends PumpLike{
   //Parameters
   val askTimeout = Timeout(5.second)
   val pushTimeoutCoefficient = context.config.getInt("plumbing.push.timeout.coefficient")
@@ -47,13 +52,13 @@ class Pump(context: WorkbenchContext, val tool: Fitting, val toolName: String, v
     def error(msg: String): Unit = akkaLog.error(s"[$toolName] $msg")  }
   //Actors
   private[mathact] val drive: ActorRef = Await
-    .result(ask(context.pumping, Msg.NewDrive(this, toolName, toolImage))(askTimeout)
+    .result(ask(context.pumping, Msg.NewDrive(this))(askTimeout)
       .mapTo[Either[Throwable,ActorRef]], askTimeout.duration)
     .fold(t ⇒ throw t, d ⇒ d)
   //Functions
-  private def addPipe(msg: Any): Int = Await //Return: pipe ID
+  private def addPipe(msg: Any): (Int, Int) = Await //Return: (tool ID, pipe ID)
     .result(
-      ask(drive, msg)(askTimeout).mapTo[Either[Throwable,Int]],
+      ask(drive, msg)(askTimeout).mapTo[Either[Throwable,(Int, Int)]],
       askTimeout.duration)
     .fold(
       t ⇒ {
@@ -65,8 +70,8 @@ class Pump(context: WorkbenchContext, val tool: Fitting, val toolName: String, v
   //Overridden methods
   override def toString: String = s"Pump(toolName: $toolName)"
   //Methods
-  private[mathact] def addOutlet(pipe: OutPipe[_], name: Option[String]): Int = addPipe(Msg.AddOutlet(pipe, name))
-  private[mathact] def addInlet(pipe: InPipe[_], name: Option[String]): Int = addPipe(Msg.AddInlet(pipe, name))
+  private[mathact] def addOutlet(pipe: OutPipe[_], name: Option[String]): (Int, Int) = addPipe(Msg.AddOutlet(pipe, name))
+  private[mathact] def addInlet(pipe: InPipe[_], name: Option[String]): (Int, Int) = addPipe(Msg.AddInlet(pipe, name))
   private[mathact] def connect(out: ()⇒Plug[_], in: ()⇒Socket[_]): Int = Await //Return: connection ID
     .result(
       ask(drive,  Msg.ConnectPipes(out, in))(askTimeout).mapTo[Either[Throwable,Int]],

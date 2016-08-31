@@ -16,7 +16,7 @@ package mathact.parts
 
 import java.util.UUID
 
-import mathact.parts.data.TaskKind
+import mathact.parts.data._
 
 
 /** Random data generator methods
@@ -30,6 +30,7 @@ trait RandomDataGenerators {
   def randomDouble(from:Double = 0, to:Double = 100): Double = from + math.random * (to - from)
   def randomString(n:Int = 32): String = UUID.randomUUID().toString.reverse.take(n)
   def randomTaskKind(): TaskKind = TaskKind(randomInt(0, TaskKind.maxId - 1))
+  def randomVisualisationLaval(): VisualisationLaval = VisualisationLaval(randomInt(0, VisualisationLaval.maxId - 1))
 
   //TODO Add more
 

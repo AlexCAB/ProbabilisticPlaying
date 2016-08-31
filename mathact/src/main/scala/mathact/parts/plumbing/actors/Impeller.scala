@@ -63,14 +63,14 @@ class Impeller(drive: ActorRef) extends ActorBase{
       case None ⇒
         log.debug("[Impeller.SkipCurrentTask] Nothing to skip.")}
     //Remove current task if time out happens
-    case Msg.SkipTimeoutTask if sender == drive ⇒ currentTask match{
+    case Msg.SkipAllTimeoutTask if sender == drive ⇒ currentTask match{
       case Some((curNum, curKind, curId, startTime, isTimeout)) if isTimeout ⇒
-        val msg = s"[Impeller.SkipTimeoutTask] Current task will skip, number: $curNum, kind: $curKind, DI: $curId"
+        val msg = s"[Impeller.SkipAllTimeoutTask] Current task will skip, number: $curNum, kind: $curKind, DI: $curId"
         log.warning(msg)
         currentTask = None
         drive ! Msg.TaskFailed(curKind, curId, (System.currentTimeMillis - startTime).millis, new Exception(msg))
       case curTask ⇒
-        log.debug(s"[Impeller.SkipTimeoutTask] Nothing to skip, curTask: $curTask")}
+        log.debug(s"[Impeller.SkipAllTimeoutTask] Nothing to skip, curTask: $curTask")}
     //Task timeout, send time out and restart timer
     case TaskTimeout(taskNumber, timeout) ⇒ currentTask match{
       case Some((`taskNumber`, kind, id, startTime, _)) ⇒

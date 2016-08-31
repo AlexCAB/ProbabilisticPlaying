@@ -19,7 +19,7 @@ import akka.testkit.TestProbe
 import com.typesafe.config.ConfigFactory
 import mathact.parts.plumbing.fitting._
 import mathact.parts._
-import mathact.parts.data.Msg
+import mathact.parts.data.{VisualisationLaval, Msg}
 import mathact.parts.plumbing.{Pump, Fitting}
 import org.scalatest.Suite
 import scala.concurrent.duration._
@@ -36,14 +36,17 @@ class PumpAndDriveTest extends ActorTestSpec{
     case class DriveState(
       outlets: Map[Int, (OutPipe[_], Option[Long], Map[(ActorRef, Int), Int])], // (Outlet ID, (Outlet, subscribers(id, inletQueueSize))
       inlets: Map[Int, (InPipe[_], Int)],    // (Inlet ID, Outlet, taskQueueSize)
-      pendingConnections: Map[Int, Msg.ConnectPipes])
+      pendingConnections: Map[Int, Msg.ConnectPipes],
+      visualisationLaval: VisualisationLaval)
     //Helpers actors
+    val testToolId = randomInt()
     lazy val testController = TestProbe("TestController_" + randomString())
     lazy val testUserLogging = TestProbe("UserLogging_" + randomString())
+    lazy val testVisualization = TestProbe("Visualization_" + randomString())
     lazy val testPumping = TestActor("TestPumping_" + randomString())(self ⇒ {
-      case Msg.NewDrive(toolPump, toolName, toolImage) ⇒ Some{ Right{
+      case Msg.NewDrive(toolPump) ⇒ Some{ Right{
         val drive = system.actorOf(Props(
-          new Drive(toolPump,  "TestTool", self, testUserLogging.ref){
+          new Drive(testToolId, toolPump, self, testUserLogging.ref, testVisualization.ref){
             //Get actor state
             override def receive: PartialFunction[Any, Unit]  = {
               case GetDriveState ⇒ sender ! DriveState(
@@ -55,10 +58,11 @@ class PumpAndDriveTest extends ActorTestSpec{
                   .map{ case (id, d) ⇒
                     (id, (d.pipe, d.taskQueue.size))}
                   .toMap,
-                getPendingList)
+                getPendingList,
+                visualisationLaval)
               case m ⇒ super.receive.apply(m)}}),
           "Drive_" + randomString())
-        println(s"[PumpAndDriveTest.testPumping.NewDrive] Created of drive for tool: $toolName, drive: $drive")
+        println(s"[PumpAndDriveTest.testPumping.NewDrive] Created of drive for tool: ${toolPump.toolName}, drive: $drive")
         drive}}})
     //Test workbench context
     lazy val testWorkbenchContext =
@@ -100,8 +104,8 @@ class PumpAndDriveTest extends ActorTestSpec{
         def isOnStopCalled: Boolean = onStopCall}
       lazy val testDrive = testTool.pump.drive
       lazy val otherDrive = TestActor("TestOtherDriver_" + randomString())(self ⇒ {
-        case Msg.AddOutlet(pipe, _) ⇒ Some(Right(1))
-        case Msg.AddInlet(pipe, _) ⇒  Some(Right(2))
+        case Msg.AddOutlet(pipe, _) ⇒ Some(Right((0, 1)))  // (tool ID, pipe ID)
+        case Msg.AddInlet(pipe, _) ⇒  Some(Right((0, 2)))  // (tool ID, pipe ID)
         case Msg.UserData(outletId, _) ⇒  Some(Right(None))})
       lazy val otherTool = new Fitting{
         //Pump
@@ -114,11 +118,13 @@ class PumpAndDriveTest extends ActorTestSpec{
       lazy val builtTool = {
         testPumping.send(testTool.pump.drive, Msg.BuildDrive)
         testPumping.expectMsg(Msg.DriveBuilt)
+        testVisualization.expectMsgType[Msg.ToolBuilt]
         testTool.isOnStartCalled shouldEqual false
         testTool}
       lazy val startedTool = {
         testPumping.send(testTool.pump.drive, Msg.BuildDrive)
         testPumping.expectMsg(Msg.DriveBuilt)
+        testVisualization.expectMsgType[Msg.ToolBuilt]
         testPumping.send(testTool.pump.drive, Msg.StartDrive)
         testPumping.expectMsg(Msg.DriveStarted)
         testTool.isOnStopCalled shouldEqual false
@@ -144,369 +150,413 @@ class PumpAndDriveTest extends ActorTestSpec{
           connectTo.initiator,
           Msg.PipesConnected(connectTo.connectionId, connectTo.inlet.pipeId, connectTo.outletId))
         testPumping.expectMsg(Msg.DriveBuilt)
+        testVisualization.expectMsgType[Msg.ToolBuilt]
         //Starting
         testPumping.send(testDrive, Msg.StartDrive)
         testPumping.expectMsg(Msg.DriveStarted)    //Test drive in Working state
         //Outlets and inlets data
         (testOutlet, testInlet, otherOutlet, otherInlet)}}}
   //Testing
-  "On starting" should{
-    "adding of Outlet and Inlet" in new TestCase {
+//  "On starting" should{
+//    "adding of Outlet and Inlet" in new TestCase {
+//      //Preparing
+//      val outletId = tools.testTool.outlet.asInstanceOf[OutPipe[Double]].pipeData.pipeId
+//      val inletId = tools.testTool.inlet.asInstanceOf[InPipe[Double]].pipeData.pipeId
+//      tools.otherTool.outlet
+//      tools.otherTool.inlet
+//       //Testing
+//      val DriveState(outlets, inlets, _) = tools.testDrive.askForState[DriveState]
+//      outlets should have size 1
+//      inlets should have size 1
+//      outlets.keys should contain (outletId)
+//      inlets.keys should contain (inletId)}
+//    "before BuildDrive, add new connections to pending list" in new TestCase {
+//      //Preparing
+//      val testOutlet1 = tools.testTool.outlet
+//      val testInlet1 = tools.testTool.inlet
+//      val otherOutlet1 = tools.otherTool.outlet
+//      val otherInlet1 =tools.otherTool.inlet
+//      //Connecting and disconnecting
+//      tools.testTool.outlet.attach(otherInlet1)
+//      tools.testTool.inlet.plug(otherOutlet1)
+//      //Testing
+//      val pendingCon = tools.testDrive.askForState[DriveState].pendingConnections
+//      pendingCon should have size 2}
+//    "by BuildDrive, create connections from pending list and reply with DriveBuilt (for 'plug')" in new TestCase {
+//      //Preparing
+//      val outlet = tools.otherTool.outlet.asInstanceOf[OutPipe[Double]].pipeData
+//      val inlet = tools.testTool.inlet.asInstanceOf[InPipe[Double]].pipeData
+//      //Connecting (test tool have inlet)
+//      tools.testTool.inlet.plug(tools.otherTool.outlet)
+//      tools.testDrive.askForState[DriveState].pendingConnections should have size 1
+//      //Send BuildDrive
+//      testPumping.send(tools.testDrive, Msg.BuildDrive)
+//      //Test connecting
+//      val connectTo = tools.otherDrive.expectMsgType[Msg.ConnectTo]
+//      println(s"[PumpAndDriveTest] connectTo: $connectTo")
+//      connectTo.initiator    shouldEqual tools.testDrive
+//      connectTo.outletId     shouldEqual outlet.pipeId
+//      connectTo.inlet.pipeId shouldEqual inlet.pipeId
+//      //Send Msg.PipesConnected and expect Msg.DriveBuilt
+//      tools.otherDrive.send(connectTo.initiator, Msg.PipesConnected(connectTo.connectionId, inlet.pipeId, outlet.pipeId))
+//      testPumping.expectMsg(Msg.DriveBuilt)
+//      //Check ToolBuiltInfo
+//      val builtInfo = testVisualization.expectMsgType[Msg.ToolBuilt].builtInfo
+//      println(s"[PumpAndDriveTest] builtInfo: $builtInfo")
+//      builtInfo.toolId    shouldEqual testToolId
+//      builtInfo.toolName  shouldEqual "TestTool"
+//      builtInfo.toolImage shouldEqual None
+//      builtInfo.inlets    should have size 1
+//      builtInfo.inlets.values.head.toolId     shouldEqual testToolId
+//      builtInfo.inlets.values.head.inletId    shouldEqual inlet.pipeId
+//      builtInfo.inlets.values.head.inletName  shouldEqual inlet.pipeName
+//      builtInfo.inlets.values.head.publishers should have size 1
+//      builtInfo.inlets.values.head.publishers.head.toolId   shouldEqual outlet.toolId
+//      builtInfo.inlets.values.head.publishers.head.outletId shouldEqual outlet.pipeId
+//      builtInfo.outlets shouldBe empty
+//      //Check pending list
+//      sleep(500.millis) //Wait for processing of PipesConnected by testTool
+//      tools.testDrive.askForState[DriveState].pendingConnections should have size 0}
+//    "by BuildDrive, create connections from pending list and reply with DriveBuilt (for 'attach')" in new TestCase {
+//      //Preparing
+//      val outlet = tools.testTool.outlet.asInstanceOf[OutPipe[Double]].pipeData
+//      val inlet = tools.otherTool.inlet.asInstanceOf[InPipe[Double]].pipeData
+//      //Connecting (test tool have outlet)
+//      tools.testTool.outlet.attach(tools.otherTool.inlet)
+//      tools.testDrive.askForState[DriveState].pendingConnections should have size 1
+//      //Send BuildDrive
+//      testPumping.send(tools.testDrive, Msg.BuildDrive)
+//      //Test connecting
+//      val addConnection = tools.otherDrive.expectMsgType[Msg.AddConnection]
+//      addConnection.initiator     shouldEqual tools.testDrive
+//      addConnection.inletId       shouldEqual inlet.pipeId
+//      addConnection.outlet.pipeId shouldEqual outlet.pipeId
+//      tools.otherDrive.send(
+//        tools.testDrive,
+//        Msg.ConnectTo(addConnection.connectionId, addConnection.initiator, outlet.pipeId, inlet))
+//      //Expect DriveBuilt
+//      testPumping.expectMsg(Msg.DriveBuilt)
+//      //Check ToolBuiltInfo
+//      val builtInfo = testVisualization.expectMsgType[Msg.ToolBuilt].builtInfo
+//      println(s"[PumpAndDriveTest] builtInfo: $builtInfo")
+//      builtInfo.toolId    shouldEqual testToolId
+//      builtInfo.toolName  shouldEqual "TestTool"
+//      builtInfo.toolImage shouldEqual None
+//      builtInfo.inlets    shouldBe empty
+//      builtInfo.outlets should have size 1
+//      builtInfo.outlets.values.head.toolId     shouldEqual testToolId
+//      builtInfo.outlets.values.head.outletId    shouldEqual outlet.pipeId
+//      builtInfo.outlets.values.head.outletName  shouldEqual outlet.pipeName
+//      builtInfo.outlets.values.head.subscribers should have size 1
+//      builtInfo.outlets.values.head.subscribers.head.toolId   shouldEqual inlet.toolId
+//      builtInfo.outlets.values.head.subscribers.head.inletId shouldEqual inlet.pipeId
+//      //Check pendingConnections
+//      sleep(500.millis) //Wait for processing of PipesConnected by testTool
+//      tools.testDrive.askForState[DriveState].pendingConnections should have size 0}
+//    "by StartDrive, run user init function and reply with DriveStarted" in new TestCase {
+//      //Preparing
+//      tools.builtTool
+//      //Test
+//      testPumping.send(tools.testDrive, Msg.StartDrive)
+//      testPumping.expectMsg(Msg.DriveStarted)
+//      tools.testTool.isOnStartCalled shouldEqual true}
+//    "by StartDrive, for case TaskTimeout send LogWarning to user logging actor and keep working" in new TestCase {
+//      //Preparing
+//      tools.builtTool
+//      tools.testTool.setProcTimeout(5.second)
+//      //Test
+//      testPumping.send(tools.testDrive, Msg.StartDrive)
+//      sleep(3.second) //Wait for LogWarning will send
+//      val logWarning = testUserLogging.expectMsgType[Msg.LogWarning]
+//      println("[PumpAndDriveTest] logWarning: " + logWarning)
+//      testPumping.expectMsg(Msg.DriveStarted)
+//      tools.testTool.isOnStartCalled shouldEqual true}
+//    "by StartDrive, for case TaskFailed send LogError to user logging actor and reply with DriveStarted" in new TestCase {
+//      //Preparing
+//      tools.builtTool
+//      tools.testTool.setProcError(Some(new Exception("Oops!!!")))
+//      //Test
+//      testPumping.send(tools.testDrive, Msg.StartDrive)
+//      val logError = testUserLogging.expectMsgType[Msg.LogError]
+//      println("[PumpAndDriveTest] logError: " + logError)
+//      testPumping.expectMsg(Msg.DriveStarted)
+//      tools.testTool.isOnStartCalled shouldEqual true}
+//    "by SkipAllTimeoutTask, not skip task if no timeout, and skip if it is" in new TestCase {
+//      //Preparing
+//      tools.builtTool
+//      tools.testTool.setProcTimeout(7.second)
+//      //Test not skip
+//      testPumping.send(tools.testDrive, Msg.StartDrive)
+//      sleep(1.second) //Small timeout
+//      testPumping.send(tools.testDrive, Msg.SkipAllTimeoutTask)
+//      testUserLogging.expectNoMsg(2.second) //SkipAllTimeoutTask should not have effect till LogWarning
+//      //Test skip
+//      val logWarning = testUserLogging.expectMsgType[Msg.LogWarning]
+//      println("[PumpAndDriveTest] logWarning: " + logWarning)
+//      testPumping.send(tools.testDrive, Msg.SkipAllTimeoutTask)
+//      val logError = testUserLogging.expectMsgType[Msg.LogError]
+//      println("[PumpAndDriveTest] logError: " + logError)
+//      testPumping.expectMsg(Msg.DriveStarted)
+//      tools.testTool.isOnStartCalled shouldEqual true}
+//  }
+//  "On user message" should{
+//    "by call pour(value), send UserData, to all inlets of connected drives" in new TestCase {
+//      //Preparing
+//      val (testOutlet, testInlet, otherOutlet, otherInlet) = tools.connectedTools
+//      val value1 = randomDouble()
+//      val value2 = randomDouble()
+//      //Call pour(value) for other tool
+//      tools.otherTool.testIncut.sendValue(value1)
+//      val userData = tools.otherDrive.getProcessedMessages.getOneWithType[Msg.UserData[Double]]
+//      println("[PumpAndDriveTest] userData: " + userData)
+//      userData.outletId shouldEqual otherOutlet.pipeId
+//      userData.value    shouldEqual value1
+//      //Call pour(value) test tool
+//      tools.testTool.testPipe.sendValue(value2)
+//      val userMessage = tools.otherDrive.expectMsgType[Msg.UserMessage[Double]]
+//      println("[PumpAndDriveTest] userMessage: " + userData)
+//      userMessage.outletId shouldEqual testOutlet.pipeId
+//      userMessage.inletId  shouldEqual otherInlet.pipeId
+//      userMessage.value    shouldEqual value2}
+//    "by UserMessage, put user message to queue and reply with DriveLoad, but not process till Starting" in new TestCase {
+//      //Preparing
+//      val otherOutlet = tools.otherTool.outlet.asInstanceOf[OutPipe[Double]].pipeData
+//      val testInlet = tools.testTool.inlet.asInstanceOf[InPipe[Double]].pipeData
+//      val value1 = randomDouble()
+//      val value2 = randomDouble()
+//      //Connecting
+//      tools.testTool.inlet.plug(tools.otherTool.outlet)
+//      testPumping.send(tools.testDrive, Msg.BuildDrive)
+//      val conTo = tools.otherDrive.expectMsgType[Msg.ConnectTo]
+//      tools.otherDrive.send(conTo.initiator, Msg.PipesConnected(conTo.connectionId, conTo.inlet.pipeId, conTo.outletId))
+//      testPumping.expectMsg(Msg.DriveBuilt) //Before send this tool will switch to Starting state.
+//      //Send user messages
+//      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value1))
+//      val driveLoad1 = tools.otherDrive.expectMsgType[Msg.DriveLoad]
+//      println("[PumpAndDriveTest] driveLoad1: " + driveLoad1)
+//      driveLoad1.subscriberId shouldEqual Tuple2(tools.testDrive, testInlet.pipeId)
+//      driveLoad1.outletId shouldEqual otherOutlet.pipeId
+//      driveLoad1.inletQueueSize shouldEqual 1
+//      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value2))
+//      val driveLoad2 = tools.otherDrive.expectMsgType[Msg.DriveLoad]
+//      println("[PumpAndDriveTest] driveLoad2: " + driveLoad2)
+//      driveLoad2.subscriberId shouldEqual Tuple2(tools.testDrive, testInlet.pipeId)
+//      driveLoad2.outletId shouldEqual otherOutlet.pipeId
+//      driveLoad2.inletQueueSize shouldEqual 2
+//      tools.testTool.testPipe.getReceivedValues.size shouldEqual 0
+//      //Starting
+//      testPumping.send(tools.testDrive, Msg.StartDrive)
+//      val driveLoads = tools.otherDrive.expectNMsg(2).map(_.asInstanceOf[Msg.DriveLoad])
+//      println("[PumpAndDriveTest] driveLoads: " + driveLoads)
+//      driveLoads.map(_.inletQueueSize) shouldEqual List(1, 0)
+//      testPumping.expectMsg(Msg.DriveStarted)
+//      //Check of message processing
+//      sleep(1.seconds) //Wait for messages will processed
+//      tools.testTool.testPipe.getReceivedValues.size shouldEqual 2
+//      tools.testTool.testPipe.getReceivedValues shouldEqual List(value1, value2)}
+//    "by UserMessage, processing of messages with no load response" in new TestCase {
+//      //Preparing
+//      val (testOutlet, testInlet, otherOutlet, otherInlet) = tools.connectedTools
+//      val value1 = randomDouble()
+//      val value2 = randomDouble()
+//      tools.testTool.testPipe.setProcTimeout(1.second)
+//      //Send first messages
+//      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value1))
+//      tools.otherDrive.expectNoMsg(2.seconds)
+//      tools.testTool.testPipe.getReceivedValues.size shouldEqual 1
+//      tools.testTool.testPipe.getReceivedValues.head shouldEqual value1
+//      //Send second messages
+//      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value2))
+//      tools.otherDrive.expectNoMsg(2.seconds)
+//      tools.testTool.testPipe.getReceivedValues.size shouldEqual 2
+//      tools.testTool.testPipe.getReceivedValues(1) shouldEqual value2}
+//    "by UserMessage, processing of messages with load response" in new TestCase {
+//      //Preparing
+//      val (testOutlet, testInlet, otherOutlet, otherInlet) = tools.connectedTools
+//      val value1 = randomDouble()
+//      val value2 = randomDouble()
+//      tools.testTool.testPipe.setProcTimeout(2.second)
+//      //Send message
+//      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value1))
+//      tools.otherDrive.expectNoMsg(1.seconds)
+//      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value2))
+//      //Load messages
+//      val driveLoad1 = tools.otherDrive.expectMsgType[Msg.DriveLoad]
+//      println("[PumpAndDriveTest] driveLoad1: " + driveLoad1)
+//      driveLoad1.subscriberId shouldEqual Tuple2(tools.testDrive, testInlet.pipeId)
+//      driveLoad1.outletId shouldEqual otherOutlet.pipeId
+//      driveLoad1.inletQueueSize shouldEqual 1
+//      sleep(1.second) //Wait for end processing of first message
+//      val driveLoad2 = tools.otherDrive.expectMsgType[Msg.DriveLoad]
+//      println("[PumpAndDriveTest] driveLoad2: " + driveLoad2)
+//      driveLoad2.subscriberId shouldEqual Tuple2(tools.testDrive, testInlet.pipeId)
+//      driveLoad2.outletId shouldEqual otherOutlet.pipeId
+//      driveLoad2.inletQueueSize shouldEqual 0
+//      //Check of message processing
+//      sleep(3.seconds) //Wait for second messages will processed
+//      tools.testTool.testPipe.getReceivedValues.size shouldEqual 2
+//      tools.testTool.testPipe.getReceivedValues shouldEqual List(value1, value2)}
+//    "by UserMessage, in case message processing time out send warning to user logger" in new TestCase {
+//      //Preparing
+//      val (testOutlet, testInlet, otherOutlet, otherInlet) = tools.connectedTools
+//      val value1 = randomDouble()
+//      tools.testTool.testPipe.setProcTimeout(5.second)
+//      //Send message
+//      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value1))
+//      sleep(3.seconds) //Wait for messages long timeout
+//      val logWarn = testUserLogging.expectMsgType[Msg.LogWarning]
+//      println("[PumpAndDriveTest] logWarn: " + logWarn)
+//      //Check of message processing
+//      sleep(1.second) //Wait for second messages will processed
+//      tools.testTool.testPipe.getReceivedValues.size shouldEqual 1
+//      tools.testTool.testPipe.getReceivedValues shouldEqual List(value1)}
+//    "by UserMessage, in case message processing error send error to user logger" in new TestCase {
+//      //Preparing
+//      val (testOutlet, testInlet, otherOutlet, otherInlet) = tools.connectedTools
+//      val value1 = randomDouble()
+//      val value2 = randomDouble()
+//      //Send and get error
+//      tools.testTool.testPipe.setProcError(Some(new Exception("Oops!!!")))
+//      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value1))
+//      val logError = testUserLogging.expectMsgType[Msg.LogError]
+//      println("[PumpAndDriveTest] logError: " + logError)
+//      sleep(1.seconds) //Wait for second messages will processed
+//      tools.testTool.testPipe.getReceivedValues.size shouldEqual 1
+//      tools.testTool.testPipe.getReceivedValues shouldEqual List(value1)
+//      //Send and not get error
+//      tools.testTool.testPipe.setProcError(None)
+//      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value2))
+//      sleep(1.seconds) //Wait for second messages will processed
+//      tools.testTool.testPipe.getReceivedValues.size shouldEqual 2
+//      tools.testTool.testPipe.getReceivedValues shouldEqual List(value1, value2)}
+//    "by DriveLoad, evaluate message handling timeout" in new TestCase {
+//      //Preparing
+//      val (testOutlet, testInlet, otherOutlet, otherInlet) = tools.connectedTools
+//      val subId = (tools.otherDrive.ref, otherInlet.pipeId)
+//      val queueSize = randomInt(100, 1000)
+//      //Test for first message
+//      tools.otherDrive.send(tools.testDrive, Msg.DriveLoad(subId, testOutlet.pipeId, queueSize))
+//      sleep(1.second) //Wait for processing
+//      tools.testDrive.askForState[DriveState].outlets(testOutlet.pipeId)._3(subId) shouldEqual queueSize
+//      val pushTimeout1 = tools.testDrive.askForState[DriveState].outlets(testOutlet.pipeId)._2
+//      pushTimeout1 shouldEqual  Some(queueSize * tools.testTool.pump.pushTimeoutCoefficient)
+//      //Test for second message
+//      tools.otherDrive.send(tools.testDrive, Msg.DriveLoad(subId, testOutlet.pipeId, 0))
+//      sleep(1.second) //Wait for processing
+//      tools.testDrive.askForState[DriveState].outlets(testOutlet.pipeId)._3(subId) shouldEqual 0
+//      val pushTimeout2 = tools.testDrive.askForState[DriveState].outlets(testOutlet.pipeId)._2
+//      pushTimeout2 shouldEqual None}
+//    "by SkipAllTimeoutTask, not skip task if no timeout, and skip if it is" in new TestCase {
+//      //Preparing
+//      val (testOutlet, testInlet, otherOutlet, otherInlet) = tools.connectedTools
+//      tools.testTool.testPipe.setProcTimeout(7.second)
+//      val value1 = randomDouble()
+//      //Send message
+//      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value1))
+//      sleep(1.seconds) //Small timeout
+//      testPumping.send(tools.testDrive, Msg.SkipAllTimeoutTask)
+//      testUserLogging.expectNoMsg(2.second) //SkipAllTimeoutTask should not have effect till LogWarning
+//      //Test skip
+//      val logWarn = testUserLogging.expectMsgType[Msg.LogWarning]
+//      println("[PumpAndDriveTest] logWarn: " + logWarn)
+//      testPumping.send(tools.testDrive, Msg.SkipAllTimeoutTask)
+//      val logError = testUserLogging.expectMsgType[Msg.LogError]
+//      println("[PumpAndDriveTest] logError: " + logError)
+//      sleep(1.second) //Wait for second messages will processed
+//      tools.testTool.testPipe.getReceivedValues.size shouldEqual 1
+//      tools.testTool.testPipe.getReceivedValues shouldEqual List(value1)}
+//  }
+//  "On stopping" should{
+//    "by StopDrive, run user stop function and reply with DriveStopped" in new TestCase {
+//      //Preparing
+//      tools.connectedTools
+//      //Test
+//      testPumping.send(tools.testDrive, Msg.StopDrive)
+//      testPumping.expectMsg(Msg.DriveStopped)
+//      tools.testTool.isOnStopCalled shouldEqual true}
+//    "by StopDrive, for case TaskTimeout send LogWarning to user logging actor and keep working" in new TestCase {
+//      //Preparing
+//      tools.connectedTools
+//      tools.testTool.setProcTimeout(5.second)
+//      //Test
+//      testPumping.send(tools.testDrive, Msg.StopDrive)
+//      sleep(3.second) //Wait for LogWarning will send
+//      val logWarning = testUserLogging.expectMsgType[Msg.LogWarning]
+//      println("[PumpAndDriveTest] logWarning: " + logWarning)
+//      testPumping.expectMsg(Msg.DriveStopped)
+//      tools.testTool.isOnStopCalled shouldEqual true}
+//    "by StopDrive, for case TaskFailed send LogError to user logging actor and reply with DriveStopped" in new TestCase {
+//      //Preparing
+//      tools.connectedTools
+//      tools.testTool.setProcError(Some(new Exception("Oops!!!")))
+//      //Test
+//      testPumping.send(tools.testDrive, Msg.StopDrive)
+//      val logError = testUserLogging.expectMsgType[Msg.LogError]
+//      println("[PumpAndDriveTest] logError: " + logError)
+//      testPumping.expectMsg(Msg.DriveStopped)
+//      tools.testTool.isOnStopCalled shouldEqual true}
+//    "by TerminateDrive, stop receive new user msgs, wait for empty queues, and terminate " in new TestCase {
+//      //Preparing
+//      val (testOutlet, testInlet, otherOutlet, otherInlet) = tools.connectedTools
+//      testPumping.send(tools.testDrive, Msg.StopDrive)
+//      testPumping.expectMsg(Msg.DriveStopped)
+//      tools.testTool.isOnStopCalled shouldEqual true
+//      tools.testTool.testPipe.setProcTimeout(3.second)
+//      testPumping.watch(tools.testDrive)
+//      val value1 = randomDouble()
+//      val value2 = randomDouble()
+//      //Send two slow messages
+//      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value1))
+//      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value2))
+//      val driveLoad1 = tools.otherDrive.expectMsgType[Msg.DriveLoad]
+//      println("[PumpAndDriveTest] driveLoad1: " + driveLoad1)
+//      driveLoad1.inletQueueSize shouldEqual 1
+//      //Send TerminateDrive
+//      testPumping.send(tools.testDrive, Msg.TerminateDrive)
+//      sleep(1.second) //Wait for TerminateDrive processed
+//      //Send two messages, which will not processed
+//      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, -1))
+//      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, -2))
+//      tools.otherDrive.expectNoMsg(1.second)
+//      //The first slow message processed
+//      val driveLoad2 = tools.otherDrive.expectMsgType[Msg.DriveLoad]
+//      println("[PumpAndDriveTest] driveLoad2: " + driveLoad2)
+//      driveLoad2.inletQueueSize shouldEqual 0
+//      //Termination
+//      sleep(2.second) //Wait for second slow message will processed
+//      testPumping.expectMsg(Msg.DriveTerminated)
+//      testPumping.expectMsgType[Terminated].actor shouldEqual tools.testDrive}
+//    "by SkipAllTimeoutTask, not skip task if no timeout, and skip if it is" in new TestCase {
+//      //Preparing
+//      tools.connectedTools
+//      tools.testTool.setProcTimeout(7.second)
+//      //Test not skip
+//      testPumping.send(tools.testDrive, Msg.StopDrive)
+//      sleep(1.second) //Small timeout
+//      testPumping.send(tools.testDrive, Msg.SkipAllTimeoutTask)
+//      testUserLogging.expectNoMsg(2.second) //SkipAllTimeoutTask should not have effect till LogWarning
+//      //Test skip
+//      val logWarning = testUserLogging.expectMsgType[Msg.LogWarning]
+//      println("[PumpAndDriveTest] logWarning: " + logWarning)
+//      testPumping.send(tools.testDrive, Msg.SkipAllTimeoutTask)
+//      val logError = testUserLogging.expectMsgType[Msg.LogError]
+//      println("[PumpAndDriveTest] logError: " + logError)
+//      testPumping.expectMsg(Msg.DriveStopped)
+//      tools.testTool.isOnStopCalled shouldEqual true}
+//  }
+  "In work" should{
+    "by SetVisualisationLaval, update visualisation laval" in new TestCase {
       //Preparing
-      val outletId = tools.testTool.outlet.asInstanceOf[OutPipe[Double]].pipeData.pipeId
-      val inletId = tools.testTool.inlet.asInstanceOf[InPipe[Double]].pipeData.pipeId
-      tools.otherTool.outlet
-      tools.otherTool.inlet
-       //Testing
-      val DriveState(outlets, inlets, _) = tools.testDrive.askForState[DriveState]
-      outlets should have size 1
-      inlets should have size 1
-      outlets.keys should contain (outletId)
-      inlets.keys should contain (inletId)}
-    "before BuildDrive, add new connections to pending list" in new TestCase {
-      //Preparing
-      val testOutlet1 = tools.testTool.outlet
-      val testInlet1 = tools.testTool.inlet
-      val otherOutlet1 = tools.otherTool.outlet
-      val otherInlet1 =tools.otherTool.inlet
-      //Connecting and disconnecting
-      tools.testTool.outlet.attach(otherInlet1)
-      tools.testTool.inlet.plug(otherOutlet1)
-      //Testing
-      val pendingCon = tools.testDrive.askForState[DriveState].pendingConnections
-      pendingCon should have size 2}
-    "by BuildDrive, create connections from pending list and reply with DriveBuilt (for 'plug')" in new TestCase {
-      //Preparing
-      val outlet = tools.otherTool.outlet.asInstanceOf[OutPipe[Double]].pipeData
-      val inlet = tools.testTool.inlet.asInstanceOf[InPipe[Double]].pipeData
-      //Connecting (test tool have inlet)
-      tools.testTool.inlet.plug(tools.otherTool.outlet)
-      tools.testDrive.askForState[DriveState].pendingConnections should have size 1
-      //Send BuildDrive
-      testPumping.send(tools.testDrive, Msg.BuildDrive)
-      //Test connecting
-      val connectTo = tools.otherDrive.expectMsgType[Msg.ConnectTo]
-      println(s"[PumpAndDriveTest] connectTo: $connectTo")
-      connectTo.initiator    shouldEqual tools.testDrive
-      connectTo.outletId     shouldEqual outlet.pipeId
-      connectTo.inlet.pipeId shouldEqual inlet.pipeId
-      //Send Msg.PipesConnected and expect Msg.DriveBuilt
-      tools.otherDrive.send(connectTo.initiator, Msg.PipesConnected(connectTo.connectionId, inlet.pipeId, outlet.pipeId))
-      testPumping.expectMsg(Msg.DriveBuilt)
-      //Check pending list
-      sleep(500.millis) //Wait for processing of PipesConnected by testTool
-      tools.testDrive.askForState[DriveState].pendingConnections should have size 0}
-    "by BuildDrive, create connections from pending list and reply with DriveBuilt (for 'attach')" in new TestCase {
-      //Preparing
-      val outlet = tools.testTool.outlet.asInstanceOf[OutPipe[Double]].pipeData
-      val inlet = tools.otherTool.inlet.asInstanceOf[InPipe[Double]].pipeData
-      //Connecting (test tool have outlet)
-      tools.testTool.outlet.attach(tools.otherTool.inlet)
-      tools.testDrive.askForState[DriveState].pendingConnections should have size 1
-      //Send BuildDrive
-      testPumping.send(tools.testDrive, Msg.BuildDrive)
-      //Test connecting
-      val addConnection = tools.otherDrive.expectMsgType[Msg.AddConnection]
-      addConnection.initiator     shouldEqual tools.testDrive
-      addConnection.inletId       shouldEqual inlet.pipeId
-      addConnection.outlet.pipeId shouldEqual outlet.pipeId
-      tools.otherDrive.send(
-        tools.testDrive,
-        Msg.ConnectTo(addConnection.connectionId, addConnection.initiator, outlet.pipeId, inlet))
-      //Expect DriveBuilt
-      testPumping.expectMsg(Msg.DriveBuilt)
-      sleep(500.millis) //Wait for processing of PipesConnected by testTool
-      tools.testDrive.askForState[DriveState].pendingConnections should have size 0}
-    "by StartDrive, run user init function and reply with DriveStarted" in new TestCase {
-      //Preparing
-      tools.builtTool
-      //Test
-      testPumping.send(tools.testDrive, Msg.StartDrive)
-      testPumping.expectMsg(Msg.DriveStarted)
-      tools.testTool.isOnStartCalled shouldEqual true}
-    "by StartDrive, for case TaskTimeout send LogWarning to user logging actor and keep working" in new TestCase {
-      //Preparing
-      tools.builtTool
-      tools.testTool.setProcTimeout(5.second)
-      //Test
-      testPumping.send(tools.testDrive, Msg.StartDrive)
-      sleep(3.second) //Wait for LogWarning will send
-      val logWarning = testUserLogging.expectMsgType[Msg.LogWarning]
-      println("[PumpAndDriveTest] logWarning: " + logWarning)
-      testPumping.expectMsg(Msg.DriveStarted)
-      tools.testTool.isOnStartCalled shouldEqual true}
-    "by StartDrive, for case TaskFailed send LogError to user logging actor and reply with DriveStarted" in new TestCase {
-      //Preparing
-      tools.builtTool
-      tools.testTool.setProcError(Some(new Exception("Oops!!!")))
-      //Test
-      testPumping.send(tools.testDrive, Msg.StartDrive)
-      val logError = testUserLogging.expectMsgType[Msg.LogError]
-      println("[PumpAndDriveTest] logError: " + logError)
-      testPumping.expectMsg(Msg.DriveStarted)
-      tools.testTool.isOnStartCalled shouldEqual true}
-    "by SkipTimeoutTask, not skip task if no timeout, and skip if it is" in new TestCase {
-      //Preparing
-      tools.builtTool
-      tools.testTool.setProcTimeout(7.second)
-      //Test not skip
-      testPumping.send(tools.testDrive, Msg.StartDrive)
-      sleep(1.second) //Small timeout
-      testPumping.send(tools.testDrive, Msg.SkipTimeoutTask)
-      testUserLogging.expectNoMsg(2.second) //SkipTimeoutTask should not have effect till LogWarning
-      //Test skip
-      val logWarning = testUserLogging.expectMsgType[Msg.LogWarning]
-      println("[PumpAndDriveTest] logWarning: " + logWarning)
-      testPumping.send(tools.testDrive, Msg.SkipTimeoutTask)
-      val logError = testUserLogging.expectMsgType[Msg.LogError]
-      println("[PumpAndDriveTest] logError: " + logError)
-      testPumping.expectMsg(Msg.DriveStarted)
-      tools.testTool.isOnStartCalled shouldEqual true}
-  }
-  "On user message" should{
-    "by call pour(value), send UserData, to all inlets of connected drives" in new TestCase {
-      //Preparing
-      val (testOutlet, testInlet, otherOutlet, otherInlet) = tools.connectedTools
-      val value1 = randomDouble()
-      val value2 = randomDouble()
-      //Call pour(value) for other tool
-      tools.otherTool.testIncut.sendValue(value1)
-      val userData = tools.otherDrive.getProcessedMessages.getOneWithType[Msg.UserData[Double]]
-      println("[PumpAndDriveTest] userData: " + userData)
-      userData.outletId shouldEqual otherOutlet.pipeId
-      userData.value    shouldEqual value1
-      //Call pour(value) test tool
-      tools.testTool.testPipe.sendValue(value2)
-      val userMessage = tools.otherDrive.expectMsgType[Msg.UserMessage[Double]]
-      println("[PumpAndDriveTest] userMessage: " + userData)
-      userMessage.outletId shouldEqual testOutlet.pipeId
-      userMessage.inletId  shouldEqual otherInlet.pipeId
-      userMessage.value    shouldEqual value2}
-    "by UserMessage, put user message to queue and reply with DriveLoad, but not process till Starting" in new TestCase {
-      //Preparing
-      val otherOutlet = tools.otherTool.outlet.asInstanceOf[OutPipe[Double]].pipeData
-      val testInlet = tools.testTool.inlet.asInstanceOf[InPipe[Double]].pipeData
-      val value1 = randomDouble()
-      val value2 = randomDouble()
-      //Connecting
-      tools.testTool.inlet.plug(tools.otherTool.outlet)
-      testPumping.send(tools.testDrive, Msg.BuildDrive)
-      val conTo = tools.otherDrive.expectMsgType[Msg.ConnectTo]
-      tools.otherDrive.send(conTo.initiator, Msg.PipesConnected(conTo.connectionId, conTo.inlet.pipeId, conTo.outletId))
-      testPumping.expectMsg(Msg.DriveBuilt) //Before send this tool will switch to Starting state.
-      //Send user messages
-      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value1))
-      val driveLoad1 = tools.otherDrive.expectMsgType[Msg.DriveLoad]
-      println("[PumpAndDriveTest] driveLoad1: " + driveLoad1)
-      driveLoad1.subscriberId shouldEqual Tuple2(tools.testDrive, testInlet.pipeId)
-      driveLoad1.outletId shouldEqual otherOutlet.pipeId
-      driveLoad1.inletQueueSize shouldEqual 1
-      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value2))
-      val driveLoad2 = tools.otherDrive.expectMsgType[Msg.DriveLoad]
-      println("[PumpAndDriveTest] driveLoad2: " + driveLoad2)
-      driveLoad2.subscriberId shouldEqual Tuple2(tools.testDrive, testInlet.pipeId)
-      driveLoad2.outletId shouldEqual otherOutlet.pipeId
-      driveLoad2.inletQueueSize shouldEqual 2
-      tools.testTool.testPipe.getReceivedValues.size shouldEqual 0
-      //Starting
-      testPumping.send(tools.testDrive, Msg.StartDrive)
-      val driveLoads = tools.otherDrive.expectNMsg(2).map(_.asInstanceOf[Msg.DriveLoad])
-      println("[PumpAndDriveTest] driveLoads: " + driveLoads)
-      driveLoads(0).inletQueueSize shouldEqual 1
-      driveLoads(1).inletQueueSize shouldEqual 0
-      testPumping.expectMsg(Msg.DriveStarted)
-      //Check of message processing
-      sleep(1.seconds) //Wait for messages will processed
-      tools.testTool.testPipe.getReceivedValues.size shouldEqual 2
-      tools.testTool.testPipe.getReceivedValues shouldEqual List(value1, value2)}
-    "by UserMessage, processing of messages with no load response" in new TestCase {
-      //Preparing
-      val (testOutlet, testInlet, otherOutlet, otherInlet) = tools.connectedTools
-      val value1 = randomDouble()
-      val value2 = randomDouble()
-      tools.testTool.testPipe.setProcTimeout(1.second)
-      //Send first messages
-      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value1))
-      tools.otherDrive.expectNoMsg(2.seconds)
-      tools.testTool.testPipe.getReceivedValues.size shouldEqual 1
-      tools.testTool.testPipe.getReceivedValues.head shouldEqual value1
-      //Send second messages
-      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value2))
-      tools.otherDrive.expectNoMsg(2.seconds)
-      tools.testTool.testPipe.getReceivedValues.size shouldEqual 2
-      tools.testTool.testPipe.getReceivedValues(1) shouldEqual value2}
-    "by UserMessage, processing of messages with load response" in new TestCase {
-      //Preparing
-      val (testOutlet, testInlet, otherOutlet, otherInlet) = tools.connectedTools
-      val value1 = randomDouble()
-      val value2 = randomDouble()
-      tools.testTool.testPipe.setProcTimeout(2.second)
-      //Send message
-      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value1))
-      tools.otherDrive.expectNoMsg(1.seconds)
-      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value2))
-      //Load messages
-      val driveLoad1 = tools.otherDrive.expectMsgType[Msg.DriveLoad]
-      println("[PumpAndDriveTest] driveLoad1: " + driveLoad1)
-      driveLoad1.subscriberId shouldEqual Tuple2(tools.testDrive, testInlet.pipeId)
-      driveLoad1.outletId shouldEqual otherOutlet.pipeId
-      driveLoad1.inletQueueSize shouldEqual 1
-      sleep(1.second) //Wait for end processing of first message
-      val driveLoad2 = tools.otherDrive.expectMsgType[Msg.DriveLoad]
-      println("[PumpAndDriveTest] driveLoad2: " + driveLoad2)
-      driveLoad2.subscriberId shouldEqual Tuple2(tools.testDrive, testInlet.pipeId)
-      driveLoad2.outletId shouldEqual otherOutlet.pipeId
-      driveLoad2.inletQueueSize shouldEqual 0
-      //Check of message processing
-      sleep(3.seconds) //Wait for second messages will processed
-      tools.testTool.testPipe.getReceivedValues.size shouldEqual 2
-      tools.testTool.testPipe.getReceivedValues shouldEqual List(value1, value2)}
-    "by UserMessage, in case message processing time out send warning to user logger" in new TestCase {
-      //Preparing
-      val (testOutlet, testInlet, otherOutlet, otherInlet) = tools.connectedTools
-      val value1 = randomDouble()
-      tools.testTool.testPipe.setProcTimeout(5.second)
-      //Send message
-      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value1))
-      sleep(3.seconds) //Wait for messages long timeout
-      val logWarn = testUserLogging.expectMsgType[Msg.LogWarning]
-      println("[PumpAndDriveTest] logWarn: " + logWarn)
-      //Check of message processing
-      sleep(1.second) //Wait for second messages will processed
-      tools.testTool.testPipe.getReceivedValues.size shouldEqual 1
-      tools.testTool.testPipe.getReceivedValues shouldEqual List(value1)}
-    "by UserMessage, in case message processing error send error to user logger" in new TestCase {
-      //Preparing
-      val (testOutlet, testInlet, otherOutlet, otherInlet) = tools.connectedTools
-      val value1 = randomDouble()
-      val value2 = randomDouble()
-      //Send and get error
-      tools.testTool.testPipe.setProcError(Some(new Exception("Oops!!!")))
-      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value1))
-      val logError = testUserLogging.expectMsgType[Msg.LogError]
-      println("[PumpAndDriveTest] logError: " + logError)
-      sleep(1.seconds) //Wait for second messages will processed
-      tools.testTool.testPipe.getReceivedValues.size shouldEqual 1
-      tools.testTool.testPipe.getReceivedValues shouldEqual List(value1)
-      //Send and not get error
-      tools.testTool.testPipe.setProcError(None)
-      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value2))
-      sleep(1.seconds) //Wait for second messages will processed
-      tools.testTool.testPipe.getReceivedValues.size shouldEqual 2
-      tools.testTool.testPipe.getReceivedValues shouldEqual List(value1, value2)}
-    "by DriveLoad, evaluate message handling timeout" in new TestCase {
-      //Preparing
-      val (testOutlet, testInlet, otherOutlet, otherInlet) = tools.connectedTools
-      val subId = (tools.otherDrive.ref, otherInlet.pipeId)
-      val queueSize = randomInt(100, 1000)
-      //Test for first message
-      tools.otherDrive.send(tools.testDrive, Msg.DriveLoad(subId, testOutlet.pipeId, queueSize))
-      sleep(1.second) //Wait for processing
-      tools.testDrive.askForState[DriveState].outlets(testOutlet.pipeId)._3(subId) shouldEqual queueSize
-      val pushTimeout1 = tools.testDrive.askForState[DriveState].outlets(testOutlet.pipeId)._2
-      pushTimeout1 shouldEqual  Some(queueSize * tools.testTool.pump.pushTimeoutCoefficient)
-      //Test for second message
-      tools.otherDrive.send(tools.testDrive, Msg.DriveLoad(subId, testOutlet.pipeId, 0))
-      sleep(1.second) //Wait for processing
-      tools.testDrive.askForState[DriveState].outlets(testOutlet.pipeId)._3(subId) shouldEqual 0
-      val pushTimeout2 = tools.testDrive.askForState[DriveState].outlets(testOutlet.pipeId)._2
-      pushTimeout2 shouldEqual None}
-    "by SkipTimeoutTask, not skip task if no timeout, and skip if it is" in new TestCase {
-      //Preparing
-      val (testOutlet, testInlet, otherOutlet, otherInlet) = tools.connectedTools
-      tools.testTool.testPipe.setProcTimeout(7.second)
-      val value1 = randomDouble()
-      //Send message
-      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value1))
-      sleep(1.seconds) //Small timeout
-      testPumping.send(tools.testDrive, Msg.SkipTimeoutTask)
-      testUserLogging.expectNoMsg(2.second) //SkipTimeoutTask should not have effect till LogWarning
-      //Test skip
-      val logWarn = testUserLogging.expectMsgType[Msg.LogWarning]
-      println("[PumpAndDriveTest] logWarn: " + logWarn)
-      testPumping.send(tools.testDrive, Msg.SkipTimeoutTask)
-      val logError = testUserLogging.expectMsgType[Msg.LogError]
-      println("[PumpAndDriveTest] logError: " + logError)
-      sleep(1.second) //Wait for second messages will processed
-      tools.testTool.testPipe.getReceivedValues.size shouldEqual 1
-      tools.testTool.testPipe.getReceivedValues shouldEqual List(value1)}
-  }
-  "On stopping" should{
-    "by StopDrive, run user stop function and reply with DriveStopped" in new TestCase {
-      //Preparing
-      tools.connectedTools
-      //Test
-      testPumping.send(tools.testDrive, Msg.StopDrive)
-      testPumping.expectMsg(Msg.DriveStopped)
-      tools.testTool.isOnStopCalled shouldEqual true}
-    "by StopDrive, for case TaskTimeout send LogWarning to user logging actor and keep working" in new TestCase {
-      //Preparing
-      tools.connectedTools
-      tools.testTool.setProcTimeout(5.second)
-      //Test
-      testPumping.send(tools.testDrive, Msg.StopDrive)
-      sleep(3.second) //Wait for LogWarning will send
-      val logWarning = testUserLogging.expectMsgType[Msg.LogWarning]
-      println("[PumpAndDriveTest] logWarning: " + logWarning)
-      testPumping.expectMsg(Msg.DriveStopped)
-      tools.testTool.isOnStopCalled shouldEqual true}
-    "by StopDrive, for case TaskFailed send LogError to user logging actor and reply with DriveStopped" in new TestCase {
-      //Preparing
-      tools.connectedTools
-      tools.testTool.setProcError(Some(new Exception("Oops!!!")))
-      //Test
-      testPumping.send(tools.testDrive, Msg.StopDrive)
-      val logError = testUserLogging.expectMsgType[Msg.LogError]
-      println("[PumpAndDriveTest] logError: " + logError)
-      testPumping.expectMsg(Msg.DriveStopped)
-      tools.testTool.isOnStopCalled shouldEqual true}
-    "by TerminateDrive, stop receive new user msgs, wait for empty queues, and terminate " in new TestCase {
-      //Preparing
-      val (testOutlet, testInlet, otherOutlet, otherInlet) = tools.connectedTools
-      testPumping.send(tools.testDrive, Msg.StopDrive)
-      testPumping.expectMsg(Msg.DriveStopped)
-      tools.testTool.isOnStopCalled shouldEqual true
-      tools.testTool.testPipe.setProcTimeout(3.second)
-      testPumping.watch(tools.testDrive)
-      val value1 = randomDouble()
-      val value2 = randomDouble()
-      //Send two slow messages
-      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value1))
-      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, value2))
-      val driveLoad1 = tools.otherDrive.expectMsgType[Msg.DriveLoad]
-      println("[PumpAndDriveTest] driveLoad1: " + driveLoad1)
-      driveLoad1.inletQueueSize shouldEqual 1
-      //Send TerminateDrive
-      testPumping.send(tools.testDrive, Msg.TerminateDrive)
-      sleep(1.second) //Wait for TerminateDrive processed
-      //Send two messages, which will not processed
-      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, -1))
-      tools.otherDrive.send(tools.testDrive, Msg.UserMessage(otherOutlet.pipeId, testInlet.pipeId, -2))
-      tools.otherDrive.expectNoMsg(1.second)
-      //The first slow message processed
-      val driveLoad2 = tools.otherDrive.expectMsgType[Msg.DriveLoad]
-      println("[PumpAndDriveTest] driveLoad2: " + driveLoad2)
-      driveLoad2.inletQueueSize shouldEqual 0
-      //Termination
-      sleep(2.second) //Wait for second slow message will processed
-      testPumping.expectMsg(Msg.DriveTerminated)
-      testPumping.expectMsgType[Terminated].actor shouldEqual tools.testDrive}
-    "by SkipTimeoutTask, not skip task if no timeout, and skip if it is" in new TestCase {
-      //Preparing
-      tools.connectedTools
-      tools.testTool.setProcTimeout(7.second)
-      //Test not skip
-      testPumping.send(tools.testDrive, Msg.StopDrive)
-      sleep(1.second) //Small timeout
-      testPumping.send(tools.testDrive, Msg.SkipTimeoutTask)
-      testUserLogging.expectNoMsg(2.second) //SkipTimeoutTask should not have effect till LogWarning
-      //Test skip
-      val logWarning = testUserLogging.expectMsgType[Msg.LogWarning]
-      println("[PumpAndDriveTest] logWarning: " + logWarning)
-      testPumping.send(tools.testDrive, Msg.SkipTimeoutTask)
-      val logError = testUserLogging.expectMsgType[Msg.LogError]
-      println("[PumpAndDriveTest] logError: " + logError)
-      testPumping.expectMsg(Msg.DriveStopped)
-      tools.testTool.isOnStopCalled shouldEqual true}
+      tools.startedTool
+      val newVisualisationLaval = randomVisualisationLaval()
+      //Send
+      tools.testDrive ! Msg.SetVisualisationLaval(newVisualisationLaval)
+      //Check
+      tools.testDrive.askForState[DriveState].visualisationLaval shouldEqual newVisualisationLaval}
+    "by ShowToolUi and HideToolUi, should call onShowUi() and onHideUi()" in new TestCase {
+//
+    ???
+
+    }
   }
 }

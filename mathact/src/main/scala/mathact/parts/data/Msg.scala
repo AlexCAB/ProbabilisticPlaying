@@ -15,12 +15,11 @@
 package mathact.parts.data
 
 import akka.actor.ActorRef
-import mathact.parts.plumbing.Pump
+import mathact.parts.plumbing.PumpLike
 import mathact.parts.plumbing.fitting._
 import mathact.tools.Workbench
 
 import scala.concurrent.duration.FiniteDuration
-import scalafx.scene.image.Image
 
 
 /** Set of actor messages
@@ -42,19 +41,13 @@ private[mathact] object Msg {
   case class SketchError(className: String, error: Throwable) extends Msg
   //SketchController - Pumping
   case object StartPumping extends StateMsg
-//    case class PumpingStarted(stepMode: StepMode) extends Msg
-//    case class SwitchStepMode(stepMode: StepMode) extends Msg
-//    case class StepModeSwitched(stepMode: StepMode) extends Msg
-//    case class SetSpeed(value: Double) extends Msg
-//    case object HitStart extends Msg
   case object PumpingStarted extends Msg
   case object StopPumping extends StateMsg
   case object PumpingStopped extends Msg
-//  case object HitStep extends Msg
-//  case object PumpingStepDone extends Msg
-//  case class PumpingError(error: Throwable) extends Msg
+  case object ShowAllToolUi extends Msg
+  case object HideAllToolUi extends Msg
   //Object Pump - Pumping (ask)
-  case class NewDrive(toolPump: Pump, toolName: String, toolImage: Option[Image]) extends Msg     //Name and image for display in UI
+  case class NewDrive(toolPump: PumpLike) extends Msg     //Name and image for display in UI
   //Object Pump - Drive (ask)
   case class AddOutlet(pipe: OutPipe[_], name: Option[String]) extends Msg
   case class AddInlet(pipe: InPipe[_], name: Option[String]) extends Msg
@@ -62,7 +55,7 @@ private[mathact] object Msg {
   case class UserData[T](outletId: Int, value: T) extends Msg
   //Pumping - Drive
   case object BuildDrive extends StateMsg //Creating of connections from pending list
-  case class DriveBuilt(builtInfo: ToolBuiltInfo) extends Msg
+  case object DriveBuilt extends Msg
   case object StartDrive extends StateMsg //Run init user code
   case object DriveStarted extends Msg
   case object StopDrive extends StateMsg  //Run sopping user code
@@ -85,8 +78,12 @@ private[mathact] object Msg {
   case class LogWarning(toolName: String, message: String) extends Msg
   case class LogError(toolName: String, error: Option[Throwable], message: String) extends Msg
   //Common messages
-  case class SkipTimeoutTask(toolId: Int) extends Msg
-  case class ShowToolUi(toolId: Int) extends Msg
+  case object SkipAllTimeoutTask extends Msg
+  //Visualization - Drive
+  case class ToolBuilt(builtInfo: ToolBuiltInfo) extends Msg   //Send to Visualization from Drive after tool built
+  case class SetVisualisationLaval(laval: VisualisationLaval) extends Msg //Send to Drive from Visualization
+  case object ShowToolUi extends Msg  //Send to Drive from Visualization to show it's UI
+  case object HideToolUi extends Msg  //Send to Drive from Visualization to hide it's UI
 
   //TODO Add more
 

@@ -16,11 +16,13 @@ package mathact.parts.plumbing.actors
 
 import akka.actor.{ActorRef, Props}
 import akka.testkit.TestProbe
+import akka.util.Timeout
 import mathact.parts.ActorTestSpec
 import mathact.parts.data.Msg
-import mathact.parts.plumbing.Pump
+import mathact.parts.plumbing.{Fitting, PumpLike}
 import org.scalatest.Suite
 import scala.concurrent.duration._
+import scalafx.scene.image.Image
 
 
 /** Testing of Pumping actor
@@ -33,24 +35,32 @@ class PumpingTest extends ActorTestSpec{
     //Test controller and logger
     lazy val testController = TestProbe("TestSketchController_" + randomString())
     lazy val testUserLogging = TestProbe("UserLogging_" + randomString())
+    lazy val testVisualization = TestProbe("Visualization_" + randomString())
     //Test drives
     lazy val testDrive1 = TestProbe("TestDrive1_" + randomString())
     lazy val testDrive2 = TestProbe("TestDrive2_" + randomString())
+    //Test objects
+    case class TestPump(index: Int) extends PumpLike {
+      val tool: Fitting = null
+      val toolName = "TestTool" + index
+      val toolImage = None
+      val askTimeout = Timeout(1.second)
+      val pushTimeoutCoefficient = 1
+      val startFunctionTimeout = 1.second
+      val messageProcessingTimeout = 1.second
+      val stopFunctionTimeout = 1.second}
     //Pumping
     object actors{
       lazy val pumping = system.actorOf(Props(
-        new Pumping(testController.ref,  "TestSketch", testUserLogging.ref){
-          //Variables
-          private var nextDriveIndex = -1
-          //Get actor state
-          override def createDriveActor(toolPump: Pump, toolName: String): ActorRef  = {
-            nextDriveIndex += 1
-            List(testDrive1.ref, testDrive2.ref)(nextDriveIndex)}}),
+        new Pumping(testController.ref,  "TestSketch", testUserLogging.ref, testVisualization.ref){
+          override def createDriveActor(toolPump: PumpLike): (ActorRef, Int)  = {
+            val index = toolPump.asInstanceOf[TestPump].index
+            (List(testDrive1.ref, testDrive2.ref)(index),index + 1)}}),
         "Pumping_" + randomString())
       lazy val pumpingWithDrives = {
-        testController.send(pumping, Msg.NewDrive(null, "TestTool1", None))
+        testController.send(pumping, Msg.NewDrive(TestPump(0)))
         testController.expectMsgType[Either[Throwable, ActorRef]].isRight shouldEqual true
-        testController.send(pumping, Msg.NewDrive(null, "TestTool2", None))
+        testController.send(pumping, Msg.NewDrive(TestPump(1)))
         testController.expectMsgType[Either[Throwable, ActorRef]].isRight shouldEqual true
         pumping}
       lazy val startedPumpingWithDrives = {
@@ -70,12 +80,12 @@ class PumpingTest extends ActorTestSpec{
   "Pumping actor" should{
     "by Msg.NewDrive, create and return new drive actor" in new TestCase {
       //Create first drive
-      testController.send(actors.pumping, Msg.NewDrive(null, "TestTool1", None))
+      testController.send(actors.pumping, Msg.NewDrive(TestPump(0)))
       val drive1 = testController.expectMsgType[Either[Throwable, ActorRef]]
       drive1.isRight shouldEqual true
       drive1.right.get shouldEqual testDrive1.ref
       //Create second drive
-      testController.send(actors.pumping, Msg.NewDrive(null, "TestTool2", None))
+      testController.send(actors.pumping, Msg.NewDrive(TestPump(1)))
       val drive2 = testController.expectMsgType[Either[Throwable, ActorRef]]
       drive2.isRight shouldEqual true
       drive2.right.get shouldEqual testDrive2.ref}
@@ -124,12 +134,12 @@ class PumpingTest extends ActorTestSpec{
       testController.expectMsg(Msg.PumpingStopped)
       //Terminate
       testController.expectTerminated(actors.startedPumpingWithDrives)}
-    "by Msg.SkipTimeoutTask, send it to all drives" in new TestCase {
+    "by Msg.SkipAllTimeoutTask, send it to all drives" in new TestCase {
       //Preparing
       actors.startedPumpingWithDrives
       //Test
-      testController.send(actors.pumping, Msg.SkipTimeoutTask)
-      testDrive1.expectMsg(Msg.SkipTimeoutTask)
-      testDrive2.expectMsg(Msg.SkipTimeoutTask)}
+      testController.send(actors.pumping, Msg.SkipAllTimeoutTask)
+      testDrive1.expectMsg(Msg.SkipAllTimeoutTask)
+      testDrive2.expectMsg(Msg.SkipAllTimeoutTask)}
   }
 }

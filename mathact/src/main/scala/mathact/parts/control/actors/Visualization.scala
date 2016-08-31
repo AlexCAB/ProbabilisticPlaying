@@ -12,31 +12,28 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts
+package mathact.parts.control.actors
 
+import akka.actor.{ActorRef, Actor}
 
-/** Contains common enums
-  * Created by CAB on 24.06.2016.
+/** Sketch visualization actor
+  * Created by CAB on 31.08.2016.
   */
 
-package object data {
-  //SketchStatus
-  object SketchStatus extends Enumeration {val Autorun, Ready, Ended, Failed = Value}
-  type SketchStatus = SketchStatus.Value
-  //StepMode
-  object StepMode extends Enumeration {val HardSynchro, SoftSynchro, Asynchro, None = Value}
-  type StepMode = StepMode.Value
-  //WorkMode
-  object WorkMode extends Enumeration {val Paused, Runned, Stopping = Value}
-  type WorkMode = WorkMode.Value
-  //TaskKind
-  object TaskKind extends Enumeration {val Start, Massage, Stop = Value}
-  type TaskKind = TaskKind.Value
+class Visualization(workbenchController: ActorRef) extends Actor{
 
-  //VisualisationLaval
-  object VisualisationLaval extends Enumeration {val None, Basic, Load, Full = Value}
-  type VisualisationLaval = VisualisationLaval.Value
 
-//TODO Add more
+  def receive = {
+
+    //TODO По пуличении ToolBuilt динамически отрисовывает новый инструмент, не ожыдая завершения постройки всех инструментов.
+    //TODO
+    //TODO
+
+
+
+    case m ⇒ println("[Visualization] Message: " + m)
+
+
+  }
 
 }
