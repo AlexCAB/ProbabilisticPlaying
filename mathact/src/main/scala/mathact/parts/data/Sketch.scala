@@ -22,5 +22,7 @@ case class Sketch(
   clazz: Class[_],
   className: String,
   sketchName: Option[String],
-  sketchDesc: Option[String],
-  status: SketchStatus)
+  sketchDescription: Option[String],
+  lastRunStatus: SketchStatus,
+  showUserLogUi: Boolean,
+  showVisualisationUi: Boolean)

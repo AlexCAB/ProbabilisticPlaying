@@ -17,57 +17,58 @@ package mathact.parts.plumbing.actors
 import mathact.parts.UIControl
 import mathact.parts.data.{Msg, TaskKind}
 
+import scala.concurrent.duration.FiniteDuration
+
 /** Handling of UI control
   * Created by CAB on 31.08.2016.
   */
 
 private [mathact] trait DriveUIControl { _: Drive ⇒
-
-
+  /** Show tool UI */
   def showToolUi(): Unit = pump.tool match{
     case task: UIControl ⇒
-
-
-      log.debug("[DriveUIControl.doStopping] Try to run stopping user function.")
-      impeller ! Msg.RunTask[Unit](TaskKind., -3, pump.stopFunctionTimeout, ()⇒{ task.doStop() })
-
-
+      log.debug("[DriveUIControl.showToolUi] Try to run show UI user function.")
+      impeller ! Msg.RunTask[Unit](TaskKind.ShowUI, -3, pump.uiOperationTimeout, ()⇒{ task.doShowUI() })
     case _ ⇒
-      log.debug("[DriveUIControl.showToolUi] On show UI user function not defined, nothing to do.")}
+      log.debug("[DriveUIControl.showToolUi] Show UI user function not defined, nothing to do.")}
+  /** Show tool UI task done
+    * @param execTime - FiniteDuration */
+  def showToolUiTaskDone(execTime: FiniteDuration): Unit = {
+    log.debug(s"[DriveStartStop.showToolUiTaskDone] execTime: $execTime.")}
+  /** Show tool UI task timeout
+    * @param execTime - FiniteDuration */
+  def showToolUiTaskTimeout(execTime: FiniteDuration): Unit = {
+    log.warning(s"[DriveStartStop.showToolUiTaskTimeout]  execTime: $execTime.")
+    userLogging ! Msg.LogWarning(toolId, pump.toolName, s"Show tool UI function timeout on $execTime, keep waiting.")}
+  /** Show tool UI task failed
+    * @param execTime - FiniteDuration
+    * @param error - Throwable */
+  def showToolUiTaskFailed(execTime: FiniteDuration, error: Throwable): Unit = {
+    log.error(s"[DriveStartStop.showToolUiTaskFailed] execTime: $execTime, error: $error.")
+    userLogging ! Msg.LogError(toolId, pump.toolName, Some(error), s"Show tool UI function failed on $execTime.")}
+  /** Hide tool UI */
+  def hideToolUi(): Unit = pump.tool match{
+    case task: UIControl ⇒
+      log.debug("[DriveUIControl.hideToolUi] Try to run hide UI user function.")
+      impeller ! Msg.RunTask[Unit](TaskKind.HideUI, -4, pump.uiOperationTimeout, ()⇒{ task.doHideUI() })
+    case _ ⇒
+      log.debug("[DriveUIControl.hideToolUi] Hide UI user function not defined, nothing to do.")}
+  /** Hide tool UI task done
+    * @param execTime - FiniteDuration */
+  def hideToolUiTaskDone(execTime: FiniteDuration): Unit = {
+    log.debug(s"[DriveStartStop.hideToolUiTaskDone] execTime: $execTime.")}
+  /** Hide tool UI task timeout
+    * @param execTime - FiniteDuration */
+  def hideToolUiTaskTimeout(execTime: FiniteDuration): Unit = {
+    log.warning(s"[DriveStartStop.hideToolUiTaskTimeout]  execTime: $execTime.")
+    userLogging ! Msg.LogWarning(toolId, pump.toolName, s"Hide tool UI function timeout on $execTime, keep waiting.")}
+  /** Hide tool UI task failed
+    * @param execTime - FiniteDuration
+    * @param error - Throwable */
+  def hideToolUiTaskFailed(execTime: FiniteDuration, error: Throwable): Unit = {
+    log.error(s"[DriveStartStop.hideToolUiTaskFailed] execTime: $execTime, error: $error.")
+    userLogging ! Msg.LogError(toolId,pump.toolName, Some(error), s"Hide tool UI function failed on $execTime.")}
 
-
-
-    //TODO 1) Переписать импеллет чтоб поддержывал добаление нескольких задачь одновременно (но выполнял только одну),
-    //TODO    для валдения служебных задачь
-    //TODO 2) Пользовательские сообщения по прежнему выполняются по одному, и обработка также начинается,
-    //TODO    по завершении пользовательской функции инициализации.
-    //TODO 3) Дописать управление IU (управелеьние по ShowToolUi, HideToolUi и по ShowAllToolUi, HideAllToolUi)
-    //TODO
-    //TODO
-    //TODO
-    //TODO
-    //TODO
-    //TODO
-    //TODO
-    //TODO
-    //TODO
-
-
-
-
-
-
-
-
-
-
-  def hideToolUi(): Unit = {
-
-    ???
-
-  }
-
-
-
+  //TODO Add more
 
 }

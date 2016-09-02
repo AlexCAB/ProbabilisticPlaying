@@ -22,7 +22,6 @@ import mathact.parts.data.Msg
 import mathact.parts.plumbing.{Fitting, PumpLike}
 import org.scalatest.Suite
 import scala.concurrent.duration._
-import scalafx.scene.image.Image
 
 
 /** Testing of Pumping actor
@@ -48,7 +47,9 @@ class PumpingTest extends ActorTestSpec{
       val pushTimeoutCoefficient = 1
       val startFunctionTimeout = 1.second
       val messageProcessingTimeout = 1.second
-      val stopFunctionTimeout = 1.second}
+      val stopFunctionTimeout = 1.second
+      val impellerMaxQueueSize = 1
+      val uiOperationTimeout = 1.second}
     //Pumping
     object actors{
       lazy val pumping = system.actorOf(Props(
@@ -134,12 +135,26 @@ class PumpingTest extends ActorTestSpec{
       testController.expectMsg(Msg.PumpingStopped)
       //Terminate
       testController.expectTerminated(actors.startedPumpingWithDrives)}
-    "by Msg.SkipAllTimeoutTask, send it to all drives" in new TestCase {
+    "by Msg.SkipAllTimeoutTask, send SkipTimeoutTask to all drives" in new TestCase {
       //Preparing
       actors.startedPumpingWithDrives
       //Test
       testController.send(actors.pumping, Msg.SkipAllTimeoutTask)
-      testDrive1.expectMsg(Msg.SkipAllTimeoutTask)
-      testDrive2.expectMsg(Msg.SkipAllTimeoutTask)}
+      testDrive1.expectMsg(Msg.SkipTimeoutTask)
+      testDrive2.expectMsg(Msg.SkipTimeoutTask)}
+    "by Msg.ShowAllToolUi, send it ShowToolUi all drives" in new TestCase {
+      //Preparing
+      actors.startedPumpingWithDrives
+      //Test
+      testController.send(actors.pumping, Msg.ShowAllToolUi)
+      testDrive1.expectMsg(Msg.ShowToolUi)
+      testDrive2.expectMsg(Msg.ShowToolUi)}
+    "by Msg.HideAllToolUi, send HideToolUi to all drives" in new TestCase {
+      //Preparing
+      actors.startedPumpingWithDrives
+      //Test
+      testController.send(actors.pumping, Msg.HideAllToolUi)
+      testDrive1.expectMsg(Msg.HideToolUi)
+      testDrive2.expectMsg(Msg.HideToolUi)}
   }
 }

@@ -33,7 +33,9 @@ class ImpellerTest extends ActorTestSpec with WordSpecLike with Matchers{
     //Helpers actors
     val testDriver = TestProbe("TestDrive_" + randomString())
     //Impeller actor
-    val impeller = system.actorOf(Props(new Impeller(testDriver.ref)), "Impeller_" + randomString())
+    val impeller = system.actorOf(
+      Props(new Impeller(testDriver.ref, maxQueueSize = 2)),
+      "Impeller_" + randomString())
     //Test tasks0
     val sleepTask = (req: (FiniteDuration, String))⇒()⇒{
       println(s"[ImpellerTest.sleepTask] Run test task with ${req._1} sleep and '${req._2}' result.")
@@ -60,21 +62,35 @@ class ImpellerTest extends ActorTestSpec with WordSpecLike with Matchers{
         doneMsg.kind shouldEqual runMsg.kind
         doneMsg.taskRes shouldEqual result}}
     "run only one task at the time" in new TestCase {
-      //Start first task
+      //Preparing
       val firstTask = Msg.RunTask(randomTaskKind(), randomInt(), 10.seconds, sleepTask((5.seconds, randomString())))
-      testDriver.send(impeller, firstTask)
-      //Start second task
-      sleep(1.seconds)
       val secondTask = Msg.RunTask(randomTaskKind(), randomInt(), 10.seconds, sleepTask((5.seconds, randomString())))
-      testDriver.send(impeller,  secondTask)
-      //Error of second task
-      val failedMsg = testDriver.expectMsgType[Msg.TaskFailed]
-      failedMsg.id shouldEqual secondTask.id
-      failedMsg.kind shouldEqual secondTask.kind
-      println(s"[ImpellerTest] failedMsg: $failedMsg")
-      //Done of second task
-      sleep(3.seconds)
-      testDriver.expectMsgType[Msg.TaskDone].kind shouldEqual firstTask.kind}
+      //Start two
+      testDriver.send(impeller, firstTask)
+      testDriver.send(impeller, secondTask)
+      //Await for end of first
+      testDriver.expectNoMsg(4.seconds)
+      val taskDone1 =  testDriver.expectMsgType[Msg.TaskDone]
+      taskDone1.kind shouldEqual firstTask.kind
+      taskDone1.id shouldEqual firstTask.id
+      //Await for end of second
+      testDriver.expectNoMsg(4.seconds)
+      val taskDone2 =  testDriver.expectMsgType[Msg.TaskDone]
+      taskDone2.kind shouldEqual secondTask.kind
+      taskDone2.id shouldEqual secondTask.id}
+    "send TaskFailed on exceedances of max queue size" in new TestCase {
+      //Preparing
+      def newTasks(num: Int) = (1 to num).map{ _ ⇒
+        Msg.RunTask(randomTaskKind(), randomInt(), 10.seconds, sleepTask((2.seconds, randomString())))}
+      val successTasks = newTasks(3)
+      val failureTasks = newTasks(2)
+      //Start tasks
+      successTasks.foreach(task ⇒ testDriver.send(impeller, task))
+      failureTasks.foreach(task ⇒ testDriver.send(impeller, task))
+      //Expect error for last three tasks
+      (1 to 2).map(_ ⇒ testDriver.expectMsgType[Msg.TaskFailed].id).toSet shouldEqual failureTasks.map(_.id).toSet
+      //Expect done for first two tasks
+      (1 to 3).map(_ ⇒ testDriver.expectMsgType[Msg.TaskDone].id).toSet shouldEqual successTasks.map(_.id).toSet}
     "run task on RunTask and send TaskTimeout with timeout interval" in new TestCase {
       //Start task
       val result = randomString()

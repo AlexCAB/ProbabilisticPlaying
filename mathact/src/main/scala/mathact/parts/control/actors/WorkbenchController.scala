@@ -21,7 +21,7 @@ import akka.event.Logging
 import com.typesafe.config.Config
 import mathact.parts.{WorkbenchContext, ActorBase}
 import mathact.parts.data.{WorkMode, Sketch, StepMode, Msg}
-import mathact.parts.gui.{SelectSketchWindow, SketchControlWindow}
+import mathact.parts.gui.{SelectSketchWindow, SketchControlUI}
 import mathact.parts.gui.frame.Frame
 import mathact.parts.plumbing.actors.Pumping
 
@@ -41,7 +41,12 @@ import scalafx.stage.Stage
   * Created by CAB on 21.05.2016.
   */
 
-class WorkbenchController(sketch: Sketch, mainController: ActorRef, config: Config) extends ActorBase{
+class WorkbenchController(
+  sketch: Sketch,
+  mainController: ActorRef,
+  config: Config,
+  sketchUI: SketchControlUILike)
+extends ActorBase{
   //Enums
   object State extends Enumeration {val Creating, Starting, Work, Stopping, Failing, Ended  = Value}
   //Messages
@@ -51,16 +56,23 @@ class WorkbenchController(sketch: Sketch, mainController: ActorRef, config: Conf
   var state: State.Value = State.Creating
 
 
-  //TODO SketchControlWindow, бутет иметь кнопки:
+  //TODO 1) SketchControlUI, бутет иметь кнопки:
   //TODO    "Скрыть UI всех тнструментов",
   //TODO    "Показать UI всех тнструментов",
   //TODO    "Пропусть функции с таймаутом",
   //TODO    "Остановить" - останавливает скетч но не закрывает окно (кнопка окна и закрывает и останавливает),
+  //TODO    "Логировани" - показать/скрыть UI логирования
   //TODO    "Визуализация" - показать/скрыть UI визуализации
+  //TODO 2) Сделать SketchControlUI (и затем остальные UI) акторами, чтобы использовать
+  //TODO    обмен сообщениями вместо калбеков.
+  //TODO
+  //TODO
+  //TODO
+  //TODO
 
 
   //UI definitions
-  val uiSketchControl = new SketchControlWindow(log){
+  val uiSketchControl = new SketchControlUI(log){
     def hitStart(): Unit = ??? //{self ! Msg.HitStart}
     def hitStop(): Unit =  ??? //{self ! Msg.HitStop}
     def hitStep(): Unit =  ??? //{self ! Msg.HitStep}

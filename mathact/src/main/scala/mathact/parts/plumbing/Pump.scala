@@ -42,6 +42,8 @@ extends PumpLike{
   val startFunctionTimeout = context.config.getInt("plumbing.start.function.timeout").millis
   val messageProcessingTimeout = context.config.getInt("plumbing.message.processing.timeout").millis
   val stopFunctionTimeout = context.config.getInt("plumbing.stop.function.timeout").millis
+  val impellerMaxQueueSize = context.config.getInt("plumbing.impeller.max.queue.size")
+  val uiOperationTimeout = context.config.getInt("plumbing.ui.operation.timeout").millis
   //Logging
   private val akkaLog = Logging.getLogger(context.system, this)
   akkaLog.info(s"[Pump.<init>] Creating of tool: $tool, name: $toolName")

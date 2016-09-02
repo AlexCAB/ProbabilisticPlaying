@@ -166,6 +166,7 @@ private [mathact] trait DriveMessaging { _: Drive ⇒
       //Send log message
       log.warning(s"[DriveMessaging.messageTaskTimeout] inlet: $inlet, execTime: $execTime.")
       userLogging ! Msg.LogWarning(
+        toolId,
         pump.toolName,
         s"Message handling timeout for ${inlet.name.getOrElse("")} inlet, on '$execTime', keep waiting.")
     case None ⇒
@@ -185,6 +186,7 @@ private [mathact] trait DriveMessaging { _: Drive ⇒
       runNextMsgTask().foreach(inlet ⇒ sendLoadMessage(inlet))
       //Send log message
       userLogging ! Msg.LogError(
+        toolId,
         pump.toolName,
         Some(error),
         s"Message handling fail for ${inlet.name.getOrElse("")} inlet, on '$execTime'.")

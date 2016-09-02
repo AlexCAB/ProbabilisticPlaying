@@ -44,6 +44,7 @@ private[mathact] object Msg {
   case object PumpingStarted extends Msg
   case object StopPumping extends StateMsg
   case object PumpingStopped extends Msg
+  case object SkipAllTimeoutTask extends Msg
   case object ShowAllToolUi extends Msg
   case object HideAllToolUi extends Msg
   //Object Pump - Pumping (ask)
@@ -75,13 +76,12 @@ private[mathact] object Msg {
   case class TaskTimeout(kind: TaskKind, id: Int, timeFromStart: FiniteDuration) extends Msg
   case class TaskFailed(kind: TaskKind, id: Int, execTime: FiniteDuration, error: Throwable) extends Msg
   //User logging
-  case class LogWarning(toolName: String, message: String) extends Msg
-  case class LogError(toolName: String, error: Option[Throwable], message: String) extends Msg
-  //Common messages
-  case object SkipAllTimeoutTask extends Msg
+  case class LogWarning(toolId: Int, toolName: String, message: String) extends Msg
+  case class LogError(toolId: Int, toolName: String, error: Option[Throwable], message: String) extends Msg
   //Visualization - Drive
   case class ToolBuilt(builtInfo: ToolBuiltInfo) extends Msg   //Send to Visualization from Drive after tool built
   case class SetVisualisationLaval(laval: VisualisationLaval) extends Msg //Send to Drive from Visualization
+  case object SkipTimeoutTask extends Msg
   case object ShowToolUi extends Msg  //Send to Drive from Visualization to show it's UI
   case object HideToolUi extends Msg  //Send to Drive from Visualization to hide it's UI
 

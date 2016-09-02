@@ -38,7 +38,7 @@ import javafx.beans.value.ObservableValue
   * Created by CAB on 23.05.2016.
   */
 
-abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
+abstract class SketchControlUI(log: LoggingAdapter) extends JFXInteraction {
   //Parameters
   val initSpeed = 10.0
   val initStepMode = StepMode.HardSynchro
@@ -82,7 +82,7 @@ abstract class SketchControlWindow(log: LoggingAdapter) extends JFXInteraction {
     //Close operation
     delegate.setOnCloseRequest(new EventHandler[WindowEvent]{
       def handle(event: WindowEvent): Unit = {
-        log.debug("[SketchControlWindow.onCloseRequest] Close is hit, call windowClosed.")
+        log.debug("[SketchControlUI.onCloseRequest] Close is hit, call windowClosed.")
         windowClosed()
         event.consume()}})
     //UI Components

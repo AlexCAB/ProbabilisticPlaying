@@ -61,7 +61,7 @@ with DriveStartStop with DriveMessaging with DriveUIControl{ import ActorState._
   val inlets = MutMap[Int, InletState]()    //(Inlet ID, OutletData)
   var visualisationLaval: VisualisationLaval = VisualisationLaval.None
   //On start
-  val impeller = context.actorOf(Props(new Impeller(self)), "ImpellerOf_" + pump.toolName)
+  val impeller = context.actorOf(Props(new Impeller(self, pump.impellerMaxQueueSize)), "ImpellerOf_" + pump.toolName)
   context.watch(impeller)
   //Receives
   /** Reaction on StateMsg'es */
@@ -142,7 +142,14 @@ with DriveStartStop with DriveMessaging with DriveUIControl{ import ActorState._
     case (Msg.TaskTimeout(Stop, _, time), Stopping) ⇒ stoppingTaskTimeout(time)
     case (Msg.TaskFailed(Stop, _, time, error), Stopping) ⇒ stoppingTaskFailed(time, error)
     //Managing
-    case (Msg.SkipAllTimeoutTask, _) ⇒ impeller ! Msg.SkipAllTimeoutTask
+    case (Msg.SkipTimeoutTask, _) ⇒ impeller ! Msg.SkipAllTimeoutTask
     case (Msg.SetVisualisationLaval(laval), _) ⇒ visualisationLaval = laval
+    //UI control
     case (Msg.ShowToolUi, Starting | Working | Stopping) ⇒ showToolUi()
-    case (Msg.HideToolUi, Starting | Working | Stopping) ⇒ hideToolUi()}}
+    case (Msg.TaskDone(ShowUI, _, time, _), _) ⇒ showToolUiTaskDone(time)
+    case (Msg.TaskTimeout(ShowUI, _, time), _) ⇒ showToolUiTaskTimeout(time)
+    case (Msg.TaskFailed(ShowUI, _, time, error), _) ⇒ showToolUiTaskFailed(time, error)
+    case (Msg.HideToolUi, Starting | Working | Stopping) ⇒ hideToolUi()
+    case (Msg.TaskDone(HideUI, _, time, _), _) ⇒ hideToolUiTaskDone(time)
+    case (Msg.TaskTimeout(HideUI, _, time), _) ⇒ hideToolUiTaskTimeout(time)
+    case (Msg.TaskFailed(HideUI, _, time, error), _) ⇒ hideToolUiTaskFailed(time, error)}}

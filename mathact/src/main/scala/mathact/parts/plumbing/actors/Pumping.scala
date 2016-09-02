@@ -131,4 +131,6 @@ extends StateActorBase(ActorState.Building) with IdGenerator{ import ActorState.
     case (Msg.DriveStopped, Stopping) ⇒ setSenderDriveState(Stopped)
     case (Msg.DriveTerminated, Terminating) ⇒ setSenderDriveState(Terminated)
     //Re send SkipAllTimeoutTask to all drives
-    case (Msg.SkipAllTimeoutTask, _) ⇒ drives.values.foreach(_.drive ! Msg.SkipAllTimeoutTask)}}
+    case (Msg.SkipAllTimeoutTask, _) ⇒ drives.values.foreach(_.drive ! Msg.SkipTimeoutTask)
+    case (Msg.ShowAllToolUi, _) ⇒ drives.values.foreach(_.drive ! Msg.ShowToolUi)
+    case (Msg.HideAllToolUi, _) ⇒ drives.values.foreach(_.drive ! Msg.HideToolUi)}}

@@ -24,4 +24,4 @@ trait UIControl { _: Fitting ⇒
   protected def onShowUI(): Unit
   private[mathact] def doShowUI(): Unit = onShowUI()
   protected def onHideUI(): Unit
-  private[mathact] def doHideUI(): Unit = onShowUI()}
+  private[mathact] def doHideUI(): Unit = onHideUI()}
