@@ -14,7 +14,7 @@
 
 package mathact.parts.plumbing.fitting
 
-import mathact.parts.data.Msg
+import mathact.parts.model.messages.{M, Msg}
 import mathact.parts.plumbing.Pump
 
 
@@ -52,7 +52,7 @@ private [mathact] trait Pipe[H]{
 //  private[plumbing] def getPump: Pump = pump match{
 //    case Some(p) ⇒ p
 //    case None ⇒ throw new IllegalStateException("[Pipe.getPump] Pump not injected.")}
-  def pushUserData(value: H): Unit = pump.pushUserMessage(Msg.UserData[H](pipeId, value))
+  def pushUserData(value: H): Unit = pump.pushUserMessage(M.UserData[H](pipeId, value))
   def connect(out: ()⇒Plug[_], in: ()⇒Socket[_]): Unit = pump.connect(out, in)
 
 
@@ -63,7 +63,7 @@ private [mathact] trait Pipe[H]{
 //
 //  private[plumbing] def pushUserData(value: T): Unit = (pump, pipeId) match{
 //    case (Some(p), Some(outletId)) ⇒ this match{
-//      case _: Outlet[T] ⇒ p.pushUserMessage(Msg.UserData[T](outletId = outletId, value))
+//      case _: Outlet[T] ⇒ p.pushUserMessage(M.UserData[T](outletId = outletId, value))
 //      case t ⇒ p.log.error(s"[Pipe.pushUserData] This pipe is not an Outlet[T], class name ${this.getClass.getName}.")}
 //    case s ⇒ throw new IllegalStateException(s"[Pipe.pushUserData] Pump not injected, state: $s.")}
 

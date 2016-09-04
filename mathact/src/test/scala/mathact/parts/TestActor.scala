@@ -19,7 +19,7 @@ import scala.concurrent.duration._
 import scala.reflect._
 
 
-/** Test actors factory
+/** Test infrastructure factory
   * Created by CAB on 17.08.2016.
   */
 

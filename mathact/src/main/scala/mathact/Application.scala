@@ -17,11 +17,12 @@ package mathact
 import akka.actor.{PoisonPill, Props, ActorRef, ActorSystem}
 import akka.event.Logging
 import akka.util.Timeout
-import com.typesafe.config.ConfigFactory
-import mathact.parts.WorkbenchContext
-import mathact.parts.control.actors.MainController
-import mathact.parts.data.{SketchStatus, Sketch, Msg}
+import mathact.parts.control.infrastructure.MainController
+import mathact.parts.model.data.sketch.SketchData
+import mathact.parts.model.enums.SketchStatus
 import mathact.parts.gui.JFXApplication
+import mathact.parts.model.messages.M
+import mathact.parts.bricks.WorkbenchContext
 import mathact.tools.Workbench
 import scala.collection.mutable.{ArrayBuffer ⇒ MutList}
 import scala.concurrent.{Await, Future}
@@ -48,7 +49,7 @@ private [mathact] object Application{
   private val system = ActorSystem("MathActActorSystem")
   private implicit val execContext = system.dispatcher
   private val log = Logging.getLogger(system, this)
-  private val config = ConfigFactory.load()
+  private val config = new AppConfig
   log.info(s"[Application] Starting of program...")
   //Main controller
   private val mainController: ActorRef = system.actorOf(Props(new MainController(doStop, config)), "MainControllerActor")
@@ -67,7 +68,7 @@ private [mathact] object Application{
   /** Starting of application
     * @param sketches - List[(class of sketch, name of sketch)]
     * @param args - App arguments */
-  def start(sketches: List[Sketch], args: Array[String]): Unit =
+  def start(sketches: List[SketchData], args: Array[String]): Unit =
     try{
       //Check state
       state match{
@@ -77,7 +78,7 @@ private [mathact] object Application{
           Platform.implicitExit = false
           log.debug(s"[Application.start] JFXApplication created, starting application.")
           state = State.Work
-          mainController ! Msg.MainControllerStart(sketches)
+          mainController ! M.MainControllerStart(sketches)
         case st ⇒
           throw new IllegalStateException(
             s"[Application.start] This method can be called only if App in Starting state, current state: $st")}}
@@ -88,35 +89,37 @@ private [mathact] object Application{
   /** Get of WorkbenchContext for new Workbench
     * @param workbench - Workbench
     * @return - MainController ActorRef or thrown exception */
-  def getWorkbenchContext(workbench: Workbench): WorkbenchContext = state match{
-    case State.Work ⇒
-      val opClassName = Option(workbench.getClass.getCanonicalName)
-      val askTimeout = Timeout(creatingWorkbenchContextTimeout).duration
-      log.debug(
-        s"[Application.getWorkbenchContext] Try to create WorkbenchContext for workbench $workbench, " +
-        s"class name: $opClassName, askTimeout: $askTimeout.")
-      //Check className
-      opClassName match{
-        case Some(className) ⇒
-          //Ask for new context
-          Await
-            .result(
-              ask(mainController, Msg.NewWorkbenchContext(workbench))(askTimeout).mapTo[Either[Exception,WorkbenchContext]],
-              askTimeout)
-            .fold(
-              e ⇒ {
-                log.debug(s"[Application.getWorkbenchContext] Error on ask for ${workbench.getClass.getName}, err: $e.")
-                throw e},
-              wc ⇒ {
-                log.debug(s"[Application.getWorkbenchContext] WorkbenchContext created for ${workbench.getClass.getName}.")
-                wc})
-        case None ⇒
-          throw new IllegalArgumentException(
-            s"[Application.getWorkbenchContext] No canonical name of workbench class $workbench")}
+  def getWorkbenchContext(workbench: Workbench): WorkbenchContext = ???
 
-    case st ⇒
-      throw new IllegalStateException(
-        s"[Application.getWorkbenchContext] This method can be called only if App in Work state, current state: $st")}
+
+//    state match{
+//    case State.Work ⇒
+//      val opClassName = Option(workbench.getClass.getCanonicalName)
+//      val askTimeout = Timeout(creatingWorkbenchContextTimeout).duration
+//      log.debug(
+//        s"[Application.getWorkbenchContext] Try to create WorkbenchContext for workbench $workbench, " +
+//        s"class name: $opClassName, askTimeout: $askTimeout.")
+//      //Check className
+//      opClassName match{
+//        case Some(className) ⇒
+//          //Ask for new context
+//          Await
+//            .result(
+//              ask(mainController, M.NewWorkbenchContext(workbench))(askTimeout).mapTo[Either[Exception,WorkbenchContext]],
+//              askTimeout)
+//            .fold(
+//              e ⇒ {
+//                log.debug(s"[Application.getWorkbenchContext] Error on ask for ${workbench.getClass.getName}, err: $e.")
+//                throw e},
+//              wc ⇒ {
+//                log.debug(s"[Application.getWorkbenchContext] WorkbenchContext created for ${workbench.getClass.getName}.")
+//                wc})
+//        case None ⇒
+//          throw new IllegalArgumentException(
+//            s"[Application.getWorkbenchContext] No canonical name of workbench class $workbench")}
+//    case st ⇒
+//      throw new IllegalStateException(
+//        s"[Application.getWorkbenchContext] This method can be called only if App in Work state, current state: $st")}
   //Logging methods
   object appLog {
     def debug(msg: String): Unit = log.debug(s"[Application.appLog] $msg")
@@ -145,12 +148,12 @@ class Application {
     val sketches = sketchList
       .toList
       .map(_.getData)
-      .foldRight(List[Sketch]()){
+      .foldRight(List[SketchData]()){
         case (s,l) if s._2.isEmpty ⇒
           throw new IllegalArgumentException(s"[Application.main] No canonical class name for: $s" )
         case (s,l) if l.exists(_.clazz.getCanonicalName == s._1.getCanonicalName) ⇒
           l
         case ((c, Some(cn), n, d, a), l) ⇒
-          Sketch(c, cn, n, d, a match{case true ⇒ SketchStatus.Autorun; case _ ⇒ SketchStatus.Ready}) +: l}
+          SketchData(c, cn, n, d, a, ???, ???) +: l}
     //Construct Application
     Application.start(sketches, arg)}}

@@ -16,10 +16,10 @@ package mathact.parts
 
 import java.util.UUID
 
-import mathact.parts.data._
+import mathact.parts.model.enums._
 
 
-/** Random data generator methods
+/** Random model generator methods
   * Created by CAB on 13.08.2016.
   */
 

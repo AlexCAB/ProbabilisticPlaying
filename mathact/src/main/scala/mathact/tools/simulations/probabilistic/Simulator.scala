@@ -13,7 +13,7 @@
 //\* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 //
 //package mathact.tools.simulations.probabilistic
-//import mathact.parts.Tool
+//import mathact.parts.tools.Tool
 //
 ///** Simulator tool
 //  * Created by CAB on 03.05.2016.

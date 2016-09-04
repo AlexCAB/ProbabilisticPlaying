@@ -15,9 +15,9 @@
 package mathact.tools
 
 import mathact.Application
-import mathact.parts.data.Msg
+import mathact.parts.model.messages.Msg
 import mathact.parts.plumbing.{Fitting, Pump}
-import mathact.parts.Tool
+import mathact.parts.bricks.Tool
 import scalafx.application.JFXApp
 import scalafx.application.JFXApp.PrimaryStage
 import scalafx.geometry.Insets
@@ -76,7 +76,7 @@ abstract class Workbench { //extends Fitting{
 ////
 ////  def main(arg:Array[String]):Unit = {
 ////    //Starting of main controller
-////    environment.controller ! Msg.MainControllerStart
+////    environment.controller ! M.MainControllerStart
 ////
 ////
 ////     //До вызова этого метода акторы могут обмениватся только конструкционными сообщениями (NewDrive, NewImpeller)

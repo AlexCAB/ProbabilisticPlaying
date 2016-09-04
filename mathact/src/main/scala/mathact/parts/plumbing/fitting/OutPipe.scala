@@ -14,7 +14,7 @@
 
 package mathact.parts.plumbing.fitting
 
-import mathact.parts.data.{OutletData, Msg}
+import mathact.parts.model.data.pipes.OutletData
 import mathact.parts.plumbing.Pump
 
 

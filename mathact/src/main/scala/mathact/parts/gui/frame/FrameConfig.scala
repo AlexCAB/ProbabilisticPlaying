@@ -14,7 +14,7 @@
 
 package mathact.parts.gui.frame
 
-import mathact.parts.Tool
+import mathact.parts.bricks.Tool
 
 
 /** Contain DSL for frame configuration.

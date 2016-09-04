@@ -13,8 +13,8 @@
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 package mathact.tools.plots
-import mathact.parts.{WorkbenchContext, Tool}
-import mathact.parts.plumbing._
+
+import mathact.parts.bricks.{WorkbenchContext, Tool}
 
 
 /** Chart recorder by Y tool

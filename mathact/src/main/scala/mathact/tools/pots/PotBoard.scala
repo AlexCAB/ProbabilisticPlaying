@@ -13,10 +13,8 @@
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 package mathact.tools.pots
-import mathact.parts.{WorkbenchContext, OnStart, OnStop, Tool}
 
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
+import mathact.parts.bricks.{WorkbenchContext, OnStart, Tool, OnStop}
 
 
 /** Pot board tool

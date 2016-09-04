@@ -18,7 +18,8 @@ import javafx.event.EventHandler
 import javafx.stage.WindowEvent
 
 import akka.event.LoggingAdapter
-import mathact.parts.data.{SketchStatus, Sketch}
+import mathact.parts.model.data.sketch.SketchData
+import mathact.parts.model.enums.SketchStatus
 
 import scalafx.Includes._
 import scalafx.beans.property.{ObjectProperty, StringProperty}
@@ -44,21 +45,21 @@ abstract class SelectSketchWindow(log: LoggingAdapter) extends JFXInteraction {
   def sketchSelected(sketchClassName: String): Unit
   def windowClosed(): Unit
   //Definitions
-  private class MainWindowStage(sketches: List[Sketch]) extends Stage {
+  private class MainWindowStage(sketches: List[SketchData]) extends Stage {
     //Components
     val startBtnDImg = new Image("sketch_start_d.png", buttonsSize, buttonsSize, true, true)
     val startBtnEImg =  new Image("sketch_start_e.png", buttonsSize, buttonsSize, true, true)
     //Definitions
-    class SketchData(sketch: Sketch, onHit: String⇒Unit){
-      val className = sketch.className
-      val name = sketch.sketchName.getOrElse(className)
-      val description = sketch.sketchDesc.getOrElse("---")
-      val status = sketch.status match{
-        case SketchStatus.Autorun ⇒ "autorun"
-        case SketchStatus.Ready ⇒ "ready"
-        case SketchStatus.Ended ⇒ "ended"
-        case SketchStatus.Failed ⇒ "failed"
-        case _ ⇒ "unknown"}
+    class SketchData(sketch: SketchData, onHit: String⇒Unit){
+      val className: String = ??? // = sketch.className
+      val name = ??? //sketch.sketchName.getOrElse(className)
+      val description = ??? //sketch.sketchDescription.getOrElse("---")
+      val status: SketchStatus = ??? //sketch.status match{
+//        case SketchStatus.Autorun ⇒ "autorun"
+//        case SketchStatus.Ready ⇒ "ready"
+//        case SketchStatus.Ended ⇒ "ended"
+//        case SketchStatus.Failed ⇒ "failed"
+//        case _ ⇒ "unknown"}
       val runBtn = new Button{
         //Parameters
         graphic = new ImageView{image = startBtnEImg}
@@ -74,13 +75,18 @@ abstract class SelectSketchWindow(log: LoggingAdapter) extends JFXInteraction {
             graphic = new ImageView{image = startBtnDImg}
             disable = true}}}
     //Preparing
-    val sketchRows: List[SketchData] = sketches.map(d ⇒ new SketchData(d, className ⇒ {
-      //Disable rest os sketches
-      sketchRows.foreach{
-        case s if s.className != className ⇒ s.runBtn.setEnabled(false)
-        case _ ⇒}
-      //Call selected
-      sketchSelected(className)}))
+    val sketchRows: List[SketchData] = ???
+
+//      sketches.map(d ⇒
+//
+//      new SketchData(d, className ⇒ {
+//      //Disable rest os sketches
+////      sketchRows.foreach{
+////        case s if s.className != className ⇒ s.runBtn.setEnabled(false)
+////        case _ ⇒}
+//      //Call selected
+//      sketchSelected(className)}))
+
     //UI
     title = "MathAct - Sketches"
     scene = new Scene {
@@ -92,7 +98,7 @@ abstract class SelectSketchWindow(log: LoggingAdapter) extends JFXInteraction {
               | No sketches found.
               | Please define some sketch like:
               |   object MySketch extends Application{
-              |     sketchOf[MySketchClass] name "Example" description "My first Sketch" autorun
+              |     sketchOf[MySketchClass] name "Example" description "My first SketchData" autorun
               |   }
             """.stripMargin
           style = "-fx-font-size: 14; -fx-font-weight: bold; -fx-alignment: CENTER-LEFT;"
@@ -119,7 +125,8 @@ abstract class SelectSketchWindow(log: LoggingAdapter) extends JFXInteraction {
                 text = "Status"
                 prefWidth = 60
                 style = "-fx-font-size: 12; -fx-font-weight: bold; -fx-alignment: CENTER;"
-                cellValueFactory = { d ⇒ new StringProperty(d.value, "status",  d.value.status)}}
+//                cellValueFactory = { d ⇒ new StringProperty(d.value, "status",  d.value.status)}
+              }
               val runBtnColumn = new TableColumn[SketchData, Button] {
                 text = "Run"
                 prefWidth = 42
@@ -138,7 +145,7 @@ abstract class SelectSketchWindow(log: LoggingAdapter) extends JFXInteraction {
   //Variables
   private var stage: Option[MainWindowStage] = None
   //Methods
-  def show(sketches: List[Sketch]): Unit = {
+  def show(sketches: List[SketchData]): Unit = {
     //Close old is exist
     stage.foreach(stg ⇒ runAndWait(stg.close()))
     //Create new

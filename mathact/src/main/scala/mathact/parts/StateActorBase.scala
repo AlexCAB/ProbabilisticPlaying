@@ -14,16 +14,13 @@
 
 package mathact.parts
 
-import java.io.{PrintWriter, StringWriter}
-
 import akka.actor.Actor
 import akka.event.{Logging, LoggingAdapter}
-import mathact.parts.data.{Msg, StateMsg, ActorState}
+import mathact.parts.model.enums.ActorState
+import mathact.parts.model.messages.{StateMsg, Msg}
 
-import scala.util.Try
 
-
-/** Base class for actors with state
+/** Base class for infrastructure with state
   * Created by CAB on 26.08.2016.
   */
 

@@ -26,7 +26,7 @@ import akka.pattern.ask
 import scala.reflect._
 
 
-/** Base class for testing of actors
+/** Base class for testing of infrastructure
   * Created by CAB on 12.08.2016.
   */
 
