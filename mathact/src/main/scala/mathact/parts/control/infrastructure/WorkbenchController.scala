@@ -26,10 +26,11 @@ import mathact.parts.model.data.sketch.{SketchUIState, SketchData}
 import mathact.parts.model.enums.{SketchUIAction, ActorState, StepMode}
 import mathact.parts.model.messages.{StateMsg, M, Msg}
 import mathact.parts.bricks.WorkbenchContext
-import mathact.parts.{StateActorBase, ActorBase}
+import mathact.parts.{WorkbenchLike, StateActorBase, ActorBase}
 import mathact.parts.gui.SelectSketchWindow
 import mathact.parts.gui.frame.Frame
 import mathact.parts.plumbing.infrastructure.Pumping
+import mathact.tools.Workbench
 
 import scala.concurrent.Future
 import scala.util.{Success, Failure}
@@ -50,7 +51,7 @@ import scalafx.stage.Stage
 
 class WorkbenchController(
   val config: MainConfigLike,
-  val sketch: SketchData,
+  val sketchData: SketchData,
   val mainController: ActorRef,
   val sketchUi: ActorRef,
   val userLogging: ActorRef,
@@ -61,9 +62,7 @@ extends StateActorBase(ActorState.Creating) with WorkbenchControllerUIControl wi
 //  //Enums
 //  object State extends Enumeration {val Creating, Starting, Work, Stopping, Failing, Ended  = Value}
   //Messages
-  case object SketchBuilt extends Msg
-  case object SketchBuiltTimeout  extends Msg
-  case class SketchError(error: Throwable) extends Msg
+  case class SketchBuilt(result: Either[Throwable, WorkbenchLike]) extends Msg
  //  //Build
 //  val initSketchUiState = SketchUIState(
 //    isUiShown = true,
@@ -116,6 +115,8 @@ extends StateActorBase(ActorState.Creating) with WorkbenchControllerUIControl wi
 
 
     case (M.StopWorkbenchController, Creating) ⇒
+
+
       ???
 
 //    //Switch to Starting, send BuildDrive to all drives
@@ -167,6 +168,8 @@ extends StateActorBase(ActorState.Creating) with WorkbenchControllerUIControl wi
   }
   /** Actor reaction on messages */
   def reaction: PartialFunction[(Msg, ActorState), Unit] = {
+    //From objects asks
+    case (M.GetWorkbenchContext(sender), _) ⇒ sender ! getWorkbenchContext
     //UI showed/headed
     case (M.SketchUIActionTriggered(UiShowed, state), _) ⇒ sketchUiShowed(state)
     case (M.SketchUIActionTriggered(UiHided, state), _) ⇒ sketchUiHided(state)
@@ -175,9 +178,9 @@ extends StateActorBase(ActorState.Creating) with WorkbenchControllerUIControl wi
     case (M.VisualizationUIShowed, _) ⇒ visualizationUIShowed()
     case (M.VisualizationUIHided, _) ⇒ visualizationUIHided()
     //Sketch building
-    case (SketchBuilt, Building) ⇒ sketchBuilt()
-    case (SketchBuiltTimeout, Building) ⇒ sketchBuiltTimeout()
-    case (SketchError(error), Building) ⇒ sketchBuildingError(error)
+    case (SketchBuilt(sketchInstance), Building) ⇒ sketchBuilt(sketchInstance)
+
+
 
 
 

@@ -15,6 +15,7 @@
 package mathact.parts.model.messages
 
 import akka.actor.ActorRef
+import mathact.parts.WorkbenchLike
 import mathact.parts.model.data.pipes.{InletData, OutletData}
 import mathact.parts.model.data.sketch.{SketchUIState, SketchData}
 import mathact.parts.model.data.visualisation.ToolBuiltInfo
@@ -33,10 +34,10 @@ import scala.concurrent.duration.FiniteDuration
 private [mathact] object M {
   //Application - MainController
   case class MainControllerStart(sketches: List[SketchData]) extends Msg
-  case class NewWorkbenchContext(workbench: Workbench) extends Msg
+  case class NewWorkbenchContext(workbench: WorkbenchLike) extends Msg
   //MainController - SketchController
   case object WorkbenchControllerStart extends StateMsg
-  case class GetWorkbenchContext(sender: ActorRef, workbench: Workbench) extends Msg
+  case class GetWorkbenchContext(sender: ActorRef) extends Msg
   case object StopWorkbenchController extends StateMsg
   case class SketchDone(className: String) extends Msg
   case class SketchError(className: String, error: Throwable) extends Msg

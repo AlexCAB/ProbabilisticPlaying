@@ -12,9 +12,10 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts
+package mathact.parts.dummies
 
-import akka.actor.{Props, Actor, ActorSystem, ActorRef}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+
 import scala.concurrent.duration._
 import scala.reflect._
 

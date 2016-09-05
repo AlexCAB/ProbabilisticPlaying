@@ -18,6 +18,7 @@ import akka.actor.{Terminated, ActorRef, Props}
 import akka.testkit.TestProbe
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
+import mathact.parts.dummies.TestActor
 import mathact.parts.model.config.{PumpConfigLike, DriveConfigLike}
 import mathact.parts.model.enums.VisualisationLaval
 import mathact.parts.model.messages.M

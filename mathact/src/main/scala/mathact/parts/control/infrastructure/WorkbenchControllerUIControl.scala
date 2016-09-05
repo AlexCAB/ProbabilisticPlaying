@@ -37,29 +37,29 @@ trait WorkbenchControllerUIControl { _: WorkbenchController ⇒
     //Sketch UI
     sketchUi ! M.SetSketchUIState(SketchUIState(
       isUiShown = true,
-      runBtnEnable = ! sketch.autorun,
+      runBtnEnable = ! sketchData.autorun,
       showToolUiBtnEnable = true,
       hideToolUiBtnEnable = true,
       skipAllTimeoutProcBtnEnable = true,
       stopBtnEnable = false,
       logUiBtnEnable = true,
-      logUiBtnIsShow = sketch.showUserLogUi,
+      logUiBtnIsShow = sketchData.showUserLogUi,
       visualisationUiBtnEnable = true,
-      visualisationUiBtnIsShow = sketch.showVisualisationUi))
+      visualisationUiBtnIsShow = sketchData.showVisualisationUi))
     //User logging
-    sketch.showUserLogUi match{
+    sketchData.showUserLogUi match{
       case true ⇒ userLogging ! M.ShowUserLoggingUI
       case false ⇒ log.debug("[WorkbenchControllerUIControl.showAllUi] User Logging UI will hided.")}
     //Visualisation
-    sketch.showVisualisationUi match{
+    sketchData.showVisualisationUi match{
       case true ⇒ visualization ! M.ShowVisualizationUI
       case false ⇒ log.debug("[WorkbenchControllerUIControl.showAllUi] Visualization UI will hided..")}}
 
 
   def isAllUiShowed: Boolean = {
     sketchUiState.nonEmpty && sketchUiState.get.isUiShown &&
-      (isUserLogShowed || (! sketch.showUserLogUi)) &&
-      (isVisualisationShowed || (! sketch.showVisualisationUi))}
+      (isUserLogShowed || (! sketchData.showUserLogUi)) &&
+      (isVisualisationShowed || (! sketchData.showVisualisationUi))}
 
 
   def sketchUiShowed(state: SketchUIState): Unit = { sketchUiState = Some(state) }

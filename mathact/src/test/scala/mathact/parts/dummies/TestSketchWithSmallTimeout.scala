@@ -12,30 +12,20 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts
+package mathact.parts.dummies
 
-import scala.concurrent.duration.Duration
+import mathact.parts.WorkbenchLike
+import mathact.parts.bricks.WorkbenchContext
 
-/** Sketch for using in tests
-  * Created by CAB on 04.09.2016.
+import scala.concurrent.duration._
+
+
+/** Test sketch with timeout
+  * Created by CAB on 05.09.2016.
   */
 
-class TestSketch{
-  println("[WorkbenchControllerTest.TestSketch] Creating.")
-  TestSketch.instanceCreated()
-  TestSketch.getProcTimeout.foreach(d ⇒ Thread.sleep(d.toMillis))
-  TestSketch.getProcError.foreach(e ⇒ throw e)}
-
-
-object TestSketch{
-  //Variables
-  @volatile private var isCreated = false
-  @volatile private var procTimeout: Option[Duration] = None
-  @volatile private var procError: Option[Throwable] = None
-  //Static methods
-  def instanceCreated(): Unit = { isCreated = true }
-  def getProcTimeout: Option[Duration] = procTimeout
-  def getProcError: Option[Throwable] = procError
-  def isInstanceCreated: Boolean = isCreated
-  def setProcTimeout(d: Duration): Unit = synchronized{ procTimeout = Some(d) }
-  def setProcError(err: Option[Throwable]): Unit = synchronized{ procError = err }}
+class TestSketchWithSmallTimeout extends WorkbenchLike{
+  protected implicit val context: WorkbenchContext = null
+  val timeout = 2.second
+  println(s"[TestSketchWithTimeout] Creating, timeout: $timeout.")
+  Thread.sleep(timeout.toMillis)}

@@ -15,6 +15,7 @@
 package mathact.tools
 
 import mathact.Application
+import mathact.parts.WorkbenchLike
 import mathact.parts.model.messages.Msg
 import mathact.parts.plumbing.{Fitting, Pump}
 import mathact.parts.bricks.Tool
@@ -33,7 +34,7 @@ import scalafx.scene.text.Text
   * Created by CAB on 09.05.2016.
   */
 
-abstract class Workbench { //extends Fitting{
+abstract class Workbench extends WorkbenchLike{ //extends Fitting{
   //Get of WorkbenchContext
   protected implicit val context = Application.getWorkbenchContext(this)
 

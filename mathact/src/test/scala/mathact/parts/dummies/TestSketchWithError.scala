@@ -12,20 +12,17 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.bricks
+package mathact.parts.dummies
 
-import akka.actor.{ActorRef, ActorSystem}
-import com.typesafe.config.Config
-import mathact.parts.model.config.PumpConfigLike
+import mathact.parts.WorkbenchLike
+import mathact.parts.bricks.WorkbenchContext
 
 
-/** Provide support and management of Workbench
-  * Created by CAB on 20.06.2016.
+/** Test sketch with error
+  * Created by CAB on 05.09.2016.
   */
 
-class WorkbenchContext(
-  val system: ActorSystem,
-  val controller: ActorRef,
-  val pumping: ActorRef,
-  val pumpConfig: PumpConfigLike,
-  val commonConfig: Config)
+class TestSketchWithError extends WorkbenchLike{
+  protected implicit val context: WorkbenchContext = null
+  println(s"[TestSketchWithError] Creating and throw error.")
+  throw new Exception("Oops!!")}

@@ -24,7 +24,7 @@ import mathact.parts.model.enums.SketchStatus
 import mathact.parts.model.messages.{M, Msg}
 import mathact.parts.ActorBase
 import mathact.parts.gui.SelectSketchWindow
-import mathact.tools.Workbench
+import mathact.parts.WorkbenchLike
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
@@ -106,7 +106,12 @@ class MainController(doStop: Int⇒Unit, config: AppConfig) extends ActorBase{
           log.error(s"[MainController.RunSketch] Not found sketch for className: $className")
         case _ ⇒}
     //Creating of new WorkbenchContext instance, return Either[Exception,WorkbenchContext]
-//    case M.NewWorkbenchContext(workbench: Workbench) ⇒
+    case M.NewWorkbenchContext(workbench: WorkbenchLike) ⇒
+
+      //TODO Проветить запрос от текущего скетча и если нет ошыбка, если да пересылка контроллкру скетча GetWorkbenchContext
+
+
+
 //
 //
 //      (currentSketch, Option(workbench.getClass.getCanonicalName)) match {

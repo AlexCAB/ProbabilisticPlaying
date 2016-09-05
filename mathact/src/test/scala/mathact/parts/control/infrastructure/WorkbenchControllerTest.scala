@@ -14,20 +14,24 @@
 
 package mathact.parts.control.infrastructure
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{Actor, ActorRef, Props}
 import akka.testkit.TestProbe
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import mathact.Application
-import mathact.parts.{TestSketch, ActorTestSpec}
+import mathact.parts.bricks.WorkbenchContext
+import mathact.parts.dummies.{TestSketchWithSmallTimeout, TestSketchEmpty}
+import mathact.parts.{WorkbenchLike, ActorTestSpec}
 import mathact.parts.model.config.{MainConfigLike, DriveConfigLike, PumpConfigLike, PumpingConfigLike}
 import mathact.parts.model.data.sketch.{SketchUIState, SketchData}
 import mathact.parts.model.enums._
 import mathact.parts.model.messages.M
-import mathact.tools.Workbench
+import mathact.parts.WorkbenchLike
 import org.scalatest.Suite
 
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
+import akka.pattern.ask
 
 
 /** Workbench controller test
@@ -53,11 +57,12 @@ class WorkbenchControllerTest extends ActorTestSpec {
           val uiOperationTimeout = 1.second}}}
     //Test SketchData
     def newTestSketchData(
+      clazz: Class[_] = classOf[TestSketchEmpty],
       autorun: Boolean,
       showUserLogUi: Boolean,
       showVisualisationUi: Boolean)
     :SketchData = SketchData(
-        clazz = classOf[TestSketch],
+        clazz,
         className = "this.TestSketch",
         sketchName = Some("TestSketch1"),
         sketchDescription = Some("Testing sketch 1"),
@@ -65,11 +70,23 @@ class WorkbenchControllerTest extends ActorTestSpec {
         showUserLogUi,
         showVisualisationUi)
     //Helpers actors
-    lazy val testMainController = TestProbe("TestMainController" + randomString())
-    lazy val testSketchUi = TestProbe("TestSketchUi" + randomString())
-    lazy val testUserLogging = TestProbe("TestUserLogging" + randomString())
-    lazy val testVisualization = TestProbe("Visualization" + randomString())
-    lazy val testPumping = TestProbe("TestPumping" + randomString())
+    def testAskMainController(workbenchController: ActorRef) = system.actorOf(Props(
+      new Actor{
+        def receive = {
+          case M.NewWorkbenchContext(workbench) ⇒
+            println(
+              s"[WorkbenchControllerTest.testAskMainController] Send GetWorkbenchContext, " +
+              s"sender: $sender, workbench: $workbench")
+            workbenchController ! M.GetWorkbenchContext(sender)
+          case m ⇒
+            println(s"[WorkbenchControllerTest.testAskMainController] Unknown msg: $m")}}),
+      "TestAskMainController_" + randomString())
+    lazy val testActor = TestProbe("testActor_" + randomString())
+    lazy val testMainController = TestProbe("TestMainController_" + randomString())
+    lazy val testSketchUi = TestProbe("TestSketchUi_" + randomString())
+    lazy val testUserLogging = TestProbe("TestUserLogging_" + randomString())
+    lazy val testVisualization = TestProbe("Visualization_" + randomString())
+    lazy val testPumping = TestProbe("TestPumping_" + randomString())
     //WorkbenchController
     def newWorkbenchController(sketch: SketchData): ActorRef = system.actorOf(Props(
       new WorkbenchController(
@@ -80,12 +97,26 @@ class WorkbenchControllerTest extends ActorTestSpec {
         testUserLogging.ref,
         testVisualization.ref,
         testPumping.ref)),
-      "WorkbenchController_" + randomString())}
+      "WorkbenchController_" + randomString())
+    def newStartedWorkbenchController(): ActorRef = {
+      val controller = newWorkbenchController( newTestSketchData(
+        autorun = false,
+        showUserLogUi = false,
+        showVisualisationUi = false))
+      testMainController.send(controller, M.WorkbenchControllerStart)
+      val sketchUIState = testSketchUi.expectMsgType[M.SetSketchUIState].state
+      testSketchUi.send(controller, M.SketchUIActionTriggered(SketchUIAction.UiShowed, sketchUIState))
+      controller}
+
+
+
+  }
   //Testing
   "WorkbenchController" should{
     "by WorkbenchControllerStart, create sketch instance show UI, start pumping" in new TestCase {
       //Preparing
       val controller = newWorkbenchController( newTestSketchData(
+        clazz = classOf[TestSketchWithSmallTimeout],
         autorun = true,
         showUserLogUi = true,
         showVisualisationUi = true))
@@ -111,25 +142,44 @@ class WorkbenchControllerTest extends ActorTestSpec {
       //Show visualization UI
       testVisualization.expectMsg(M.ShowVisualizationUI)
       testVisualization.send(controller, M.VisualizationUIShowed)
+      //Get context
+      testActor.send(controller, M.GetWorkbenchContext(testActor.ref))
+      testActor.expectMsgType[Either[Exception, WorkbenchContext]]
       //Run plumbing
       testPumping.expectMsg(M.StartPumping)
       testPumping.send(controller, M.PumpingStarted)
+
+
+      println("TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT")
       //Check if Sketch build
-      TestSketch.isInstanceCreated shouldEqual true}
+//      TestSketch.isInstanceCreated shouldEqual true
+
+
+
+
+
+    }
 
 
 
 
     //TODO Разные варианты запуска (стразными отображениями и ошибками скетчей)
 
-//
-//
+
+
 //    "by GetWorkbenchContext, create and return WorkbenchContext" in new TestCase {
-//
-//
-//
-//
-//    }
+//      //Preparing
+//      val controller = newStartedWorkbenchController()
+//      val askMainController = testAskMainController(controller)
+//      val askTimeout = 1.second
+//      //Construct Workbench and do ask
+//      val workbench = new WorkbenchLike{
+//        val res: Either[Exception,WorkbenchContext]  = Await.result(
+//          ask(askMainController, M.NewWorkbenchContext(this))(askTimeout).mapTo[Either[Exception,WorkbenchContext]],
+//          askTimeout)
+//        println("[WorkbenchControllerTest.workbench] res: " + res)
+//        res.isRight shouldEqual true
+//        protected implicit val context: WorkbenchContext = res.right.get}}
 
 
 
