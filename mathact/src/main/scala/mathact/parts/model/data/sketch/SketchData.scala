@@ -14,7 +14,6 @@
 
 package mathact.parts.model.data.sketch
 
-import mathact.parts.model.enums.SketchStatus
 
 /** SketchData model
   * Created by CAB on 19.06.2016.

@@ -47,14 +47,14 @@ private [mathact] trait DriveStartStop { _: Drive ⇒
     * @param execTime - Duration */
   def startingTaskTimeout(execTime: Duration): Unit = {
     log.warning(s"[DriveStartStop.startingTaskTimeout]  execTime: $execTime.")
-    userLogging ! M.LogWarning(toolId, pump.toolName, s"Starting function timeout on $execTime, keep waiting.")}
+    userLogging ! M.LogWarning(Some(toolId), pump.toolName, s"Starting function timeout on $execTime, keep waiting.")}
   /** Starting task failed, set of started, log to user console
     * @param execTime - Duration
     * @param error - Throwable */
   def startingTaskFailed(execTime: Duration, error: Throwable): Unit = {
     log.error(s"[DriveStartStop.startingTaskTimeout] execTime: $execTime, error: $error.")
     started = true
-    userLogging ! M.LogError(toolId, pump.toolName, Some(error), s"Starting function failed on $execTime.")}
+    userLogging ! M.LogError(Some(toolId), pump.toolName, Some(error), s"Starting function failed on $execTime.")}
   /** Rus stopping task if defined */
   def doStopping(): Unit = pump.tool match{
     case task: OnStop ⇒
@@ -72,14 +72,14 @@ private [mathact] trait DriveStartStop { _: Drive ⇒
     * @param execTime - Duration */
   def stoppingTaskTimeout(execTime: Duration): Unit = {
     log.warning(s"[DriveStartStop.stoppingTaskTimeout]  execTime: $execTime.")
-    userLogging ! M.LogWarning(toolId, pump.toolName, s"Stopping function timeout on $execTime, keep waiting.")}
+    userLogging ! M.LogWarning(Some(toolId), pump.toolName, s"Stopping function timeout on $execTime, keep waiting.")}
   /** Stopping task failed, set of stopped, log to user console
     * @param execTime - Duration
     * @param error - Throwable */
   def stoppingTaskFailed(execTime: Duration, error: Throwable): Unit = {
     log.error(s"[DriveStartStop.stoppingTaskFailed] execTime: $execTime, error: $error.")
     stopped = true
-    userLogging ! M.LogError(toolId, pump.toolName, Some(error), s"Stopping function failed on $execTime.")}
+    userLogging ! M.LogError(Some(toolId), pump.toolName, Some(error), s"Stopping function failed on $execTime.")}
   /** Check if starting user function is executed
     * @return - true if started */
   def isStarted: Boolean = started

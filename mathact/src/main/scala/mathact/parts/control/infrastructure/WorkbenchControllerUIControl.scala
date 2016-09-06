@@ -14,7 +14,7 @@
 
 package mathact.parts.control.infrastructure
 
-import mathact.parts.model.data.sketch.SketchUIState
+import mathact.parts.model.enums.{SketchUIElement, SketchUiElemState}
 import mathact.parts.model.messages.M
 
 
@@ -23,29 +23,30 @@ import mathact.parts.model.messages.M
   */
 
 trait WorkbenchControllerUIControl { _: WorkbenchController ⇒
+  import SketchUiElemState._, SketchUIElement._
 
 
 
-  private var sketchUiState: Option[SketchUIState] = None  //None - UI is hide
+
+  private var isSketchUiShowed = false
   private var isUserLogShowed = false
   private var isVisualisationShowed = false
 
 
 
 
+
   def showAllUi(): Unit = {
     //Sketch UI
-    sketchUi ! M.SetSketchUIState(SketchUIState(
-      isUiShown = true,
-      runBtnEnable = ! sketchData.autorun,
-      showToolUiBtnEnable = true,
-      hideToolUiBtnEnable = true,
-      skipAllTimeoutProcBtnEnable = true,
-      stopBtnEnable = false,
-      logUiBtnEnable = true,
-      logUiBtnIsShow = sketchData.showUserLogUi,
-      visualisationUiBtnEnable = true,
-      visualisationUiBtnIsShow = sketchData.showVisualisationUi))
+    sketchUi ! M.ShowSketchUI
+    sketchUi ! M.UpdateSketchUIState(Map(
+      RunBtn → ElemDisabled,
+      ShowAllToolsUiBtn → ElemDisabled,
+      HideAllToolsUiBtn → ElemDisabled,
+      SkipAllTimeoutTaskBtn → ElemDisabled,
+      StopSketchBtn → ElemDisabled,
+      LogBtn → (if(sketchData.showUserLogUi) ElemShow else ElemHide),
+      VisualisationBtn → (if(sketchData.showVisualisationUi) ElemShow else ElemHide)))
     //User logging
     sketchData.showUserLogUi match{
       case true ⇒ userLogging ! M.ShowUserLoggingUI
@@ -56,28 +57,27 @@ trait WorkbenchControllerUIControl { _: WorkbenchController ⇒
       case false ⇒ log.debug("[WorkbenchControllerUIControl.showAllUi] Visualization UI will hided..")}}
 
 
-  def isAllUiShowed: Boolean = {
-    sketchUiState.nonEmpty && sketchUiState.get.isUiShown &&
-      (isUserLogShowed || (! sketchData.showUserLogUi)) &&
-      (isVisualisationShowed || (! sketchData.showVisualisationUi))}
+  def isAllUiShowed: Boolean = isSketchUiShowed &&
+    (isUserLogShowed || (! sketchData.showUserLogUi)) &&
+    (isVisualisationShowed || (! sketchData.showVisualisationUi))
 
 
-  def sketchUiShowed(state: SketchUIState): Unit = { sketchUiState = Some(state) }
+  def sketchUiChanged(isShow: Boolean): Unit = {
+    log.debug(s"[WorkbenchControllerUIControl.sketchUiChanged] isShow: $isShow")
+    isSketchUiShowed = isShow }
 
 
-  def sketchUiHided(state: SketchUIState): Unit = { sketchUiState = Some(state) }
+
+  def userLoggingUIChanged(isShow: Boolean): Unit = {
+    log.debug(s"[WorkbenchControllerUIControl.userLoggingUIChanged] isShow: $isShow")
+    isUserLogShowed = isShow
+    sketchUi ! M.UpdateSketchUIState(Map(LogBtn → (if(isShow) ElemShow else ElemHide)))}
 
 
-  def userLoggingUIShowed(): Unit = { isUserLogShowed = true }
-
-
-  def  userLoggingUIHided(): Unit = { isUserLogShowed = false }
-
-
-  def visualizationUIShowed(): Unit = { isVisualisationShowed = true }
-
-
-  def  visualizationUIHided(): Unit = { isVisualisationShowed = false }
+  def visualizationUIChanged(isShow: Boolean): Unit = {
+    log.debug(s"[WorkbenchControllerUIControl.visualizationUIChanged] isShow: $isShow")
+    isVisualisationShowed = isShow
+    sketchUi ! M.UpdateSketchUIState(Map(VisualisationBtn → (if(isShow) ElemShow else ElemHide)))}
 
 
 

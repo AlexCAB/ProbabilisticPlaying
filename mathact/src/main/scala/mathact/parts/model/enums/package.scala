@@ -53,19 +53,23 @@ package object enums {
     val Terminating = Value
     val Terminated = Value}
   type ActorState = ActorState.Value
-  //SketchUIAction
-  object SketchUIAction extends Enumeration {
-    val UiShowed = Value
-    val UiHided = Value
-    val UiClosed = Value
-    val RunBtnHit = Value
-    val ShowAllToolsUiBtnHit = Value
-    val HideAllToolsUiBtnHit = Value
-    val SkipAllTimeoutTaskBtnHit = Value
-    val StopSketchBtnHit = Value
-    val LogBtnHit = Value
-    val VisualisationBtnHit = Value}
-  type SketchUIAction = SketchUIAction.Value
+  //SketchUIElement
+  object SketchUIElement extends Enumeration {
+    val RunBtn = Value
+    val ShowAllToolsUiBtn = Value
+    val HideAllToolsUiBtn = Value
+    val SkipAllTimeoutTaskBtn = Value
+    val StopSketchBtn = Value
+    val LogBtn = Value
+    val VisualisationBtn = Value}
+  type SketchUIElement = SketchUIElement.Value
+  //SketchUiElemState
+  object SketchUiElemState extends Enumeration {
+    val ElemDisabled = Value
+    val ElemEnabled = Value
+    val ElemShow = Value
+    val ElemHide = Value}
+  type SketchUiElemState = SketchUiElemState.Value
 
 //TODO Add more
 

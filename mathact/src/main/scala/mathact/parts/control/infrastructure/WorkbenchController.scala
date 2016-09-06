@@ -22,8 +22,8 @@ import akka.event.Logging
 import com.typesafe.config.Config
 import mathact.parts.control.ui.SketchUI
 import mathact.parts.model.config.MainConfigLike
-import mathact.parts.model.data.sketch.{SketchUIState, SketchData}
-import mathact.parts.model.enums.{SketchUIAction, ActorState, StepMode}
+import mathact.parts.model.data.sketch.SketchData
+import mathact.parts.model.enums.{SketchUiElemState, ActorState}
 import mathact.parts.model.messages.{StateMsg, M, Msg}
 import mathact.parts.bricks.WorkbenchContext
 import mathact.parts.{WorkbenchLike, StateActorBase, ActorBase}
@@ -58,11 +58,15 @@ class WorkbenchController(
   val visualization: ActorRef,
   val pumping: ActorRef)
 extends StateActorBase(ActorState.Creating) with WorkbenchControllerUIControl with WorkbenchControllerBuilding
-{ import ActorState._, SketchUIAction._
+{ import ActorState._, SketchUiElemState._
+  //Values
+  val sketchName = sketchData.sketchName.getOrElse(sketchData.className)
+
 //  //Enums
 //  object State extends Enumeration {val Creating, Starting, Work, Stopping, Failing, Ended  = Value}
   //Messages
   case class SketchBuilt(result: Either[Throwable, WorkbenchLike]) extends Msg
+  case object SketchBuiltTimeout extends Msg
  //  //Build
 //  val initSketchUiState = SketchUIState(
 //    isUiShown = true,
@@ -133,7 +137,7 @@ extends StateActorBase(ActorState.Creating) with WorkbenchControllerUIControl wi
   /** Handling after reaction executed */
   def postHandling: PartialFunction[(Msg, ActorState), Unit] = {
     //Check if all UI showed, and if so switch to Building, and create Workbench instance
-    case (_: M.SketchUIActionTriggered | M.UserLoggingUIShowed | M.VisualizationUIShowed, Creating) ⇒
+    case (_: M.SketchUIChanged | _: M.UserLoggingUIChanged | _: M.VisualizationUIChanged, Creating) ⇒
       isAllUiShowed match{
         case true ⇒
           log.debug("[Creating] All UI showed, run sketch building.")
@@ -141,7 +145,9 @@ extends StateActorBase(ActorState.Creating) with WorkbenchControllerUIControl wi
           sketchRunBuilding()
         case false ⇒
           log.debug(s"[Creating] Not all UI showed yet.")}
-
+    //Sketch built, set Built state
+    case (_: M.SketchBuilt, Building) ⇒
+      state = Built
 
 
 
@@ -171,14 +177,13 @@ extends StateActorBase(ActorState.Creating) with WorkbenchControllerUIControl wi
     //From objects asks
     case (M.GetWorkbenchContext(sender), _) ⇒ sender ! getWorkbenchContext
     //UI showed/headed
-    case (M.SketchUIActionTriggered(UiShowed, state), _) ⇒ sketchUiShowed(state)
-    case (M.SketchUIActionTriggered(UiHided, state), _) ⇒ sketchUiHided(state)
-    case (M.UserLoggingUIShowed, _) ⇒ userLoggingUIShowed()
-    case (M.UserLoggingUIHided, _) ⇒ userLoggingUIHided()
-    case (M.VisualizationUIShowed, _) ⇒ visualizationUIShowed()
-    case (M.VisualizationUIHided, _) ⇒ visualizationUIHided()
+    case (M.SketchUIChanged(isShow), _) ⇒ sketchUiChanged(isShow)
+    case (M.UserLoggingUIChanged(isShow), _) ⇒ userLoggingUIChanged(isShow)
+    case (M.VisualizationUIChanged(isShow), _) ⇒ visualizationUIChanged(isShow)
     //Sketch building
     case (SketchBuilt(sketchInstance), Building) ⇒ sketchBuilt(sketchInstance)
+    case (SketchBuiltTimeout, state) ⇒ sketchBuiltTimeout(state)
+    case (M.PumpingStarted, Building) ⇒ pumpingStarted()
 
 
 

@@ -17,7 +17,7 @@ package mathact.parts.model.messages
 import akka.actor.ActorRef
 import mathact.parts.WorkbenchLike
 import mathact.parts.model.data.pipes.{InletData, OutletData}
-import mathact.parts.model.data.sketch.{SketchUIState, SketchData}
+import mathact.parts.model.data.sketch.SketchData
 import mathact.parts.model.data.visualisation.ToolBuiltInfo
 import mathact.parts.model.enums._
 import mathact.parts.plumbing.PumpLike
@@ -39,21 +39,23 @@ private [mathact] object M {
   case object WorkbenchControllerStart extends StateMsg
   case class GetWorkbenchContext(sender: ActorRef) extends Msg
   case object StopWorkbenchController extends StateMsg
+  case class SketchBuilt(className: String, workbench: WorkbenchLike) extends Msg
   case class SketchDone(className: String) extends Msg
   case class SketchError(className: String, error: Throwable) extends Msg
   //SketchController - SketchUI
-  case class SetSketchUIState(state: SketchUIState) extends Msg
-  case class SketchUIActionTriggered(action: SketchUIAction, state: SketchUIState) extends Msg
+  case object ShowSketchUI extends Msg
+  case object HideSketchUI extends Msg
+  case class SketchUIChanged(isShow: Boolean) extends Msg
+  case class UpdateSketchUIState(state: Map[SketchUIElement, SketchUiElemState]) extends Msg
+  case class SketchUIActionTriggered(element: SketchUIElement, action: Any) extends Msg
   //SketchController - UserLogging
   case object ShowUserLoggingUI extends Msg
-  case object UserLoggingUIShowed extends Msg
   case object HideUserLoggingUI extends Msg
-  case object UserLoggingUIHided extends Msg
+  case class UserLoggingUIChanged(isShow: Boolean) extends Msg
   //SketchController - Visualization
   case object ShowVisualizationUI extends Msg
-  case object VisualizationUIShowed extends Msg
   case object HideVisualizationUI extends Msg
-  case object VisualizationUIHided extends Msg
+  case class VisualizationUIChanged(isShow: Boolean) extends Msg
   //SketchController - Pumping
   case object StartPumping extends StateMsg
   case object PumpingStarted extends Msg
@@ -91,8 +93,9 @@ private [mathact] object M {
   case class TaskTimeout(kind: TaskKind, id: Int, timeFromStart: FiniteDuration) extends Msg
   case class TaskFailed(kind: TaskKind, id: Int, execTime: FiniteDuration, error: Throwable) extends Msg
   //User logging
-  case class LogWarning(toolId: Int, toolName: String, message: String) extends Msg
-  case class LogError(toolId: Int, toolName: String, error: Option[Throwable], message: String) extends Msg
+  case class LogInfo(toolId: Option[Int], toolName: String, message: String) extends Msg
+  case class LogWarning(toolId: Option[Int], toolName: String, message: String) extends Msg
+  case class LogError(toolId: Option[Int], toolName: String, error: Option[Throwable], message: String) extends Msg
   //Visualization - Drive
   case class ToolBuilt(builtInfo: ToolBuiltInfo) extends Msg   //Send to Visualization from Drive after tool built
   case class SetVisualisationLaval(laval: VisualisationLaval) extends Msg //Send to Drive from Visualization

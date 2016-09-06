@@ -12,24 +12,21 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.model.data.sketch
+package mathact.parts.dummies
+
+import mathact.parts.WorkbenchLike
+import mathact.parts.bricks.WorkbenchContext
+
+import scala.concurrent.duration._
 
 
-/** Sketch UI state
-  * Created by CAB on 03.09.2016.
+
+/** Test sketch with big timeout
+  * Created by CAB on 06.09.2016.
   */
 
-case class SketchUIState(
-  isUiShown: Boolean,
-  runBtnEnable: Boolean,
-  showToolUiBtnEnable: Boolean,
-  hideToolUiBtnEnable: Boolean,
-  skipAllTimeoutProcBtnEnable: Boolean,
-  stopBtnEnable: Boolean,
-  logUiBtnEnable: Boolean,
-  logUiBtnIsShow: Boolean, //false - hide button
-  visualisationUiBtnEnable: Boolean,
-  visualisationUiBtnIsShow: Boolean) //false - hide button
-
-
-
+class TestSketchWithBigTimeout extends WorkbenchLike{
+  protected implicit val context: WorkbenchContext = null
+  val timeout = 6.second
+  println(s"[TestSketchWithBigTimeout] Creating, timeout: $timeout.")
+  Thread.sleep(timeout.toMillis)}

@@ -40,13 +40,13 @@ private [mathact] trait DriveUIControl { _: Drive ⇒
     * @param execTime - FiniteDuration */
   def showToolUiTaskTimeout(execTime: FiniteDuration): Unit = {
     log.warning(s"[DriveStartStop.showToolUiTaskTimeout]  execTime: $execTime.")
-    userLogging ! M.LogWarning(toolId, pump.toolName, s"Show tool UI function timeout on $execTime, keep waiting.")}
+    userLogging ! M.LogWarning(Some(toolId), pump.toolName, s"Show tool UI function timeout on $execTime, keep waiting.")}
   /** Show tool UI task failed
     * @param execTime - FiniteDuration
     * @param error - Throwable */
   def showToolUiTaskFailed(execTime: FiniteDuration, error: Throwable): Unit = {
     log.error(s"[DriveStartStop.showToolUiTaskFailed] execTime: $execTime, error: $error.")
-    userLogging ! M.LogError(toolId, pump.toolName, Some(error), s"Show tool UI function failed on $execTime.")}
+    userLogging ! M.LogError(Some(toolId), pump.toolName, Some(error), s"Show tool UI function failed on $execTime.")}
   /** Hide tool UI */
   def hideToolUi(): Unit = pump.tool match{
     case task: UIControl ⇒
@@ -62,13 +62,13 @@ private [mathact] trait DriveUIControl { _: Drive ⇒
     * @param execTime - FiniteDuration */
   def hideToolUiTaskTimeout(execTime: FiniteDuration): Unit = {
     log.warning(s"[DriveStartStop.hideToolUiTaskTimeout]  execTime: $execTime.")
-    userLogging ! M.LogWarning(toolId, pump.toolName, s"Hide tool UI function timeout on $execTime, keep waiting.")}
+    userLogging ! M.LogWarning(Some(toolId), pump.toolName, s"Hide tool UI function timeout on $execTime, keep waiting.")}
   /** Hide tool UI task failed
     * @param execTime - FiniteDuration
     * @param error - Throwable */
   def hideToolUiTaskFailed(execTime: FiniteDuration, error: Throwable): Unit = {
     log.error(s"[DriveStartStop.hideToolUiTaskFailed] execTime: $execTime, error: $error.")
-    userLogging ! M.LogError(toolId,pump.toolName, Some(error), s"Hide tool UI function failed on $execTime.")}
+    userLogging ! M.LogError(Some(toolId),pump.toolName, Some(error), s"Hide tool UI function failed on $execTime.")}
 
   //TODO Add more
 
