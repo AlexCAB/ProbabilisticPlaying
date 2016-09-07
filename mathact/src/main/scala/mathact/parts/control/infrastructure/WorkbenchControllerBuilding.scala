@@ -36,6 +36,27 @@ trait WorkbenchControllerBuilding { _: WorkbenchController ⇒
   private var isWorkbenchContextBuilt = false
 
 
+  //Functions
+  private def buildingError(error: Throwable): Unit = {
+    //Build message
+    val msg = error match{
+      case err: NoSuchMethodException ⇒ s"NoSuchMethodException, check if sketch class is not inner."
+      case err ⇒ s"Exception on building of sketch."}
+    //Log to user logging
+    userLogging ! M.LogError(None, "Workbench", Some(error), msg)
+    //Update UI
+    sketchUi !  M.UpdateSketchUIState(Map(
+      RunBtn → ElemDisabled,
+      ShowAllToolsUiBtn → ElemDisabled,
+      HideAllToolsUiBtn → ElemDisabled,
+      SkipAllTimeoutTaskBtn → ElemDisabled,
+      StopSketchBtn → ElemDisabled))
+    //Inform MainController
+    mainController ! M.SketchError(sketchData.className, error)}
+
+
+  //Methods
+
   def sketchRunBuilding(): Unit = {
     log.debug(
       s"[WorkbenchControllerBuilding.sketchRunBuilding] Try to create Workbench instance, " +
@@ -47,12 +68,10 @@ trait WorkbenchControllerBuilding { _: WorkbenchController ⇒
       SketchBuiltTimeout)
     //Build sketch
     Future{sketchData.clazz.newInstance()}
-      .map{ s ⇒ self ! SketchBuilt(Right(s.asInstanceOf[WorkbenchLike]))}
+      .map{ s ⇒ self ! SketchBuilt(s.asInstanceOf[WorkbenchLike])}
       .recover{
-        case t: ExecutionException ⇒ self ! SketchBuilt(Left(t.getCause))
-        case t: Throwable ⇒ self ! SketchBuilt(Left(t))}}
-
-
+        case t: ExecutionException ⇒ self ! SketchBuiltError(t.getCause)
+        case t: Throwable ⇒ self ! SketchBuiltError(t)}}
   def getWorkbenchContext: Either[Exception, WorkbenchContext] = isWorkbenchContextBuilt match{
     case false ⇒
       log.debug(s"[WorkbenchControllerBuilding.getWorkbenchContext] Build WorkbenchContext")
@@ -73,10 +92,10 @@ trait WorkbenchControllerBuilding { _: WorkbenchController ⇒
 
 
 
-  def sketchBuilt(result: Either[Throwable, WorkbenchLike]): Unit = {
+  def sketchBuilt(workbench: WorkbenchLike): Unit = {
     //Check if WorkbenchContext built
-    (result, isWorkbenchContextBuilt) match{
-      case (Right(workbench), true) ⇒
+    isWorkbenchContextBuilt match{
+      case true ⇒
         log.debug(s"[WorkbenchControllerBuilding.sketchBuilt] workbench: $workbench")
         //User log
         val autorunMsg = sketchData.autorun match{
@@ -94,46 +113,28 @@ trait WorkbenchControllerBuilding { _: WorkbenchController ⇒
         sketchUi !  M.UpdateSketchUIState(Map(RunBtn → (if(sketchData.autorun) ElemDisabled else ElemEnabled)))
         //Send started to main controller
         mainController ! M.SketchBuilt(sketchData.className, workbench)
-      case (res, isContextBuilt) ⇒
+      case false ⇒
+        log.error(s"[WorkbenchControllerBuilding.sketchBuilt] Building failed, WorkbenchContext is not built.")
+        buildingError(new IllegalStateException(
+          "[WorkbenchControllerBuilding.sketchBuilt] WorkbenchContext is not built."))}}
+
+
+    def sketchBuiltTimeout(state: ActorState): Unit = state match{
+      case ActorState.Building ⇒
         log.error(
-          s"[WorkbenchControllerBuilding.sketchBuilt] Building failed, result: $result, " +
-          s"isWorkbenchContextBuilt: $isContextBuilt")
-        //Update UI
-//        sketchUi !  M.UpdateSketchUIState(Map(
-//          RunBtn → ElemDisabled,
-//          ShowAllToolsUiBtn → ElemDisabled,
-//          HideAllToolsUiBtn → ElemDisabled,
-//          SkipAllTimeoutTaskBtn → ElemDisabled,
-//          StopSketchBtn → ElemDisabled,
-//          LogBtn → ElemDisabled,
-//          VisualisationBtn → ElemDisabled))
+          s"[WorkbenchControllerBuilding.sketchBuiltTimeout] Building failed, sketch not built " +
+          s"in ${config.sketchBuildingTimeout}.")
+        buildingError(new TimeoutException(
+          s"[WorkbenchControllerBuilding.sketchBuiltTimeout] Sketch not built in ${config.sketchBuildingTimeout}"))
+      case st ⇒
+        log.debug(s"[WorkbenchControllerBuilding.sketchBuiltTimeout] Not a Building state do nothing, state: $st")}
 
 
-
-
-        //TODO Логировать ошыбку в лог пользователя
-        //TODO Отправка сообшения остановки скетча по ошибке, по этому сообщению контроллер скетча должен очистить
-        //TODO реурсы и завершить работу (не закрывая и делая фидимым окно пользовательского лога
-        //TODO и оновляя стаус скетча в заголовке окна скетча)
-
-    }
-  }
-
-
-    def sketchBuiltTimeout(state: ActorState): Unit = {
-
-      //TODO Если состояние не  Building то ошыбка (вынести в подпрограмму), иначе ничего не делать
-
-
-    }
-
-
-
-
-
-
-
-
+  def sketchBuiltError(error: Throwable): Unit = {
+    log.error(
+      error,
+      s"[WorkbenchControllerBuilding.sketchBuildingError] Error on creating Workbench instance.")
+     buildingError(error)}
 
 
 
@@ -141,34 +142,15 @@ trait WorkbenchControllerBuilding { _: WorkbenchController ⇒
     log.debug(s"[WorkbenchControllerBuilding.pumpingStarted] Started.")
     //Update UI
     sketchUi ! M.UpdateSketchUIState(Map(
-      RunBtn → ElemDisabled,
       StopSketchBtn → ElemEnabled,
       ShowAllToolsUiBtn → ElemEnabled,
       HideAllToolsUiBtn → ElemEnabled,
-      SkipAllTimeoutTaskBtn → ElemEnabled))}
+      SkipAllTimeoutTaskBtn → ElemEnabled))
+    //User log
+    userLogging ! M.LogInfo(None, "Workbench", s"Pumping started.")}
 
 
 
-//  SketchBuilt(Left(new TimeoutException(
-//    s"[WorkbenchControllerBuilding.sketchRunBuilding] Sketch not build in ${config.sketchBuildingTimeout}")))
-
-
-//  def sketchBuiltTimeout(): Unit = {
-//
-//
-//
-//  }
-
-//  def sketchBuildingError(error: Throwable): Unit = {
-//    log.error(
-//      error,
-//      s"[WorkbenchControllerBuilding.sketchBuildingError] Error on creating Workbench instance.")
-
-  //TODO Лгирование в лог пользователя, отключение управляющих кнопок
-    // Если  java.lang.NoSuchMethodException то возможно клас вложеный
-
-
-//  }
 
 
 }

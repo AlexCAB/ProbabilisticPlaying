@@ -28,11 +28,14 @@ abstract class StateActorBase(initState: ActorState) extends Actor{
   //Objects
   val log: LoggingAdapter = Logging.getLogger(context.system, this)
   implicit val execContext = context.system.dispatcher
+  log.debug(s"INIT STATE: $initState")
   //Variables
   private var currentState: ActorState = initState
   //Getters and setters
   def state = currentState
-  def state_= (s: ActorState):Unit = {currentState = s}
+  def state_= (s: ActorState):Unit = {
+    log.debug(s"STATE UPDATED: $currentState ===> $s")
+    currentState = s}
   //Receives
   /** Reaction on StateMsg'es */
   def onStateMsg: PartialFunction[(StateMsg, ActorState), Unit]

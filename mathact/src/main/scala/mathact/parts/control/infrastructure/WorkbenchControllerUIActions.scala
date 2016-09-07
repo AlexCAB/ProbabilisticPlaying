@@ -12,17 +12,27 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.dummies
+package mathact.parts.control.infrastructure
 
-import mathact.parts.WorkbenchLike
-import mathact.parts.bricks.WorkbenchContext
+import mathact.parts.model.enums.{SketchUIElement, SketchUiElemState}
+import mathact.parts.model.messages.M
 
-
-/** Sketch for using in tests
-  * Created by CAB on 04.09.2016.
+/** WorkbenchController UI actions processing
+  * Created by CAB on 07.09.2016.
   */
 
-class TestSketchEmpty extends WorkbenchLike{
-  protected implicit val context: WorkbenchContext = null
-  println("[TestSketchEmpty] Creating.")}
+trait WorkbenchControllerUIActions { _: WorkbenchController ⇒
 
+  import SketchUiElemState._, SketchUIElement._
+
+
+  def hitRunBtn() = {
+    log.debug(s"[WorkbenchControllerUIActions.hitRunBtn] Try to run plumbing.")
+    //Update UI
+    sketchUi !  M.UpdateSketchUIState(Map(RunBtn → ElemDisabled))
+    //Send StartPumping
+    pumping ! M.StartPumping}
+
+
+
+}

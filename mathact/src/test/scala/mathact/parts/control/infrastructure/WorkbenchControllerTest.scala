@@ -20,7 +20,7 @@ import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import mathact.Application
 import mathact.parts.bricks.WorkbenchContext
-import mathact.parts.dummies.{TestSketchWithBigTimeout, TestSketchWithSmallTimeout, TestSketchEmpty}
+import mathact.parts.dummies.{TestSketchWithError, TestSketchWithBigTimeout, TestSketchWithSmallTimeout}
 import mathact.parts.model.enums.SketchUIElement._
 import mathact.parts.model.enums.SketchUiElemState._
 import mathact.parts.{WorkbenchLike, ActorTestSpec}
@@ -59,7 +59,7 @@ class WorkbenchControllerTest extends ActorTestSpec {
           val uiOperationTimeout = 1.second}}}
     //Test SketchData
     def newTestSketchData(
-      clazz: Class[_] = classOf[TestSketchEmpty],
+      clazz: Class[_] = classOf[TestSketchWithSmallTimeout],
       autorun: Boolean,
       showUserLogUi: Boolean,
       showVisualisationUi: Boolean)
@@ -100,111 +100,117 @@ class WorkbenchControllerTest extends ActorTestSpec {
         testVisualization.ref,
         testPumping.ref)),
       "WorkbenchController_" + randomString())
-//    def newStartedWorkbenchController(): ActorRef = {
-//      val controller = newWorkbenchController( newTestSketchData(
-//        autorun = false,
-//        showUserLogUi = false,
-//        showVisualisationUi = false))
-//      testMainController.send(controller, M.WorkbenchControllerStart)
-//      testSketchUi.expectMsgType[M.SetSketchUIState].state
-//      testSketchUi.send(controller, M.SketchUIActionTriggered(SketchUIAction.UiShowed))
-//      controller}
+    def newBuiltWorkbenchController(): ActorRef = {
+      val controller = newWorkbenchController( newTestSketchData(
+        autorun = false,
+        showUserLogUi = false,
+        showVisualisationUi = false))
+      testMainController.send(controller, M.WorkbenchControllerStart)
+      testSketchUi.expectMsg(M.ShowSketchUI)
+      testSketchUi.expectMsgType[M.UpdateSketchUIState]
+      testSketchUi.send(controller, M.SketchUIChanged(isShow = true))
+      testActor.send(controller, M.GetWorkbenchContext(testActor.ref))
+      testActor.expectMsgType[Either[Exception, WorkbenchContext]]
+      testSketchUi.expectMsgType[M.UpdateSketchUIState]
+      testUserLogging.expectMsgType[M.LogInfo]
+      testMainController.expectMsgType[M.SketchBuilt]
+      controller}
 
 
 
   }
   //Testing
-  "WorkbenchController on start" should{
-    "by WorkbenchControllerStart, create sketch instance show UI, start pumping with autorun on" in new TestCase {
-      //Preparing
-      val controller = newWorkbenchController( newTestSketchData(
-        clazz = classOf[TestSketchWithSmallTimeout],
-        autorun = true,
-        showUserLogUi = true,
-        showVisualisationUi = true))
-      //Send start
-      testMainController.send(controller, M.WorkbenchControllerStart)
-      //Show sketch UI
-      testSketchUi.expectMsg(M.ShowSketchUI)
-      testSketchUi.expectMsgType[M.UpdateSketchUIState].state shouldEqual Map(
-        RunBtn → ElemDisabled,
-        ShowAllToolsUiBtn → ElemDisabled,
-        HideAllToolsUiBtn → ElemDisabled,
-        SkipAllTimeoutTaskBtn → ElemDisabled,
-        StopSketchBtn → ElemDisabled,
-        LogBtn →  ElemShow,
-        VisualisationBtn → ElemShow)
-      testSketchUi.send(controller, M.SketchUIChanged(isShow = true))
-      //Show user logging UI
-      testUserLogging.expectMsg(M.ShowUserLoggingUI)
-      testUserLogging.send(controller, M.UserLoggingUIChanged(isShow = true))
-      testSketchUi.expectMsgType[M.UpdateSketchUIState].state shouldEqual Map(LogBtn → ElemShow)
-      //Show visualization UI
-      testVisualization.expectMsg(M.ShowVisualizationUI)
-      testVisualization.send(controller, M.VisualizationUIChanged(isShow = true))
-      testSketchUi.expectMsgType[M.UpdateSketchUIState].state shouldEqual Map(VisualisationBtn → ElemShow)
-      //Get context
-      testActor.send(controller, M.GetWorkbenchContext(testActor.ref))
-      testActor.expectMsgType[Either[Exception, WorkbenchContext]]
-      //Update user UI
-      testSketchUi.expectMsgType[M.UpdateSketchUIState].state shouldEqual Map(RunBtn → ElemDisabled)
-      //Run plumbing
-      testPumping.expectMsg(M.StartPumping)
-      testPumping.send(controller, M.PumpingStarted)
-      //Update user UI
-      testSketchUi.expectMsgType[M.UpdateSketchUIState].state shouldEqual Map(
-        RunBtn → ElemDisabled,
-        ShowAllToolsUiBtn → ElemEnabled,
-        HideAllToolsUiBtn → ElemEnabled,
-        SkipAllTimeoutTaskBtn → ElemEnabled,
-        StopSketchBtn → ElemEnabled)
-      //Log info
-      testUserLogging.expectMsgType[M.LogInfo]
-      //Sketch built
-      testMainController.expectMsgType[M.SketchBuilt].workbench.asInstanceOf[TestSketchWithSmallTimeout]
-      //Run plumbing
-      testMainController.expectNoMsg(1.second)
-      testSketchUi.expectNoMsg(1.second)
-      testUserLogging.expectNoMsg(1.second)
-      testVisualization.expectNoMsg(1.second)
-      testPumping.expectNoMsg(1.second)}
-    "by WorkbenchControllerStart, create sketch instance show UI, with autorun off" in new TestCase {
-      //Preparing
-      val controller = newWorkbenchController( newTestSketchData(
-        clazz = classOf[TestSketchWithSmallTimeout],
-        autorun = false,
-        showUserLogUi = false,
-        showVisualisationUi = false))
-      //Send start
-      testMainController.send(controller, M.WorkbenchControllerStart)
-      //Show sketch UI
-      testSketchUi.expectMsg(M.ShowSketchUI)
-      testSketchUi.expectMsgType[M.UpdateSketchUIState].state shouldEqual Map(
-        RunBtn → ElemDisabled,
-        ShowAllToolsUiBtn → ElemDisabled,
-        HideAllToolsUiBtn → ElemDisabled,
-        SkipAllTimeoutTaskBtn → ElemDisabled,
-        StopSketchBtn → ElemDisabled,
-        LogBtn →  ElemHide,
-        VisualisationBtn → ElemHide)
-      testSketchUi.send(controller, M.SketchUIChanged(isShow = true))
-      //Get context
-      testActor.send(controller, M.GetWorkbenchContext(testActor.ref))
-      testActor.expectMsgType[Either[Exception, WorkbenchContext]]
-      //Update user UI
-      testSketchUi.expectMsgType[M.UpdateSketchUIState].state shouldEqual Map(RunBtn → ElemEnabled)
-      //Log info
-      testUserLogging.expectMsgType[M.LogInfo]
-      //Sketch built
-      testMainController.expectMsgType[M.SketchBuilt].workbench.asInstanceOf[TestSketchWithSmallTimeout]
-      //Run plumbing
-      testMainController.expectNoMsg(1.second)
-      testSketchUi.expectNoMsg(1.second)
-      testUserLogging.expectNoMsg(1.second)
-      testVisualization.expectNoMsg(1.second)
-      testPumping.expectNoMsg(1.second)}
-//
-//
+//  "WorkbenchController on start" should{
+//    "by WorkbenchControllerStart, create sketch instance show UI, start pumping with autorun on" in new TestCase {
+//      //Preparing
+//      val controller = newWorkbenchController( newTestSketchData(
+//        clazz = classOf[TestSketchWithSmallTimeout],
+//        autorun = true,
+//        showUserLogUi = true,
+//        showVisualisationUi = true))
+//      //Send start
+//      testMainController.send(controller, M.WorkbenchControllerStart)
+//      //Show sketch UI
+//      testSketchUi.expectMsg(M.ShowSketchUI)
+//      testSketchUi.expectMsgType[M.UpdateSketchUIState].state shouldEqual Map(
+//        RunBtn → ElemDisabled,
+//        ShowAllToolsUiBtn → ElemDisabled,
+//        HideAllToolsUiBtn → ElemDisabled,
+//        SkipAllTimeoutTaskBtn → ElemDisabled,
+//        StopSketchBtn → ElemDisabled,
+//        LogBtn →  ElemShow,
+//        VisualisationBtn → ElemShow)
+//      testSketchUi.send(controller, M.SketchUIChanged(isShow = true))
+//      //Show user logging UI
+//      testUserLogging.expectMsg(M.ShowUserLoggingUI)
+//      testUserLogging.send(controller, M.UserLoggingUIChanged(isShow = true))
+//      testSketchUi.expectMsgType[M.UpdateSketchUIState].state shouldEqual Map(LogBtn → ElemShow)
+//      //Show visualization UI
+//      testVisualization.expectMsg(M.ShowVisualizationUI)
+//      testVisualization.send(controller, M.VisualizationUIChanged(isShow = true))
+//      testSketchUi.expectMsgType[M.UpdateSketchUIState].state shouldEqual Map(VisualisationBtn → ElemShow)
+//      //Get context
+//      testActor.send(controller, M.GetWorkbenchContext(testActor.ref))
+//      testActor.expectMsgType[Either[Exception, WorkbenchContext]]
+//      //Update user UI
+//      testSketchUi.expectMsgType[M.UpdateSketchUIState].state shouldEqual Map(RunBtn → ElemDisabled)
+//      //Run plumbing
+//      testPumping.expectMsg(M.StartPumping)
+//      testPumping.send(controller, M.PumpingStarted)
+//      //Update user UI
+//      testSketchUi.expectMsgType[M.UpdateSketchUIState].state shouldEqual Map(
+//        RunBtn → ElemDisabled,
+//        ShowAllToolsUiBtn → ElemEnabled,
+//        HideAllToolsUiBtn → ElemEnabled,
+//        SkipAllTimeoutTaskBtn → ElemEnabled,
+//        StopSketchBtn → ElemEnabled)
+//      //Log info
+//      val info1 = testUserLogging.expectMsgType[M.LogInfo]
+//      println("[WorkbenchController] info1: " + info1)
+//      //Sketch built
+//      testMainController.expectMsgType[M.SketchBuilt].workbench.asInstanceOf[TestSketchWithSmallTimeout]
+//      //Run plumbing
+//      testMainController.expectNoMsg(1.second)
+//      testSketchUi.expectNoMsg(1.second)
+//      testUserLogging.expectNoMsg(1.second)
+//      testVisualization.expectNoMsg(1.second)
+//      testPumping.expectNoMsg(1.second)}
+//    "by WorkbenchControllerStart, create sketch instance show UI, with autorun off" in new TestCase {
+//      //Preparing
+//      val controller = newWorkbenchController( newTestSketchData(
+//        clazz = classOf[TestSketchWithSmallTimeout],
+//        autorun = false,
+//        showUserLogUi = false,
+//        showVisualisationUi = false))
+//      //Send start
+//      testMainController.send(controller, M.WorkbenchControllerStart)
+//      //Show sketch UI
+//      testSketchUi.expectMsg(M.ShowSketchUI)
+//      testSketchUi.expectMsgType[M.UpdateSketchUIState].state shouldEqual Map(
+//        RunBtn → ElemDisabled,
+//        ShowAllToolsUiBtn → ElemDisabled,
+//        HideAllToolsUiBtn → ElemDisabled,
+//        SkipAllTimeoutTaskBtn → ElemDisabled,
+//        StopSketchBtn → ElemDisabled,
+//        LogBtn →  ElemHide,
+//        VisualisationBtn → ElemHide)
+//      testSketchUi.send(controller, M.SketchUIChanged(isShow = true))
+//      //Get context
+//      testActor.send(controller, M.GetWorkbenchContext(testActor.ref))
+//      testActor.expectMsgType[Either[Exception, WorkbenchContext]]
+//      //Update user UI
+//      testSketchUi.expectMsgType[M.UpdateSketchUIState].state shouldEqual Map(RunBtn → ElemEnabled)
+//      //Log info
+//      val info1 = testUserLogging.expectMsgType[M.LogInfo]
+//      println("[WorkbenchController] info1: " + info1)
+//      //Sketch built
+//      testMainController.expectMsgType[M.SketchBuilt].workbench.asInstanceOf[TestSketchWithSmallTimeout]
+//      //Run plumbing
+//      testMainController.expectNoMsg(1.second)
+//      testSketchUi.expectNoMsg(1.second)
+//      testUserLogging.expectNoMsg(1.second)
+//      testVisualization.expectNoMsg(1.second)
+//      testPumping.expectNoMsg(1.second)}
 //    "by WorkbenchControllerStart, terminate sketch if not build in time" in new TestCase {
 //      //Preparing
 //      val controller = newWorkbenchController( newTestSketchData(
@@ -222,63 +228,69 @@ class WorkbenchControllerTest extends ActorTestSpec {
 //        HideAllToolsUiBtn → ElemDisabled,
 //        SkipAllTimeoutTaskBtn → ElemDisabled,
 //        StopSketchBtn → ElemDisabled,
-//        LogBtn →  ElemShow,
+//        LogBtn →  ElemHide,
 //        VisualisationBtn → ElemHide)
 //      testSketchUi.send(controller, M.SketchUIChanged(isShow = true))
 //      //Wait for time out
 //      sleep(5.second)
+//      //Error log
+//      val error1 = testUserLogging.expectMsgType[M.LogError]
+//      println("[WorkbenchController] error1: " + error1)
 //      //Sketch UI update
-//
-//
-//
-//
-//
-////      //Get context
-////      testActor.send(controller, M.GetWorkbenchContext(testActor.ref))
-////      testActor.expectMsgType[Either[Exception, WorkbenchContext]]
-////      //Update user UI
-////      testSketchUi.expectMsgType[M.SetSketchUIState].state shouldEqual SketchUIState(
-////        isUiShown = true,
-////        runBtnEnable = true,
-////        showToolUiBtnEnable = true,
-////        hideToolUiBtnEnable = true,
-////        skipAllTimeoutProcBtnEnable = false,
-////        stopBtnEnable = false,
-////        logUiBtnEnable = true,
-////        logUiBtnIsShow = false,
-////        visualisationUiBtnEnable = true,
-////        visualisationUiBtnIsShow = false)
-////      //Log info
-////      testUserLogging.expectMsgType[M.LogInfo]
-////      //Sketch built
-////      testMainController.expectMsgType[M.SketchBuilt].workbench.asInstanceOf[TestSketchWithSmallTimeout]
-////      //Run plumbing
-////      testMainController.expectNoMsg(1.second)
-////      testSketchUi.expectNoMsg(1.second)
-////      testUserLogging.expectNoMsg(1.second)
-////      testVisualization.expectNoMsg(1.second)
-////      testPumping.expectNoMsg(1.second)
-//
-//
-//    }
-
-
-
-
-
-
-
-
-
-    //TODO Разные варианты запуска (стразными отображениями и ошибками скетчей)
-
-
-
+//      testSketchUi.expectMsgType[M.UpdateSketchUIState].state shouldEqual Map(
+//        RunBtn → ElemDisabled,
+//        ShowAllToolsUiBtn → ElemDisabled,
+//        HideAllToolsUiBtn → ElemDisabled,
+//        SkipAllTimeoutTaskBtn → ElemDisabled,
+//        StopSketchBtn → ElemDisabled)
+//      //Sketch error
+//      testMainController.expectMsgType[M.SketchError]}
+//    "by WorkbenchControllerStart, terminate sketch if error on build" in new TestCase {
+//      //Preparing
+//      val controller = newWorkbenchController( newTestSketchData(
+//        clazz = classOf[TestSketchWithError],
+//        autorun = false,
+//        showUserLogUi = false,
+//        showVisualisationUi = false))
+//      //Send start
+//      testMainController.send(controller, M.WorkbenchControllerStart)
+//      //Show sketch UI
+//      testSketchUi.expectMsg(M.ShowSketchUI)
+//      testSketchUi.expectMsgType[M.UpdateSketchUIState].state shouldEqual Map(
+//        RunBtn → ElemDisabled,
+//        ShowAllToolsUiBtn → ElemDisabled,
+//        HideAllToolsUiBtn → ElemDisabled,
+//        SkipAllTimeoutTaskBtn → ElemDisabled,
+//        StopSketchBtn → ElemDisabled,
+//        LogBtn →  ElemHide,
+//        VisualisationBtn → ElemHide)
+//      testSketchUi.send(controller, M.SketchUIChanged(isShow = true))
+//      //Error log
+//      val error1 = testUserLogging.expectMsgType[M.LogError]
+//      println("[WorkbenchController] error1: " + error1)
+//      //Sketch UI update
+//      testSketchUi.expectMsgType[M.UpdateSketchUIState].state shouldEqual Map(
+//        RunBtn → ElemDisabled,
+//        ShowAllToolsUiBtn → ElemDisabled,
+//        HideAllToolsUiBtn → ElemDisabled,
+//        SkipAllTimeoutTaskBtn → ElemDisabled,
+//        StopSketchBtn → ElemDisabled)
+//      //Sketch error
+//      testMainController.expectMsgType[M.SketchError]}
 //    "by GetWorkbenchContext, create and return WorkbenchContext" in new TestCase {
 //      //Preparing
-//      val controller = newStartedWorkbenchController()
+//      val controller = newWorkbenchController( newTestSketchData(
+//        clazz = classOf[TestSketchWithSmallTimeout],
+//        autorun = false,
+//        showUserLogUi = false,
+//        showVisualisationUi = false))
 //      val askMainController = testAskMainController(controller)
 //      val askTimeout = 1.second
+//      //Start
+//      testMainController.send(controller, M.WorkbenchControllerStart)
+//      testSketchUi.expectMsg(M.ShowSketchUI)
+//      testSketchUi.expectMsgType[M.UpdateSketchUIState]
+//      testSketchUi.send(controller, M.SketchUIChanged(isShow = true))
 //      //Construct Workbench and do ask
 //      val workbench = new WorkbenchLike{
 //        val res: Either[Exception,WorkbenchContext]  = Await.result(
@@ -286,25 +298,51 @@ class WorkbenchControllerTest extends ActorTestSpec {
 //          askTimeout)
 //        println("[WorkbenchControllerTest.workbench] res: " + res)
 //        res.isRight shouldEqual true
-//        protected implicit val context: WorkbenchContext = res.right.get}}
+//        protected implicit val context: WorkbenchContext = res.right.get}
+//      //UI update, log and built
+//      testSketchUi.expectMsgType[M.UpdateSketchUIState]
+//      testUserLogging.expectMsgType[M.LogInfo]
+//      testMainController.expectMsgType[M.SketchBuilt]}
+//  }
+
+  "WorkbenchController in work" should{
+    "by RunBtn hit, run sketch" in new TestCase {
+      //Preparing
+      val controller = newBuiltWorkbenchController()
+      //Send start
+      testSketchUi.send(controller, M.SketchUIActionTriggered(RunBtn, Unit))
+      //Run Pumping
+      testPumping.expectMsg(M.StartPumping)
+      testPumping.send(controller, M.PumpingStarted)
+      //UI update
+      testSketchUi.expectMsgType[M.UpdateSketchUIState].state shouldEqual Map(RunBtn → ElemDisabled) //On StartPumping
+      testSketchUi.expectMsgType[M.UpdateSketchUIState].state shouldEqual Map(    //On PumpingStarted
+        ShowAllToolsUiBtn → ElemEnabled,
+        HideAllToolsUiBtn → ElemEnabled,
+        SkipAllTimeoutTaskBtn → ElemEnabled,
+        StopSketchBtn → ElemEnabled)
+      //User log
+      val info1 = testUserLogging.expectMsgType[M.LogInfo]
+      println("[WorkbenchController] info1: " + info1)
+      //Run plumbing
+      testMainController.expectNoMsg(1.second)
+      testSketchUi.expectNoMsg(1.second)
+      testUserLogging.expectNoMsg(1.second)
+      testVisualization.expectNoMsg(1.second)
+      testPumping.expectNoMsg(1.second)}
 
 
-
-
-
-
-
+     //TODO Далее здесь остальные UI действия, за исключением закрытия окна
 
   }
 
 
 
 
-  //TODO Пользователь в любое время может нажать кнопку закрыть, это должно завершить работу скется на любом этапе.
 
-//  "WorkbenchController on start" should{
+//  "WorkbenchController on shutdown" should{
 //
-//
+//     //TODO Пользователь в любое время может нажать кнопку закрыть, это должно завершить работу скется на любом этапе.
 //  }
 
 }

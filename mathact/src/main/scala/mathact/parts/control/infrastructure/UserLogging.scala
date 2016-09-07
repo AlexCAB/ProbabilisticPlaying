@@ -24,7 +24,8 @@ import akka.actor.{ActorRef, Actor}
 class UserLogging(workbenchController: ActorRef) extends Actor{
 
 
-    //TODO В случае ошибки должен отображать  UI
+    //TODO В случае ошибки должен отображать  UI, отсылать сообщение UserLoggingUIChanged,
+    //TODO чтобы контроллер обновил кнопку показа/скрыть логинг
 
 
   def receive = {

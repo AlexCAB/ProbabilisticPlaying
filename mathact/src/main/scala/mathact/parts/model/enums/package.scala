@@ -45,6 +45,7 @@ package object enums {
     val Created = Value
     val Building = Value
     val Built = Value
+    val BuildingFailed = Value
     val Starting = Value
     val Started = Value
     val Working = Value

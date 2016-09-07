@@ -42,6 +42,7 @@ import scalafx.stage.Stage
 abstract class SketchUI(log: LoggingAdapter) extends JFXInteraction {
 
 
+  //TODO Это должен быть актор
   //TODO После нажания каждая кнопка блокируется, так чтобы небыло двойного нажатия, контроллер по завершении
   //TODO должен обновить состояние UI для разблокровки
 

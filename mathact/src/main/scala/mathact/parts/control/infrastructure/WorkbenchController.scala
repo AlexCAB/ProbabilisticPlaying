@@ -23,7 +23,7 @@ import com.typesafe.config.Config
 import mathact.parts.control.ui.SketchUI
 import mathact.parts.model.config.MainConfigLike
 import mathact.parts.model.data.sketch.SketchData
-import mathact.parts.model.enums.{SketchUiElemState, ActorState}
+import mathact.parts.model.enums.{SketchUIElement, SketchUiElemState, ActorState}
 import mathact.parts.model.messages.{StateMsg, M, Msg}
 import mathact.parts.bricks.WorkbenchContext
 import mathact.parts.{WorkbenchLike, StateActorBase, ActorBase}
@@ -57,15 +57,17 @@ class WorkbenchController(
   val userLogging: ActorRef,
   val visualization: ActorRef,
   val pumping: ActorRef)
-extends StateActorBase(ActorState.Creating) with WorkbenchControllerUIControl with WorkbenchControllerBuilding
-{ import ActorState._, SketchUiElemState._
+extends StateActorBase(ActorState.Creating) with WorkbenchControllerUIControl
+with WorkbenchControllerBuilding with WorkbenchControllerUIActions
+{ import ActorState._, SketchUIElement._
   //Values
   val sketchName = sketchData.sketchName.getOrElse(sketchData.className)
 
 //  //Enums
 //  object State extends Enumeration {val Creating, Starting, Work, Stopping, Failing, Ended  = Value}
   //Messages
-  case class SketchBuilt(result: Either[Throwable, WorkbenchLike]) extends Msg
+  case class SketchBuilt(instance: WorkbenchLike) extends Msg
+  case class SketchBuiltError(error: Throwable) extends Msg
   case object SketchBuiltTimeout extends Msg
  //  //Build
 //  val initSketchUiState = SketchUIState(
@@ -113,8 +115,9 @@ extends StateActorBase(ActorState.Creating) with WorkbenchControllerUIControl wi
   //Receives
   /** Reaction on StateMsg'es */
   def onStateMsg: PartialFunction[(StateMsg, ActorState), Unit] = {
-    //Show UI
-    case (M.WorkbenchControllerStart, Creating) ⇒ showAllUi()
+    //On WorkbenchControllerStart show all UI
+    case (M.WorkbenchControllerStart, Creating) ⇒
+      showAllUi()
 
 
 
@@ -122,15 +125,6 @@ extends StateActorBase(ActorState.Creating) with WorkbenchControllerUIControl wi
 
 
       ???
-
-//    //Switch to Starting, send BuildDrive to all drives
-//    case (M.StartPumping, Building) ⇒
-//      state = Building
-//      setAndSendToDrives(Building,  M.BuildDrive)
-//    //Switch to Stopping, send StopDrive to all drives
-//    case (M.StopPumping, Working) ⇒
-//      state = Stopping
-//      setAndSendToDrives(Stopping,  M.StopDrive)
 
 
   }
@@ -145,30 +139,25 @@ extends StateActorBase(ActorState.Creating) with WorkbenchControllerUIControl wi
           sketchRunBuilding()
         case false ⇒
           log.debug(s"[Creating] Not all UI showed yet.")}
-    //Sketch built, set Built state
-    case (_: M.SketchBuilt, Building) ⇒
-      state = Built
+    //Sketch built, set Built state if no autorun or Starting else
+    case (_: SketchBuilt, Building) ⇒ sketchData.autorun match{
+      case false ⇒ state = Built
+      case true ⇒ state = Starting}
+    //If receive SketchBuiltError or SketchBuiltTimeout in Building state, switch state to BuildingFailed
+    case (_: SketchBuiltError | SketchBuiltTimeout, Building) ⇒
+      state = BuildingFailed
+    //If RunBtn hit switch to Starting state
+    case (M.SketchUIActionTriggered(RunBtn, _), Built) ⇒
+      state = Starting
+    //If plumbing started set state Working
+    case (M.PumpingStarted, Starting) ⇒
+      state = Working
 
 
 
 
 
-//    //Check if all drive built, if so send StartDrive to all drives
-//    case (M.DriveBuilt, Building) ⇒ callIfAllDrivesInState(Built){
-//      state = Starting
-//      setAndSendToDrives(Starting,  M.StartDrive)}
-//    //Check if all drive started, if so switch to Working and send PumpingStarted
-//    case (M.StartPumping | M.DriveStarted, Starting) ⇒ callIfAllDrivesInState(Started){
-//      state = Working
-//      allDrivesStarted()}
-//    //Check if all drive stopped, if so send TerminateDrive to all drives
-//    case (M.DriveStopped, Stopping) ⇒ callIfAllDrivesInState(Stopped){
-//      state = Terminating
-//      setAndSendToDrives(Stopped,  M.TerminateDrive)}
-//    //Check if all drive terminate, if so switch to Terminating, send PumpingStopped and terminating
-//    case (M.StopPumping | M.DriveTerminated, Terminating) ⇒ callIfAllDrivesInState(Terminated){
-//      state = Terminated
-//      allDrivesTerminated()}
+
 
 
   }
@@ -182,32 +171,26 @@ extends StateActorBase(ActorState.Creating) with WorkbenchControllerUIControl wi
     case (M.VisualizationUIChanged(isShow), _) ⇒ visualizationUIChanged(isShow)
     //Sketch building
     case (SketchBuilt(sketchInstance), Building) ⇒ sketchBuilt(sketchInstance)
+    case (SketchBuiltError(error), Building) ⇒ sketchBuiltError(error)
     case (SketchBuiltTimeout, state) ⇒ sketchBuiltTimeout(state)
-    case (M.PumpingStarted, Building) ⇒ pumpingStarted()
+    case (M.PumpingStarted, Starting) ⇒ pumpingStarted()
+    //UI actions
+    case (M.SketchUIActionTriggered(RunBtn, _), Built) ⇒ hitRunBtn()
 
 
 
 
 
 
+    //TODO Далее здесь обработка событий UI как: case (???, Working) ⇒ ???, в том числе закрытие окна.
+
+    //Sketch shutdown
+
+    //TODO Длалее обработка завершения работы
 
 
 
 
-
-
-
-    //    //Creating of new drive for tool (ask request)
-//    case (M.NewDrive(toolPump), state) ⇒ newDrive(toolPump, state, createDriveActor)
-//    //Updates of driveState
-//    case (M.DriveBuilt, Building) ⇒ setSenderDriveState(Built)
-//    case (M.DriveStarted, Starting) ⇒ setSenderDriveState(Started)
-//    case (M.DriveStopped, Stopping) ⇒ setSenderDriveState(Stopped)
-//    case (M.DriveTerminated, Terminating) ⇒ setSenderDriveState(Terminated)
-//    //Re send SkipAllTimeoutTask to all drives
-//    case (M.SkipAllTimeoutTask, _) ⇒ drives.values.foreach(_.drive ! M.SkipTimeoutTask)
-//    case (M.ShowAllToolUi, _) ⇒ drives.values.foreach(_.drive ! M.ShowToolUi)
-//    case (M.HideAllToolUi, _) ⇒ drives.values.foreach(_.drive ! M.HideToolUi)
 
 
 

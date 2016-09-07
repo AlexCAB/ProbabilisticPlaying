@@ -104,6 +104,9 @@ extends StateActorBase(ActorState.Building) with IdGenerator{ import ActorState.
       state = Building
       setAndSendToDrives(Building,  M.BuildDrive)
     //Switch to Stopping, send StopDrive to all drives
+    //TODO Сообщение StopPumping может прийти в любой момент(пользователь в любой момент может закрыть скетч),
+    //TODO и движок должен по этому сообщению завершыть свою работу (если состояние Building просто выход по завершенияю,
+    //TODO если Starting то сразу по завершению всето Working должен быть Stopping и т.д.).
     case (M.StopPumping, Working) ⇒
       state = Stopping
       setAndSendToDrives(Stopping,  M.StopDrive)}
