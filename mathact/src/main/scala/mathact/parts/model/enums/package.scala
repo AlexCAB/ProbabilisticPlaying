@@ -51,6 +51,8 @@ package object enums {
     val Working = Value
     val Stopping = Value
     val Stopped = Value
+    val Destructing = Value
+    val Destructed = Value
     val Terminating = Value
     val Terminated = Value}
   type ActorState = ActorState.Value

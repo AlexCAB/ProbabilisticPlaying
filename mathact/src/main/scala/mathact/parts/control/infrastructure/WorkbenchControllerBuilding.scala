@@ -35,9 +35,12 @@ trait WorkbenchControllerBuilding { _: WorkbenchController ⇒
 
   private var isWorkbenchContextBuilt = false
 
+  private var isSketchUiTerminated = false
+  private var isUserLogTerminated = false
+  private var isVisualisationTerminated = false
 
   //Functions
-  private def buildingError(error: Throwable): Unit = {
+  private def buildingError(error: Throwable): Unit = {  //Called only until plumbing run
     //Build message
     val msg = error match{
       case err: NoSuchMethodException ⇒ s"NoSuchMethodException, check if sketch class is not inner."
@@ -119,15 +122,6 @@ trait WorkbenchControllerBuilding { _: WorkbenchController ⇒
           "[WorkbenchControllerBuilding.sketchBuilt] WorkbenchContext is not built."))}}
 
 
-    def sketchBuiltTimeout(state: ActorState): Unit = state match{
-      case ActorState.Building ⇒
-        log.error(
-          s"[WorkbenchControllerBuilding.sketchBuiltTimeout] Building failed, sketch not built " +
-          s"in ${config.sketchBuildingTimeout}.")
-        buildingError(new TimeoutException(
-          s"[WorkbenchControllerBuilding.sketchBuiltTimeout] Sketch not built in ${config.sketchBuildingTimeout}"))
-      case st ⇒
-        log.debug(s"[WorkbenchControllerBuilding.sketchBuiltTimeout] Not a Building state do nothing, state: $st")}
 
 
   def sketchBuiltError(error: Throwable): Unit = {
@@ -136,7 +130,15 @@ trait WorkbenchControllerBuilding { _: WorkbenchController ⇒
       s"[WorkbenchControllerBuilding.sketchBuildingError] Error on creating Workbench instance.")
      buildingError(error)}
 
-
+  def sketchBuiltTimeout(state: ActorState): Unit = state match{
+    case ActorState.Building ⇒
+      log.error(
+        s"[WorkbenchControllerBuilding.sketchBuiltTimeout] Building failed, sketch not built " +
+          s"in ${config.sketchBuildingTimeout}.")
+      buildingError(new TimeoutException(
+        s"[WorkbenchControllerBuilding.sketchBuiltTimeout] Sketch not built in ${config.sketchBuildingTimeout}"))
+    case st ⇒
+      log.debug(s"[WorkbenchControllerBuilding.sketchBuiltTimeout] Not a Building state do nothing, state: $st")}
 
   def pumpingStarted(): Unit = {
     log.debug(s"[WorkbenchControllerBuilding.pumpingStarted] Started.")
@@ -150,7 +152,26 @@ trait WorkbenchControllerBuilding { _: WorkbenchController ⇒
     userLogging ! M.LogInfo(None, "Workbench", s"Pumping started.")}
 
 
+  def destructSketch(): Unit = {
 
+    //TODO Пока не требует какой то особой деконструкции, но стоит оттавить на будующее
+
+
+    self ! SketchDestructed
+
+
+
+  }
+
+
+  def sketchUITerminated(): Unit = {isSketchUiTerminated = true}
+
+  def userLoggingTerminated(): Unit = {isUserLogTerminated = true}
+
+  def visualizationTerminated(): Unit = {isVisualisationTerminated = true}
+
+
+  def isAllUiTerminated: Boolean = isSketchUiTerminated && isUserLogTerminated && isVisualisationTerminated
 
 
 }

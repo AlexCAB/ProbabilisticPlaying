@@ -36,9 +36,10 @@ private [mathact] object M {
   case class MainControllerStart(sketches: List[SketchData]) extends Msg
   case class NewWorkbenchContext(workbench: WorkbenchLike) extends Msg
   //MainController - SketchController
-  case object WorkbenchControllerStart extends StateMsg
+  case object StartWorkbenchController extends StateMsg
   case class GetWorkbenchContext(sender: ActorRef) extends Msg
   case object StopWorkbenchController extends StateMsg
+  case object WorkbenchControllerTerminated extends StateMsg
   case class SketchBuilt(className: String, workbench: WorkbenchLike) extends Msg
   case class SketchDone(className: String) extends Msg
   case class SketchError(className: String, error: Throwable) extends Msg
@@ -48,14 +49,20 @@ private [mathact] object M {
   case class SketchUIChanged(isShow: Boolean) extends Msg
   case class UpdateSketchUIState(state: Map[SketchUIElement, SketchUiElemState]) extends Msg
   case class SketchUIActionTriggered(element: SketchUIElement, action: Any) extends Msg
+  case object TerminateSketchUI extends Msg
+  case object SketchUITerminated extends Msg
   //SketchController - UserLogging
   case object ShowUserLoggingUI extends Msg
   case object HideUserLoggingUI extends Msg
   case class UserLoggingUIChanged(isShow: Boolean) extends Msg
+  case object TerminateUserLogging extends Msg
+  case object UserLoggingTerminated extends Msg
   //SketchController - Visualization
   case object ShowVisualizationUI extends Msg
   case object HideVisualizationUI extends Msg
   case class VisualizationUIChanged(isShow: Boolean) extends Msg
+  case object TerminateVisualization extends Msg
+  case object VisualizationTerminated extends Msg
   //SketchController - Pumping
   case object StartPumping extends StateMsg
   case object PumpingStarted extends Msg

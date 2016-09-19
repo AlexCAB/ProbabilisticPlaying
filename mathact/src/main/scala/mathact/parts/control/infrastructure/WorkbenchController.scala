@@ -69,6 +69,7 @@ with WorkbenchControllerBuilding with WorkbenchControllerUIActions
   case class SketchBuilt(instance: WorkbenchLike) extends Msg
   case class SketchBuiltError(error: Throwable) extends Msg
   case object SketchBuiltTimeout extends Msg
+  case object SketchDestructed extends Msg
  //  //Build
 //  val initSketchUiState = SketchUIState(
 //    isUiShown = true,
@@ -82,6 +83,7 @@ with WorkbenchControllerBuilding with WorkbenchControllerUIActions
 //    visualisationUiBtnEnable = true,
 //    visualisationUiBtnIsShow = sketch.showVisualisationUi)
   //Variables
+  var isStopping = false
 
 
   //TODO 1) SketchUI, бутет иметь кнопки:
@@ -116,15 +118,23 @@ with WorkbenchControllerBuilding with WorkbenchControllerUIActions
   /** Reaction on StateMsg'es */
   def onStateMsg: PartialFunction[(StateMsg, ActorState), Unit] = {
     //On WorkbenchControllerStart show all UI
-    case (M.WorkbenchControllerStart, Creating) ⇒
+    case (M.StartWorkbenchController, Creating) ⇒
+      state = Creating
       showAllUi()
+    //On WorkbenchControllerStart trigger shutdown process on any state
+    case (M.StopWorkbenchController, _) ⇒
+      isStopping = true
+      state match{
+        case BuildingFailed | Built ⇒
+          state = Terminating
+          terminateAllUi()
+        case Working ⇒
+          state = Stopping
+          pumping ! M.StopPumping
+        case _ ⇒}
 
 
-
-    case (M.StopWorkbenchController, Creating) ⇒
-
-
-      ???
+   //TODO Повыносить в функции
 
 
   }
@@ -133,16 +143,28 @@ with WorkbenchControllerBuilding with WorkbenchControllerUIActions
     //Check if all UI showed, and if so switch to Building, and create Workbench instance
     case (_: M.SketchUIChanged | _: M.UserLoggingUIChanged | _: M.VisualizationUIChanged, Creating) ⇒
       isAllUiShowed match{
-        case true ⇒
-          log.debug("[Creating] All UI showed, run sketch building.")
-          state = Building
-          sketchRunBuilding()
+        case true ⇒ isStopping match{
+          case false ⇒
+            log.debug("[Creating] All UI showed, run sketch building.")
+            state = Building
+            sketchRunBuilding()
+          case true ⇒
+            log.debug("[Creating] All UI showed, but isStopping == true, hide UI")
+            state = Terminating
+            terminateAllUi()}
         case false ⇒
           log.debug(s"[Creating] Not all UI showed yet.")}
     //Sketch built, set Built state if no autorun or Starting else
-    case (_: SketchBuilt, Building) ⇒ sketchData.autorun match{
-      case false ⇒ state = Built
-      case true ⇒ state = Starting}
+    case (_: SketchBuilt, Building) ⇒ isStopping match{
+      case false ⇒
+        log.debug(s"[Building] Sketch built, autorun: ${sketchData.autorun}")
+        sketchData.autorun match{
+          case false ⇒ state = Built
+          case true ⇒ state = Starting}
+      case true ⇒
+        log.debug(s"[Building] Sketch built, but isStopping == true, switch to Destructing")
+        state = Destructing
+        destructSketch()}
     //If receive SketchBuiltError or SketchBuiltTimeout in Building state, switch state to BuildingFailed
     case (_: SketchBuiltError | SketchBuiltTimeout, Building) ⇒
       state = BuildingFailed
@@ -150,18 +172,40 @@ with WorkbenchControllerBuilding with WorkbenchControllerUIActions
     case (M.SketchUIActionTriggered(RunBtn, _), Built) ⇒
       state = Starting
     //If plumbing started set state Working
-    case (M.PumpingStarted, Starting) ⇒
-      state = Working
+    case (M.PumpingStarted, Starting) ⇒ isStopping match{
+      case false ⇒
+        log.debug(s"[Starting] Sketch started.")
+        state = Working
+      case true ⇒
+        log.debug(s"[Starting] Sketch started, but isStopping == true, stopping sketch")
+        state = Stopping
+        pumping ! M.StopPumping}
+    //If pumping stopped, deconstruct sketch
+    case (M.PumpingStopped, Stopping) ⇒
+      state = Destructing
+      destructSketch()
+    //On SketchDestructed switch to Terminating state, hide all UI (start terminating process)
+    case (SketchDestructed, Destructing) ⇒
+      state = Terminating
+      terminateAllUi()
+    //If All UI terminated, response with WorkbenchControllerTerminated t main controller and  stop a self.
+    case (M.SketchUITerminated | M.UserLoggingTerminated | M.VisualizationTerminated, Terminating) ⇒
+      isAllUiTerminated match{
+        case true ⇒
+          log.debug(s"[Terminating] All UI terminated, stop a self.")
+          mainController ! M.WorkbenchControllerTerminated
+          self ! PoisonPill
+        case false ⇒
+          log.debug(s"[Terminating] Not all UI terminated yet.")}
 
 
 
 
-
-
+    //TODO Повыносить в функции
 
 
   }
-  /** Actor reaction on messages */
+  /** Actor reaction on messages (not change the 'state' variable) */
   def reaction: PartialFunction[(Msg, ActorState), Unit] = {
     //From objects asks
     case (M.GetWorkbenchContext(sender), _) ⇒ sender ! getWorkbenchContext
@@ -176,6 +220,11 @@ with WorkbenchControllerBuilding with WorkbenchControllerUIActions
     case (M.PumpingStarted, Starting) ⇒ pumpingStarted()
     //UI actions
     case (M.SketchUIActionTriggered(RunBtn, _), Built) ⇒ hitRunBtn()
+    //UI terminated
+    case (M.SketchUITerminated, _) ⇒ sketchUITerminated()
+    case (M.UserLoggingTerminated, _) ⇒ userLoggingTerminated()
+    case (M.VisualizationTerminated, _) ⇒ visualizationTerminated()
+
 
 
 

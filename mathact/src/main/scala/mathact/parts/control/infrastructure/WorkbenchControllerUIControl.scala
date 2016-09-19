@@ -35,7 +35,6 @@ trait WorkbenchControllerUIControl { _: WorkbenchController ⇒
 
 
 
-
   def showAllUi(): Unit = {
     //Sketch UI
     sketchUi ! M.ShowSketchUI
@@ -57,22 +56,28 @@ trait WorkbenchControllerUIControl { _: WorkbenchController ⇒
       case false ⇒ log.debug("[WorkbenchControllerUIControl.showAllUi] Visualization UI will hided..")}}
 
 
+  def terminateAllUi(): Unit = {
+    log.debug("[WorkbenchControllerUIControl.terminateAllUi] Send Terminate.. messages to all UI.")
+    visualization ! M.TerminateVisualization
+    userLogging ! M.TerminateUserLogging
+    sketchUi ! M.TerminateSketchUI}
+
+
   def isAllUiShowed: Boolean = isSketchUiShowed &&
     (isUserLogShowed || (! sketchData.showUserLogUi)) &&
     (isVisualisationShowed || (! sketchData.showVisualisationUi))
+
+
 
 
   def sketchUiChanged(isShow: Boolean): Unit = {
     log.debug(s"[WorkbenchControllerUIControl.sketchUiChanged] isShow: $isShow")
     isSketchUiShowed = isShow }
 
-
-
   def userLoggingUIChanged(isShow: Boolean): Unit = {
     log.debug(s"[WorkbenchControllerUIControl.userLoggingUIChanged] isShow: $isShow")
     isUserLogShowed = isShow
     sketchUi ! M.UpdateSketchUIState(Map(LogBtn → (if(isShow) ElemShow else ElemHide)))}
-
 
   def visualizationUIChanged(isShow: Boolean): Unit = {
     log.debug(s"[WorkbenchControllerUIControl.visualizationUIChanged] isShow: $isShow")

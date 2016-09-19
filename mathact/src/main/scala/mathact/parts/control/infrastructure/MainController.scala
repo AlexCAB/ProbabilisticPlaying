@@ -140,7 +140,7 @@ class MainController(doStop: Int⇒Unit, config: AppConfig) extends ActorBase{
     case SketchStarted(className) ⇒
       currentSketch.filter(_.sketch.className == className).foreach{
         case s if s.controller.nonEmpty ⇒
-          s.controller.foreach(_ ! M.WorkbenchControllerStart)
+          s.controller.foreach(_ ! M.StartWorkbenchController)
           currentSketch = currentSketch.map(_.started())
         case s ⇒
           self ! M.SketchError(className, new Exception(
