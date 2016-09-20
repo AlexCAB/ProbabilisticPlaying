@@ -35,10 +35,10 @@ private [mathact] object M {
   //Application - MainController
   case class MainControllerStart(sketches: List[SketchData]) extends Msg
   case class NewWorkbenchContext(workbench: WorkbenchLike) extends Msg
-  //MainController - SketchController
+  //MainController - WorkbenchController
   case object StartWorkbenchController extends StateMsg
   case class GetWorkbenchContext(sender: ActorRef) extends Msg
-  case object StopWorkbenchController extends StateMsg
+  case object ShutdownWorkbenchController extends StateMsg
   case object WorkbenchControllerTerminated extends StateMsg
   case class SketchBuilt(className: String, workbench: WorkbenchLike) extends Msg
   case class SketchDone(className: String) extends Msg
