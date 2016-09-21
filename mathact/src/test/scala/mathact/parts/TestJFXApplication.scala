@@ -12,21 +12,15 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.model.config
+package mathact.parts
 
-import com.typesafe.config.Config
+import javafx.application.Application
+import javafx.stage.Stage
 
-import scala.concurrent.duration.FiniteDuration
 
-
-/** Main config
-  * Created by CAB on 03.09.2016.
+/** Test JFXApplication for UI testing
+  * Created by CAB on 21.09.2016.
   */
 
-trait MainConfigLike {
-  val config: Config
-  val sketchBuildingTimeout: FiniteDuration
-  val pumping: PumpingConfigLike
-  val sketchUI: SketchUIConfigLike
-
-}
+class TestJFXApplication extends Application {
+  def start(stage: Stage) = println("[TestJFXApplication.start] Stage: " + stage)}

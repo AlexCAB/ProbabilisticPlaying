@@ -12,21 +12,30 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.model.config
+package mathact.parts
 
-import com.typesafe.config.Config
+import javafx.application.Application
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.Future
+import scalafx.application.Platform
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 
-/** Main config
-  * Created by CAB on 03.09.2016.
+/** Base class for testing of UI actors
+  * Created by CAB on 21.09.2016.
   */
 
-trait MainConfigLike {
-  val config: Config
-  val sketchBuildingTimeout: FiniteDuration
-  val pumping: PumpingConfigLike
-  val sketchUI: SketchUIConfigLike
-
-}
+class UIActorTestSpec extends ActorTestSpec {
+  //Starting JFX Application
+  Platform.implicitExit = false
+  Future{
+    println("[UIActorTestSpec] Try to start TestJFXApplication.")
+    Application.launch(classOf[TestJFXApplication])
+    println("[UIActorTestSpec] TestJFXApplication stopped.")}
+  Thread.sleep(200)
+  //Stopping JFX Application
+  override def afterAll = {
+    Platform.exit()
+    Thread.sleep(200)
+    super.afterAll}}

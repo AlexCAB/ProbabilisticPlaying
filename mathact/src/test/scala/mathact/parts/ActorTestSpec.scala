@@ -35,7 +35,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll with FutureHelpers with R
   //Parameters
   private implicit val askTimeout = Timeout(5.seconds)
   //Stop actor sys
-  override def afterAll {TestKit.shutdownActorSystem(system)}
+  override def afterAll = {TestKit.shutdownActorSystem(system)}
   //Helpers definitions
   case object GetDriveState
   //Actor helpers
