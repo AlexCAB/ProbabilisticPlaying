@@ -25,6 +25,7 @@ import mathact.parts.plumbing.fitting.{Plug, Socket, InPipe, OutPipe}
 import mathact.tools.Workbench
 
 import scala.concurrent.duration.FiniteDuration
+import scalafx.scene.paint.Color
 
 
 /** Set of actor messages
@@ -49,6 +50,7 @@ private [mathact] object M {
   case class SketchUIChanged(isShow: Boolean) extends Msg
   case class UpdateSketchUIState(state: Map[SketchUIElement, SketchUiElemState]) extends Msg
   case class SketchUIActionTriggered(element: SketchUIElement, action: Any) extends Msg
+  case class SetSketchUIStatusString(message: String, color: Color) extends Msg
   case object TerminateSketchUI extends Msg
   case object SketchUITerminated extends Msg
   //SketchController - UserLogging

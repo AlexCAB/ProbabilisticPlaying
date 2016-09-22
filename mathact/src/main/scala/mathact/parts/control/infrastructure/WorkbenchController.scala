@@ -34,7 +34,7 @@ class WorkbenchController(
   val userLogging: ActorRef,
   val visualization: ActorRef,
   val pumping: ActorRef)
-extends StateActorBase(ActorState.Creating) with WorkbenchControllerUIControl
+extends StateActorBase(ActorState.Init) with WorkbenchControllerUIControl
 with WorkbenchControllerLife with WorkbenchControllerUIActions
 { import ActorState._, SketchUIElement._
   //Values
@@ -50,8 +50,9 @@ with WorkbenchControllerLife with WorkbenchControllerUIActions
   /** Reaction on StateMsg'es */
   def onStateMsg: PartialFunction[(StateMsg, ActorState), Unit] = {
     //On WorkbenchControllerStart show all UI
-    case (M.StartWorkbenchController, Creating) ⇒
+    case (M.StartWorkbenchController, Init) ⇒
       state = Creating
+      startWorkbenchController()
       showAllUi()
     //On WorkbenchControllerStart trigger shutdown process on any state
     case (M.ShutdownWorkbenchController, _) ⇒
@@ -91,10 +92,14 @@ with WorkbenchControllerLife with WorkbenchControllerUIActions
     //Sketch built, set Built state if no autorun or Starting else
     case (_: SketchBuilt, Building) ⇒ isShutdown match{
       case false ⇒
-        log.debug(s"[Building] Sketch built, autorun: ${sketchData.autorun}")
         sketchData.autorun match{
-          case false ⇒ state = Built
-          case true ⇒ state = Starting}
+          case false ⇒
+            log.debug(s"[Building] Sketch built, autorun == false, wait for start.")
+            state = Built
+          case true ⇒
+            log.debug(s"[Building] Sketch built, autorun == true, satrting of plumping")
+            startPumping()
+            state = Starting}
       case true ⇒
         log.debug(s"[Building] Sketch built, but isShutdown == true, switch to Destructing")
         state = Destructing
@@ -104,6 +109,7 @@ with WorkbenchControllerLife with WorkbenchControllerUIActions
       state = BuildingFailed
     //If RunBtn hit switch to Starting state
     case (M.SketchUIActionTriggered(RunBtn, _), Built) ⇒
+      startPumping()
       state = Starting
     //If plumbing started set state Working
     case (M.PumpingStarted, Starting) ⇒ isShutdown match{
@@ -158,6 +164,7 @@ with WorkbenchControllerLife with WorkbenchControllerUIActions
     case (M.SketchUIActionTriggered(LogBtn, act: SketchUiElemState), Working) ⇒ logBtnHit(act)
     case (M.SketchUIActionTriggered(VisualisationBtn, act: SketchUiElemState), Working) ⇒ visualisationBtnHit(act)
     case (M.SketchUIActionTriggered(StopSketchBtn, _), Working) ⇒ stopPumping()
+    case (M.SketchUIActionTriggered(CloseBtn, _), s) if s != Init ⇒ closeBtnHit()
     //UI terminated
     case (M.SketchUITerminated, _) ⇒ sketchUITerminated()
     case (M.UserLoggingTerminated, _) ⇒ userLoggingTerminated()

@@ -41,6 +41,7 @@ package object enums {
   type VisualisationLaval = VisualisationLaval.Value
   //ActorState
   object ActorState extends Enumeration {
+    val Init = Value
     val Creating = Value
     val Created = Value
     val Building = Value
@@ -58,13 +59,14 @@ package object enums {
   type ActorState = ActorState.Value
   //SketchUIElement
   object SketchUIElement extends Enumeration {
+    val LogBtn = Value
+    val VisualisationBtn = Value
     val RunBtn = Value
     val ShowAllToolsUiBtn = Value
     val HideAllToolsUiBtn = Value
     val SkipAllTimeoutTaskBtn = Value
     val StopSketchBtn = Value
-    val LogBtn = Value
-    val VisualisationBtn = Value}
+    val CloseBtn = Value}
   type SketchUIElement = SketchUIElement.Value
   //SketchUiElemState
   object SketchUiElemState extends Enumeration {

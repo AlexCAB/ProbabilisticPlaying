@@ -33,9 +33,9 @@ class UIActorTestSpec extends ActorTestSpec {
     println("[UIActorTestSpec] Try to start TestJFXApplication.")
     Application.launch(classOf[TestJFXApplication])
     println("[UIActorTestSpec] TestJFXApplication stopped.")}
-  Thread.sleep(200)
+  Thread.sleep(500)
   //Stopping JFX Application
   override def afterAll = {
     Platform.exit()
-    Thread.sleep(200)
+    Thread.sleep(500)
     super.afterAll}}

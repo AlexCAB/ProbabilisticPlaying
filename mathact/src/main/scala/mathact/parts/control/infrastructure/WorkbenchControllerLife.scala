@@ -23,6 +23,7 @@ import mathact.parts.model.enums.{ActorState, SketchUIElement, SketchUiElemState
 import mathact.parts.model.messages.M
 
 import scala.concurrent.Future
+import scalafx.scene.paint.Color
 
 
 /** WorkbenchController sketch building
@@ -33,9 +34,6 @@ trait WorkbenchControllerLife { _: WorkbenchController ⇒
   import SketchUiElemState._, SketchUIElement._
   //Variables
   private var isWorkbenchContextBuilt = false
-  private var isSketchUiTerminated = false
-  private var isUserLogTerminated = false
-  private var isVisualisationTerminated = false
   //Functions
   private def buildingError(error: Throwable): Unit = {  //Called only until plumbing run
     //Build message
@@ -52,12 +50,18 @@ trait WorkbenchControllerLife { _: WorkbenchController ⇒
       SkipAllTimeoutTaskBtn → ElemDisabled,
       StopSketchBtn → ElemDisabled))
     //Inform MainController
-    mainController ! M.SketchError(sketchData.className, error)}
+    mainController ! M.SketchError(sketchData.className, error)
+    //Update status string
+    sketchUi ! M.SetSketchUIStatusString("Building error! Check logs.", Color.Red)}
   //Methods
+  /** Start workbench controller */
+  def startWorkbenchController(): Unit = {
+    log.debug(s"[WorkbenchControllerLife.startWorkbenchController] Start creating.")
+    sketchUi ! M.SetSketchUIStatusString("Creating...", Color.Black)}
   /** Sketch run building, called after all UI shown */
   def sketchRunBuilding(): Unit = {
     log.debug(
-      s"[WorkbenchControllerBuilding.sketchRunBuilding] Try to create Workbench instance, " +
+      s"[WorkbenchControllerLife.sketchRunBuilding] Try to create Workbench instance, " +
       s"sketchBuildingTimeout: ${config.sketchBuildingTimeout}")
     //Run building timeout
     context.system.scheduler.scheduleOnce(
@@ -69,12 +73,14 @@ trait WorkbenchControllerLife { _: WorkbenchController ⇒
       .map{ s ⇒ self ! SketchBuilt(s.asInstanceOf[WorkbenchLike])}
       .recover{
         case t: ExecutionException ⇒ self ! SketchBuiltError(t.getCause)
-        case t: Throwable ⇒ self ! SketchBuiltError(t)}}
+        case t: Throwable ⇒ self ! SketchBuiltError(t)}
+    //Update status string
+    sketchUi ! M.SetSketchUIStatusString("Building...", Color.Black)}
   /** Get workbench context, create and return of WorkbenchContext
     * @return - Either[Exception, WorkbenchContext] */
   def getWorkbenchContext: Either[Exception, WorkbenchContext] = isWorkbenchContextBuilt match{
     case false ⇒
-      log.debug(s"[WorkbenchControllerBuilding.getWorkbenchContext] Build WorkbenchContext")
+      log.debug(s"[WorkbenchControllerLife.getWorkbenchContext] Build WorkbenchContext")
       val response = Right{ new WorkbenchContext(
         context.system,
         mainController,
@@ -84,8 +90,8 @@ trait WorkbenchControllerLife { _: WorkbenchController ⇒
       isWorkbenchContextBuilt = true
       response
     case true⇒
-      val err = new IllegalStateException(s"[WorkbenchControllerBuilding.getWorkbenchContext] Context already created.")
-      log.error(err, s"[WorkbenchControllerBuilding.getWorkbenchContext] Error on creating.")
+      val err = new IllegalStateException(s"[WorkbenchControllerLife.getWorkbenchContext] Context already created.")
+      log.error(err, s"[WorkbenchControllerLife.getWorkbenchContext] Error on creating.")
       Left(err)}
   /** Sketch successfully built
     * @param workbench - WorkbenchLike */
@@ -93,48 +99,50 @@ trait WorkbenchControllerLife { _: WorkbenchController ⇒
     //Check if WorkbenchContext built
     isWorkbenchContextBuilt match{
       case true ⇒
-        log.debug(s"[WorkbenchControllerBuilding.sketchBuilt] workbench: $workbench")
+        log.debug(s"[WorkbenchControllerLife.sketchBuilt] workbench: $workbench")
         //User log
         val autorunMsg = sketchData.autorun match{
           case false ⇒ ". Auto-run is off, hit 'play' button to start sketch."
           case true ⇒ "."}
         userLogging ! M.LogInfo(None, "Workbench", s"Sketch '$sketchName' successfully built$autorunMsg")
-        //Run plumping if auto run
-        sketchData.autorun match{
-          case true ⇒
-            log.debug(s"[WorkbenchControllerBuilding.sketchBuilt] Autorun in on, try to start plumbing.")
-            pumping ! M.StartPumping
-          case false ⇒
-            log.debug(s"[WorkbenchControllerBuilding.sketchBuilt] No autorun.")}
         //Update UI
         sketchUi !  M.UpdateSketchUIState(Map(RunBtn → (if(sketchData.autorun) ElemDisabled else ElemEnabled)))
         //Send started to main controller
         mainController ! M.SketchBuilt(sketchData.className, workbench)
+        //Update status string
+        sketchUi ! M.SetSketchUIStatusString(
+          s"Sketch built. ${if(sketchData.autorun) "" else "Wait for start."}",
+          if(sketchData.autorun) Color.Black else Color.Green)
       case false ⇒
-        log.error(s"[WorkbenchControllerBuilding.sketchBuilt] Building failed, WorkbenchContext is not built.")
+        log.error(s"[WorkbenchControllerLife.sketchBuilt] Building failed, WorkbenchContext is not built.")
         buildingError(new IllegalStateException(
-          "[WorkbenchControllerBuilding.sketchBuilt] WorkbenchContext is not built."))}}
+          "[WorkbenchControllerLife.sketchBuilt] WorkbenchContext is not built."))}}
   /** Error during sketch building
     * @param error - Throwable */
   def sketchBuiltError(error: Throwable): Unit = {
     log.error(
       error,
-      s"[WorkbenchControllerBuilding.sketchBuildingError] Error on creating Sketch extends Workbench instance.")
+      s"[WorkbenchControllerLife.sketchBuildingError] Error on creating Sketch extends Workbench instance.")
      buildingError(error)}
   /** Sketch not build in required time.
     * @param state - ActorState */
   def sketchBuiltTimeout(state: ActorState): Unit = state match{
     case ActorState.Building ⇒
       log.error(
-        s"[WorkbenchControllerBuilding.sketchBuiltTimeout] Building failed, sketch not built " +
+        s"[WorkbenchControllerLife.sketchBuiltTimeout] Building failed, sketch not built " +
           s"in ${config.sketchBuildingTimeout}.")
       buildingError(new TimeoutException(
-        s"[WorkbenchControllerBuilding.sketchBuiltTimeout] Sketch not built in ${config.sketchBuildingTimeout}"))
+        s"[WorkbenchControllerLife.sketchBuiltTimeout] Sketch not built in ${config.sketchBuildingTimeout}"))
     case st ⇒
-      log.debug(s"[WorkbenchControllerBuilding.sketchBuiltTimeout] Not a Building state do nothing, state: $st")}
+      log.debug(s"[WorkbenchControllerLife.sketchBuiltTimeout] Not a Building state do nothing, state: $st")}
+  /** Start pumping */
+  def startPumping(): Unit = {
+    log.debug(s"[WorkbenchControllerLife.startPumping] Send StartPumping")
+    pumping ! M.StartPumping
+    sketchUi ! M.SetSketchUIStatusString("Starting of pumping...", Color.Black)}
   /** Pumping started, update UI and log to user log */
   def pumpingStarted(): Unit = {
-    log.debug(s"[WorkbenchControllerBuilding.pumpingStarted] Started.")
+    log.debug(s"[WorkbenchControllerLife.pumpingStarted] Started.")
     //Update UI
     sketchUi ! M.UpdateSketchUIState(Map(
       RunBtn → ElemDisabled,
@@ -143,14 +151,17 @@ trait WorkbenchControllerLife { _: WorkbenchController ⇒
       HideAllToolsUiBtn → ElemEnabled,
       SkipAllTimeoutTaskBtn → ElemEnabled))
     //User log
-    userLogging ! M.LogInfo(None, "Workbench", s"Pumping started.")}
+    userLogging ! M.LogInfo(None, "Workbench", s"Pumping started.")
+    //Update status string
+    sketchUi ! M.SetSketchUIStatusString("Pumping started. Working...", Color.Green)}
   /** Try to stop Pumping, send StopPumping */
   def stopPumping(): Unit = {
-    log.debug(s"[WorkbenchControllerBuilding.stopPumping] Try to stop Pumping.")
-    pumping ! M.StopPumping}
+    log.debug(s"[WorkbenchControllerLife.stopPumping] Try to stop Pumping.")
+    pumping ! M.StopPumping
+    sketchUi ! M.SetSketchUIStatusString("Stopping of pumping...", Color.Black)}
   /** Pumping stopped, log to user logger */
   def pumpingStopped(): Unit = {
-    log.debug(s"[WorkbenchControllerBuilding.pumpingStopped] Stopped.")
+    log.debug(s"[WorkbenchControllerLife.pumpingStopped] Stopped.")
     //Log to user log
     userLogging ! M.LogInfo(None, "Workbench", s"Pumping stopped.")
     //Update UI
@@ -159,56 +170,26 @@ trait WorkbenchControllerLife { _: WorkbenchController ⇒
       ShowAllToolsUiBtn → ElemDisabled,
       HideAllToolsUiBtn → ElemDisabled,
       SkipAllTimeoutTaskBtn → ElemDisabled,
-      StopSketchBtn → ElemDisabled))}
+      StopSketchBtn → ElemDisabled))
+    //Update status string
+    sketchUi ! M.SetSketchUIStatusString("Pumping stopped.", Color.Black)}
   /** Sketch built, but SketchBuiltTimeout received earlier */
   def lateSketchBuilt(): Unit = {
     log.debug(
       s"[Building] SketchBuilt receive but state BuildingFailed (probably SketchBuiltTimeout received earlier).")}
   /** Starting of destruct sketch */
   def destructSketch(): Unit = {
-    log.debug(s"[WorkbenchControllerBuilding.destructSketch] Starting of destruct sketch.")
+    log.debug(s"[WorkbenchControllerLife.destructSketch] Starting of destruct sketch.")
     mainController ! M.SketchDone(sketchData.className)
-    self ! SketchDestructed}
+    self ! SketchDestructed
+    sketchUi ! M.SetSketchUIStatusString("Destructing...", Color.Black)}
   /** Shutdown workbench controller */
   def shutdownWorkbenchController(): Unit = {
-    log.debug(s"[WorkbenchControllerBuilding.shutdownWorkbenchController] Shutdown.")
-    userLogging ! M.LogInfo(None, "Workbench", "The Shutdown signal received, sketch will terminated.")}
-  /** Terminate all UI and */
-  def terminateAllUi(): Unit = {
-    log.debug("[WorkbenchControllerUIControl.terminateAllUi] Send Terminate... messages to all UI.")
-    //Set all disable
-    sketchUi ! M.UpdateSketchUIState(Map(
-      RunBtn → ElemDisabled,
-      ShowAllToolsUiBtn → ElemDisabled,
-      HideAllToolsUiBtn → ElemDisabled,
-      SkipAllTimeoutTaskBtn → ElemDisabled,
-      StopSketchBtn → ElemDisabled,
-      LogBtn → ElemDisabled,
-      VisualisationBtn → ElemDisabled))
-    //Terminate
-    visualization ! M.TerminateVisualization
-    userLogging ! M.TerminateUserLogging
-    sketchUi ! M.TerminateSketchUI}
-  /** Sketch UI terminated */
-  def sketchUITerminated(): Unit = {
-    log.debug(s"[WorkbenchControllerBuilding.sketchUITerminated] Terminated.")
-    isSketchUiTerminated = true}
-  /** User logging terminated */
-  def userLoggingTerminated(): Unit = {
-    log.debug(s"[WorkbenchControllerBuilding.userLoggingTerminated] Terminated.")
-    isUserLogTerminated = true}
-  /** Visualization terminated */
-  def visualizationTerminated(): Unit = {
-    log.debug(s"[WorkbenchControllerBuilding.visualizationTerminated] Terminated.")
-    isVisualisationTerminated = true}
-  /** Check if all UI terminated
-    * @return - true if all terminated */
-  def isAllUiTerminated: Boolean = {
-    val res = isSketchUiTerminated && isUserLogTerminated && isVisualisationTerminated
-    log.debug(s"[WorkbenchControllerBuilding.isAllUiTerminated] res: $res.")
-    res}
+    log.debug(s"[WorkbenchControllerLife.shutdownWorkbenchController] Shutdown.")
+    userLogging ! M.LogInfo(None, "Workbench", "The Shutdown signal received, sketch will terminated.")
+    sketchUi ! M.SetSketchUIStatusString("Shutdown signal received.", Color.Black)}
   /** Terminate self */
   def terminateSelf(): Unit = {
-    log.debug(s"[WorkbenchControllerBuilding.terminateSelf] Send WorkbenchControllerTerminated and terminate.")
+    log.debug(s"[WorkbenchControllerLife.terminateSelf] Send WorkbenchControllerTerminated and terminate.")
     mainController ! M.WorkbenchControllerTerminated
     self ! PoisonPill}}

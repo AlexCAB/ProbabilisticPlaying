@@ -28,9 +28,7 @@ trait WorkbenchControllerUIActions { _: WorkbenchController ⇒
   def hitRunBtn() = {
     log.debug(s"[WorkbenchControllerUIActions.hitRunBtn] Try to run plumbing.")
     //Update UI
-    sketchUi !  M.UpdateSketchUIState(Map(RunBtn → ElemDisabled))
-    //Send StartPumping
-    pumping ! M.StartPumping}
+    sketchUi !  M.UpdateSketchUIState(Map(RunBtn → ElemDisabled))}
   /** Show all tools UI btn hit */
   def showAllToolsUiBtnHit(): Unit = {
     log.debug(s"[WorkbenchControllerUIActions.showAllToolsUiBtn] Send ShowAllToolUi.")
@@ -60,4 +58,8 @@ trait WorkbenchControllerUIActions { _: WorkbenchController ⇒
       case SketchUiElemState.ElemShow ⇒
         visualization ! M.ShowVisualizationUI
       case SketchUiElemState.ElemHide ⇒
-        visualization ! M.HideVisualizationUI}}}
+        visualization ! M.HideVisualizationUI}}
+  /** Window close btn hit, for now just send ShutdownWorkbenchController to self */
+  def closeBtnHit(): Unit = {
+    log.debug(s"[WorkbenchControllerUIActions.closeBtnHit] Send ShutdownWorkbenchController to self")
+    self ! M.ShutdownWorkbenchController}}

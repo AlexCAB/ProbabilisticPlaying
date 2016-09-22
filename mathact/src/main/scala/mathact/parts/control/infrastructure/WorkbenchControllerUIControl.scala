@@ -28,6 +28,9 @@ trait WorkbenchControllerUIControl { _: WorkbenchController ⇒
   private var isSketchUiShowed = false
   private var isUserLogShowed = false
   private var isVisualisationShowed = false
+  private var isSketchUiTerminated = false
+  private var isUserLogTerminated = false
+  private var isVisualisationTerminated = false
   //Methods
   /** Show all UI, and log to user logging */
   def showAllUi(): Unit = {
@@ -74,4 +77,41 @@ trait WorkbenchControllerUIControl { _: WorkbenchController ⇒
   def visualizationUIChanged(isShow: Boolean): Unit = {
     log.debug(s"[WorkbenchControllerUIControl.visualizationUIChanged] isShow: $isShow")
     isVisualisationShowed = isShow
-    sketchUi ! M.UpdateSketchUIState(Map(VisualisationBtn → (if(isShow) ElemShow else ElemHide)))}}
+    sketchUi ! M.UpdateSketchUIState(Map(VisualisationBtn → (if(isShow) ElemShow else ElemHide)))}
+  /** Terminate all UI and */
+  def terminateAllUi(): Unit = {
+    log.debug("[WorkbenchControllerUIControl.terminateAllUi] Send Terminate... messages to all UI.")
+    //Set all disable
+    sketchUi ! M.UpdateSketchUIState(Map(
+      RunBtn → ElemDisabled,
+      ShowAllToolsUiBtn → ElemDisabled,
+      HideAllToolsUiBtn → ElemDisabled,
+      SkipAllTimeoutTaskBtn → ElemDisabled,
+      StopSketchBtn → ElemDisabled,
+      LogBtn → ElemDisabled,
+      VisualisationBtn → ElemDisabled))
+    //Terminate
+    visualization ! M.TerminateVisualization
+    userLogging ! M.TerminateUserLogging
+    sketchUi ! M.TerminateSketchUI}
+  /** Sketch UI terminated */
+  def sketchUITerminated(): Unit = {
+    log.debug(s"[WorkbenchControllerUIControl.sketchUITerminated] Terminated.")
+    isSketchUiTerminated = true}
+  /** User logging terminated */
+  def userLoggingTerminated(): Unit = {
+    log.debug(s"[WorkbenchControllerUIControl.userLoggingTerminated] Terminated.")
+    isUserLogTerminated = true}
+  /** Visualization terminated */
+  def visualizationTerminated(): Unit = {
+    log.debug(s"[WorkbenchControllerUIControl.visualizationTerminated] Terminated.")
+    isVisualisationTerminated = true}
+  /** Check if all UI terminated
+    * @return - true if all terminated */
+  def isAllUiTerminated: Boolean = {
+    val res = isSketchUiTerminated && isUserLogTerminated && isVisualisationTerminated
+    log.debug(s"[WorkbenchControllerUIControl.isAllUiTerminated] res: $res.")
+    res}
+
+
+}
