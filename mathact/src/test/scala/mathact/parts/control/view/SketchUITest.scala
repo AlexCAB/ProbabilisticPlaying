@@ -12,7 +12,7 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.control.ui
+package mathact.parts.control.view
 
 import akka.actor.Props
 import akka.testkit.TestProbe
@@ -59,7 +59,7 @@ class SketchUITest extends UIActorTestSpec {
     val ui = system.actorOf(Props(new SketchUI(sketchUIConfig, workbenchController.ref)), "SketchUI_" + randomString())
     workbenchController.watch(ui)}
   //Testing
-  "SketchUI on start" should{
+  "SketchUI" should{
     "change UI view" in new TestCase {
       //Preparing
       import SketchUIElement._, SketchUiElemState._

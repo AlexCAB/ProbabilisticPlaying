@@ -12,11 +12,11 @@ scalacOptions ++= Seq("-encoding", "UTF-8", s"-target:jvm-$jdkVersion", "-featur
 
 
 libraryDependencies  ++= Seq(
-  "com.typesafe.akka" %% "akka-actor" % "2.4.8",
-  "org.scalafx" %% "scalafx" % "8.0.92-R10",
-  "org.scala-lang.modules" %% "scala-xml" % "1.0.5",
-  "org.scalatest" %% "scalatest" % "3.0.0" % "test",
-  "com.typesafe.akka" %% "akka-testkit" % "2.4.8"  % "test"
+  "com.typesafe.akka"             %% "akka-actor"           % "2.4.8",
+  "org.scalafx"                   %% "scalafx"              % "8.0.92-R10",
+  "org.scala-lang.modules"        %% "scala-xml"            % "1.0.5",
+  "org.scalatest"                 %% "scalatest"            % "3.0.0"          % "test",
+  "com.typesafe.akka"             %% "akka-testkit"         % "2.4.8"          % "test"
 )
 
 

@@ -12,7 +12,7 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.control.ui
+package mathact.parts.control.view
 
 import javafx.event.EventHandler
 import javafx.stage.WindowEvent
@@ -33,7 +33,6 @@ import scalafx.scene.layout._
 import scalafx.scene.paint.Color._
 import scalafx.scene.text.Text
 import scalafx.stage.Stage
-
 
 
 /** The sketch (workbench) window

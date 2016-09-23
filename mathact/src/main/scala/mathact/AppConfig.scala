@@ -60,4 +60,9 @@ private [mathact] class AppConfig extends MainConfigLike{
     val logBtnH             = new Image("log_btn_h.png", buttonsSize, buttonsSize, true, true)
     val visualisationBtnD   = new Image("visualisation_btn_d.png", buttonsSize, buttonsSize, true, true)
     val visualisationBtnS   = new Image("visualisation_btn_s.png", buttonsSize, buttonsSize, true, true)
-    val visualisationBtnH   = new Image("visualisation_btn_h.png", buttonsSize, buttonsSize, true, true)}}
+    val visualisationBtnH   = new Image("visualisation_btn_h.png", buttonsSize, buttonsSize, true, true)}
+  //Parse user logging
+  val userLogging = new UserLoggingConfigLike{
+    val showUIOnError = config.getBoolean("view.logging.show.ui.on.error")
+
+  }}

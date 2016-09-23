@@ -28,5 +28,4 @@ trait MainConfigLike {
   val sketchBuildingTimeout: FiniteDuration
   val pumping: PumpingConfigLike
   val sketchUI: SketchUIConfigLike
-
-}
+  val userLogging: UserLoggingConfigLike}

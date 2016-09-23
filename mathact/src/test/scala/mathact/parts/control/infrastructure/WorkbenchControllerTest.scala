@@ -54,7 +54,8 @@ class WorkbenchControllerTest extends ActorTestSpec {
           val stopFunctionTimeout = 1.second
           val impellerMaxQueueSize = 0
           val uiOperationTimeout = 1.second}}
-      val sketchUI = null}
+      val sketchUI = null
+      val userLogging = null}
     //Test SketchData
     def newTestSketchData(
       clazz: Class[_] = classOf[TestSketchWithSmallTimeout],

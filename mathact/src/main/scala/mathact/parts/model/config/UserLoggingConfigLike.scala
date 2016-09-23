@@ -12,27 +12,12 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.control.infrastructure
-
-import akka.actor.{ActorRef, Actor}
+package mathact.parts.model.config
 
 
-/** Logging to user UI console
-  * Created by CAB on 26.08.2016.
+/** User logging config
+  * Created by CAB on 23.09.2016.
   */
 
-class UserLogging(workbenchController: ActorRef) extends Actor{
-
-
-    //TODO В случае ошибки должен отображать  UI, отсылать сообщение UserLoggingUIChanged,
-    //TODO чтобы контроллер обновил кнопку показа/скрыть логинг
-
-
-  def receive = {
-
-    case m ⇒ println("[UserLogging] Message: " + m)
-
-
-  }
-
-}
+trait UserLoggingConfigLike {
+  val showUIOnError: Boolean}

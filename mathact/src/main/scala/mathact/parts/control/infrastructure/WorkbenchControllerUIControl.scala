@@ -43,22 +43,22 @@ trait WorkbenchControllerUIControl { _: WorkbenchController ⇒
       HideAllToolsUiBtn → ElemDisabled,
       SkipAllTimeoutTaskBtn → ElemDisabled,
       StopSketchBtn → ElemDisabled,
-      LogBtn → (if(sketchData.showUserLogUi) ElemShow else ElemHide),
-      VisualisationBtn → (if(sketchData.showVisualisationUi) ElemShow else ElemHide)))
+      LogBtn → (if(sketchData.showUserLogUiAtStart) ElemShow else ElemHide),
+      VisualisationBtn → (if(sketchData.showVisualisationUiAtStart) ElemShow else ElemHide)))
     //User logging
-    sketchData.showUserLogUi match{
+    sketchData.showUserLogUiAtStart match{
       case true ⇒ userLogging ! M.ShowUserLoggingUI
       case false ⇒ log.debug("[WorkbenchControllerUIControl.showAllUi] User Logging UI stay hided.")}
     //Visualisation
-    sketchData.showVisualisationUi match{
+    sketchData.showVisualisationUiAtStart match{
       case true ⇒ visualization ! M.ShowVisualizationUI
       case false ⇒ log.debug("[WorkbenchControllerUIControl.showAllUi] Visualization UI stay hided.")}}
   /** Check if all UI shown
     * @return - true if all shown */
   def isAllUiShowed: Boolean = {
     val res = isSketchUiShowed &&
-      (isUserLogShowed || (! sketchData.showUserLogUi)) &&
-      (isVisualisationShowed || (! sketchData.showVisualisationUi))
+      (isUserLogShowed || (! sketchData.showUserLogUiAtStart)) &&
+      (isVisualisationShowed || (! sketchData.showVisualisationUiAtStart))
     log.debug(s"[WorkbenchControllerUIControl.isAllUiShowed] res: $res.")
     res}
   /** Sketch UI changed
@@ -111,7 +111,4 @@ trait WorkbenchControllerUIControl { _: WorkbenchController ⇒
   def isAllUiTerminated: Boolean = {
     val res = isSketchUiTerminated && isUserLogTerminated && isVisualisationTerminated
     log.debug(s"[WorkbenchControllerUIControl.isAllUiTerminated] res: $res.")
-    res}
-
-
-}
+    res}}

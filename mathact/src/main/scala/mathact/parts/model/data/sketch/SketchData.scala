@@ -24,6 +24,6 @@ case class SketchData(
   className: String,
   sketchName: Option[String],
   sketchDescription: Option[String],
-  autorun: Boolean,   //false - manual run
-  showUserLogUi: Boolean,
-  showVisualisationUi: Boolean)
+  autorun: Boolean, //false - manual run
+  showUserLogUiAtStart: Boolean,
+  showVisualisationUiAtStart: Boolean)

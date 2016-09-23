@@ -12,9 +12,9 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.control.infrastructure
+package mathact.parts.control.view
 
-import akka.actor.{ActorRef, Actor}
+import akka.actor.{Actor, ActorRef}
 
 /** SketchData visualization actor
   * Created by CAB on 31.08.2016.
