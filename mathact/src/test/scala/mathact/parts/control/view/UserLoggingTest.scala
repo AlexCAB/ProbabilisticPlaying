@@ -14,14 +14,19 @@
 
 package mathact.parts.control.view
 
+import javafx.scene.Parent
+
 import akka.actor.Props
 import akka.testkit.TestProbe
 import mathact.parts.UIActorTestSpec
+import mathact.parts.control.view.user.logging.{UserLoggingActor, UserLogUIControllerLike, UserLogUIController}
 import mathact.parts.model.config.UserLoggingConfigLike
 import mathact.parts.model.messages.M
 import org.scalatest.Suite
 
 import scala.concurrent.duration._
+import scalafx.scene.image.Image
+import scalafxml.core.{FXMLLoader, NoDependencyResolver, FXMLView}
 
 
 /** Testing of UserLogging actor
@@ -33,12 +38,26 @@ class UserLoggingTest extends UIActorTestSpec {
   trait TestCase extends Suite{
     //Test config
     def newConfig(showOnErr: Boolean) = new UserLoggingConfigLike{
-      val showUIOnError = showOnErr}
+      //Load UI
+      val fxmlLoader = new FXMLLoader(
+        getClass.getClassLoader.getResource("mathact/userLog/ui.fxml"),
+        NoDependencyResolver)
+      fxmlLoader.load()
+      //Parameters
+      val showUIOnError = showOnErr
+      val view = fxmlLoader.getRoot[Parent]
+      val controller = fxmlLoader.getController[UserLogUIControllerLike]
+      val logImgSize = 20
+      val infoImg    = new Image("mathact/userLog/info_img.png", logImgSize, logImgSize, true, true)
+      val warnImg    = new Image("mathact/userLog/warn_img.png", logImgSize, logImgSize, true, true)
+      val errorImg   = new Image("mathact/userLog/error_img.png", logImgSize, logImgSize, true, true)
+
+    }
     //Helpers actors
     val workbenchController = TestProbe("TestWorkbenchController_" + randomString())
     //UI Actor
     def newUserLog(config: UserLoggingConfigLike) = system.actorOf(
-      Props(new UserLogging(config, workbenchController.ref)),
+      Props(new UserLoggingActor(config, workbenchController.ref)),
       "UserLogging_" + randomString())}
   //Testing
   "UserLogging" should{
@@ -69,7 +88,7 @@ class UserLoggingTest extends UIActorTestSpec {
         toolId = Some(1003),
         toolName = "Tool 3",
         error = Some(new Exception("Oops!!! But not worries, this is just a test :)")),
-        message = "Error message."))
+        message = "!!!Error message.!!!"))
 
 
 

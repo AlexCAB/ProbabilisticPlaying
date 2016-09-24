@@ -37,22 +37,22 @@ class SketchUITest extends UIActorTestSpec {
     //Test config
     val sketchUIConfig = new SketchUIConfigLike{
       val buttonsSize = 30
-      val runBtnD             = new Image("run_btn_d.png", buttonsSize, buttonsSize, true, true)
-      val runBtnE             = new Image("run_btn_e.png", buttonsSize, buttonsSize, true, true)
-      val showAllToolsUiD     = new Image("show_all_tools_ui_d.png", buttonsSize, buttonsSize, true, true)
-      val showAllToolsUiE     = new Image("show_all_tools_ui_e.png", buttonsSize, buttonsSize, true, true)
-      val hideAllToolsUiBtnD  = new Image("hide_all_tools_ui_btn_d.png", buttonsSize, buttonsSize, true, true)
-      val hideAllToolsUiBtnE  = new Image("hide_all_tools_ui_btn_e.png", buttonsSize, buttonsSize, true, true)
-      val skipAllTimeoutTaskD = new Image("skip_all_timeout_task_d.png", buttonsSize, buttonsSize, true, true)
-      val skipAllTimeoutTaskE = new Image("skip_all_timeout_task_e.png", buttonsSize, buttonsSize, true, true)
-      val stopSketchBtnD      = new Image("stop_sketch_btn_d.png", buttonsSize, buttonsSize, true, true)
-      val stopSketchBtnE      = new Image("stop_sketch_btn_e.png", buttonsSize, buttonsSize, true, true)
-      val logBtnD             = new Image("log_btn_d.png", buttonsSize, buttonsSize, true, true)
-      val logBtnS             = new Image("log_btn_s.png", buttonsSize, buttonsSize, true, true)
-      val logBtnH             = new Image("log_btn_h.png", buttonsSize, buttonsSize, true, true)
-      val visualisationBtnD   = new Image("visualisation_btn_d.png", buttonsSize, buttonsSize, true, true)
-      val visualisationBtnS   = new Image("visualisation_btn_s.png", buttonsSize, buttonsSize, true, true)
-      val visualisationBtnH   = new Image("visualisation_btn_h.png", buttonsSize, buttonsSize, true, true)}
+      val runBtnD             = new Image("mathact/sketchIU/run_btn_d.png", buttonsSize, buttonsSize, true, true)
+      val runBtnE             = new Image("mathact/sketchIU/run_btn_e.png", buttonsSize, buttonsSize, true, true)
+      val showAllToolsUiD     = new Image("mathact/sketchIU/show_all_tools_ui_d.png", buttonsSize, buttonsSize, true, true)
+      val showAllToolsUiE     = new Image("mathact/sketchIU/show_all_tools_ui_e.png", buttonsSize, buttonsSize, true, true)
+      val hideAllToolsUiBtnD  = new Image("mathact/sketchIU/hide_all_tools_ui_btn_d.png", buttonsSize, buttonsSize, true, true)
+      val hideAllToolsUiBtnE  = new Image("mathact/sketchIU/hide_all_tools_ui_btn_e.png", buttonsSize, buttonsSize, true, true)
+      val skipAllTimeoutTaskD = new Image("mathact/sketchIU/skip_all_timeout_task_d.png", buttonsSize, buttonsSize, true, true)
+      val skipAllTimeoutTaskE = new Image("mathact/sketchIU/skip_all_timeout_task_e.png", buttonsSize, buttonsSize, true, true)
+      val stopSketchBtnD      = new Image("mathact/sketchIU/stop_sketch_btn_d.png", buttonsSize, buttonsSize, true, true)
+      val stopSketchBtnE      = new Image("mathact/sketchIU/stop_sketch_btn_e.png", buttonsSize, buttonsSize, true, true)
+      val logBtnD             = new Image("mathact/sketchIU/log_btn_d.png", buttonsSize, buttonsSize, true, true)
+      val logBtnS             = new Image("mathact/sketchIU/log_btn_s.png", buttonsSize, buttonsSize, true, true)
+      val logBtnH             = new Image("mathact/sketchIU/log_btn_h.png", buttonsSize, buttonsSize, true, true)
+      val visualisationBtnD   = new Image("mathact/sketchIU/visualisation_btn_d.png", buttonsSize, buttonsSize, true, true)
+      val visualisationBtnS   = new Image("mathact/sketchIU/visualisation_btn_s.png", buttonsSize, buttonsSize, true, true)
+      val visualisationBtnH   = new Image("mathact/sketchIU/visualisation_btn_h.png", buttonsSize, buttonsSize, true, true)}
     //Helpers actors
     val workbenchController = TestProbe("TestWorkbenchController_" + randomString())
     //UI Actor

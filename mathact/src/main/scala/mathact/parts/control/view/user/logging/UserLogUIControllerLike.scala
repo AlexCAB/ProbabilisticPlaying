@@ -12,22 +12,13 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.model.config
 
-import javafx.scene.Parent
-import mathact.parts.control.view.user.logging.UserLogUIControllerLike
-import scalafx.scene.image.Image
+package mathact.parts.control.view.user.logging
 
-
-/** User logging config
-  * Created by CAB on 23.09.2016.
+/** Interface of UserLogUIController
+  * Created by CAB on 24.09.2016.
   */
 
-trait UserLoggingConfigLike {
-  val showUIOnError: Boolean
-  val view: Parent
-  val controller: UserLogUIControllerLike
-  val logImgSize: Int
-  val infoImg: Image
-  val warnImg: Image
-  val errorImg: Image }
+trait UserLogUIControllerLike {
+
+}

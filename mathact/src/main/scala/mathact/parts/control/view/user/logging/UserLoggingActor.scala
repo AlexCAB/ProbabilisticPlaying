@@ -12,31 +12,24 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.control.view
+package mathact.parts.control.view.user.logging
 
 import javafx.event.EventHandler
-import javafx.stage.WindowEvent
+import javafx.scene.input.{KeyCodeCombination, KeyEvent}
 
-import akka.actor.{PoisonPill, Actor, ActorRef}
+import akka.actor.{ActorRef, PoisonPill}
 import mathact.parts.ActorBase
 import mathact.parts.gui.JFXInteraction
 import mathact.parts.model.config.UserLoggingConfigLike
-import mathact.parts.model.enums.SketchUIElement._
-import mathact.parts.model.enums.SketchUiElemState._
-import mathact.parts.model.enums._
-import scalafx.Includes._
 import mathact.parts.model.messages.M
 
 import scalafx.Includes._
 import scalafx.beans.property.{ObjectProperty, StringProperty}
 import scalafx.collections.ObservableBuffer
-import scalafx.geometry.{Insets, Pos}
-import scalafx.scene.paint.Color._
-import scalafx.scene.{Scene, Node}
+import scalafx.scene.Scene
 import scalafx.scene.control._
-import scalafx.scene.image.{ImageView, Image}
-import scalafx.scene.layout.{VBox, StackPane, BorderPane, HBox}
-import scalafx.scene.text.{TextFlow, Text}
+import scalafx.scene.image.{Image, ImageView}
+import scalafx.scene.input.{Clipboard, ClipboardContent, KeyCode, KeyCombination}
 import scalafx.stage.Stage
 
 
@@ -44,12 +37,15 @@ import scalafx.stage.Stage
   * Created by CAB on 26.08.2016.
   */
 
-class UserLogging(
+class UserLoggingActor(
   config: UserLoggingConfigLike,
   workbenchController: ActorRef)
 extends ActorBase with JFXInteraction {
   //Definitions
-  case class LogRow(msgType: Image, toolName: String, message: String)
+  private case class LogRow(msgType: Image, toolName: String, message: String){
+    val rowImage = new ImageView{image = msgType}
+
+  }
   //Window class
   private class Window extends Stage {
     //Definitions
@@ -124,56 +120,109 @@ extends ActorBase with JFXInteraction {
 //      style = "-fx-font-size: 11pt;"}
 
 
-    val textFlow = new TextFlow
+
+
+    val table = new TableView[LogRow]{
+      //Parameters
+      columnResizePolicy = TableView.UnconstrainedResizePolicy
+      //Columns
+      val msgTypeColumn = new TableColumn[LogRow, ImageView] {
+        text = "Type"
+        prefWidth = 50
+        style = "-fx-alignment: CENTER;"
+        cellValueFactory = { d ⇒ new ObjectProperty(d.value, "type",  d.value.rowImage)}
+        cellFactory = { _ ⇒
+          new TableCell[LogRow, ImageView] {
+            item.onChange { (_, _, img) ⇒ graphic = img}}}}
+      val toolNameColumn = new TableColumn[LogRow, String] {
+        text = "Tool Name"
+        prefWidth = 200
+        style = "-fx-font-size: 12; -fx-font-weight: bold; -fx-alignment: CENTER;"
+        cellValueFactory = { d ⇒ new StringProperty(d.value, "toolName",  d.value.toolName)}}
+      val messageColumn = new TableColumn[LogRow, String] {
+        text = "Message"
+        prefWidth = 600
+        style = "-fx-font-size: 12;"
+        cellValueFactory = { d ⇒ new StringProperty(d.value, "message",  d.value.message)}}
+      columns ++= Seq(msgTypeColumn, toolNameColumn, messageColumn)
+      //Copy to clipboard
+      onKeyPressed = new EventHandler[KeyEvent]{
+        val copyCombination = new KeyCodeCombination(KeyCode.C, KeyCombination.ControlAny)
+        def handle(e: KeyEvent): Unit = if(copyCombination.`match`(e)){
+          val item = selectionModel.value.getSelectedItem
+          val clipboard = new ClipboardContent
+          val text = item.toolName + "\t|\t" + item.message
+          clipboard.putString(text)
+          Clipboard.systemClipboard.setContent(clipboard)
+          log.debug("[UserLogging] Copy to clipboard: " + text)}}}
+
+
+
+
+
+    //TODO Далее:
+    //TODO   1) Перенести всю UI логику в контроллер (из калсаа Window и удалить его), не получится вынести синхронизацию
+    //TODO      так как создвать нужно тоде в потоке UI.
+    //TODO   2) Здесь только создание Stage (создани Scene, иньекция этого актора в контроллер), и логика.
+    //TODO
+    //TODO
+    //TODO
+    //TODO
+
+
+
+
+
+
 
     //UI
     title = "MathAct - Workbench"
-    scene = new Scene {
-      fill = White
-      content = new BorderPane{
-        top = new HBox {}
-
-        //ObservableBuffer(sketchRows)
-
-        center =
-
-            new TableView[LogRow]{
-
-              columnResizePolicy = TableView.UnconstrainedResizePolicy
-
-              val msgTypeColumn = new TableColumn[LogRow, Image] {
-                text = "Type"
-                prefWidth = 50
-//                style = "-fx-font-size: 13; -fx-font-weight: bold; -fx-alignment: CENTER-LEFT;"
-                cellValueFactory = { d ⇒ new ObjectProperty(d.value, "type",  d.value.msgType)}}
-
-              val toolNameColumn = new TableColumn[LogRow, String] {
-                text = "Tool Name"
-                prefWidth = 200
-                style = "-fx-font-size: 12; -fx-alignment: CENTER-LEFT;"
-                cellValueFactory = { d ⇒ new StringProperty(d.value, "toolName",  d.value.toolName)}}
-
-              val messageColumn = new TableColumn[LogRow, String] {
-                text = "Message"
-                prefWidth = 600
-                style = "-fx-font-size: 12; -fx-font-weight: bold; -fx-alignment: CENTER;"
-                cellValueFactory = { d ⇒ new StringProperty(d.value, "message",  d.value.message)}
-              }
+    scene = new Scene(config.view)
 
 
-//              val runBtnColumn = new TableColumn[SketchData, Button] {
-//                text = "Run"
-//                prefWidth = 42
-//                style = "-fx-alignment: CENTER;"
-//                cellValueFactory = { d ⇒ new ObjectProperty(d.value, "runBtn", d.value.runBtn)}
-//                cellFactory = { d ⇒ new TableCell[SketchData, Button] {
-//                  contentDisplay = ContentDisplay.GraphicOnly
-//                  item.onChange{ (_,_,b) ⇒ graphic = b}}}}
 
-              columns ++= Seq(msgTypeColumn, toolNameColumn, messageColumn)}
+//      new Scene {
+//      fill = White
+//      content = new BorderPane{
+//        top = new HBox {
+//
+//          //TODO Buttons
+//
+//        }
+//        center = table}}
 
 
-        }}}
+
+    //Methods
+    def setRows(rows: List[LogRow]): Unit = {
+
+
+
+      table.items = ObservableBuffer(rows)
+
+
+
+    }
+
+
+
+
+  }
+  //Variables
+  private var logRows = List[LogRow]()
+  //Functions
+  private def addRow(row: LogRow): Unit = {
+    //Add new row
+    logRows +:= row
+    //Preparing rows to show
+    val rowsToShow = logRows.reverse
+
+    //TODO Здесь примеение фильтров
+
+    //Show rows
+    runAndWait(window.setRows(rowsToShow))
+
+  }
 
 
 
@@ -183,38 +232,10 @@ extends ActorBase with JFXInteraction {
     stg.resizable = true
     stg.sizeToScene()
     stg}
-
-
-
-
-
-
-
   //Messages handling with logging
   def reaction: PartialFunction[Any, Unit]  = {
     //Show UI
     case M.ShowUserLoggingUI ⇒
-
-      runAndWait{
-
-        val t1 = new Text()
-        t1.setStyle("-fx-fill: #4F8A10;-fx-font-weight:bold;")
-        t1.setText("Hi\n")
-        window.textFlow.getChildren.add(t1)
-
-        for (_ ← 0 to 10){
-          val t2 = new Text()
-          t2.setStyle("-fx-fill: #ff0000;-fx-font-weight:bold;")
-          t2.setText("Bye\n")
-
-          window.textFlow.getChildren.add(t2)
-
-        }
-
-
-      }
-
-
       runAndWait(window.show())
       workbenchController ! M.UserLoggingUIChanged(isShow = true)
     //Hide UI
@@ -223,19 +244,27 @@ extends ActorBase with JFXInteraction {
       workbenchController ! M.UserLoggingUIChanged(isShow = false)
     //Log info
     case M.LogInfo(toolId, toolName, message) ⇒
-      ???
-
-
+      //Build row
+      val row = LogRow(config.infoImg, toolName, message)
+      //Add to Log
+      addRow(row)
     //Log warning
     case M.LogWarning(toolId, toolName, message) ⇒
-      ???
-
-
+      //Build row
+      val row = LogRow(config.warnImg, toolName, message)
+      //Add to Log
+      addRow(row)
     //Log error
     case M.LogError(toolId, toolName, error, message) ⇒
-      ???
-
-
+      //Build row
+      val row = LogRow(config.errorImg, toolName, message + (error match{
+        case Some(e) ⇒
+          "\n" +
+          "Exception message: " + e.getMessage + "\n" +
+          "Stack trace: \n      " + e.getStackTrace.mkString("\n      ")
+        case None ⇒ ""}))
+      //Add to Log
+      addRow(row)
     //Terminate user logging
     case M.TerminateUserLogging ⇒
       runAndWait(window.close())

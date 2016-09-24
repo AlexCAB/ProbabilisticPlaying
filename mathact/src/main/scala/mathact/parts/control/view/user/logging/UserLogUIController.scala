@@ -12,22 +12,23 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.model.config
+package mathact.parts.control.view.user.logging
 
-import javafx.scene.Parent
-import mathact.parts.control.view.user.logging.UserLogUIControllerLike
-import scalafx.scene.image.Image
+import scalafx.scene.control.Button
+import scalafxml.core.macros.sfxml
 
 
-/** User logging config
-  * Created by CAB on 23.09.2016.
+/** User log UI presenter
+  * Created by CAB on 24.09.2016.
   */
 
-trait UserLoggingConfigLike {
-  val showUIOnError: Boolean
-  val view: Parent
-  val controller: UserLogUIControllerLike
-  val logImgSize: Int
-  val infoImg: Image
-  val warnImg: Image
-  val errorImg: Image }
+@sfxml
+class UserLogUIController(private val testButton: Button) extends UserLogUIControllerLike{
+  def testClick(): Unit = {
+
+    println("testClick")
+
+  }
+
+
+}

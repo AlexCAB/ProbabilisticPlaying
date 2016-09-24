@@ -47,8 +47,8 @@ abstract class SelectSketchWindow(log: LoggingAdapter) extends JFXInteraction {
   //Definitions
   private class MainWindowStage(sketches: List[SketchData]) extends Stage {
     //Components
-    val startBtnDImg = new Image("sketch_start_d.png", buttonsSize, buttonsSize, true, true)
-    val startBtnEImg =  new Image("sketch_start_e.png", buttonsSize, buttonsSize, true, true)
+    val startBtnDImg = new Image("mathact/sketchList/sketch_start_d.png", buttonsSize, buttonsSize, true, true)
+    val startBtnEImg =  new Image("mathact/sketchList/sketch_start_e.png", buttonsSize, buttonsSize, true, true)
     //Definitions
     class SketchData(sketch: SketchData, onHit: String⇒Unit){
       val className: String = ??? // = sketch.className
