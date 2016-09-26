@@ -12,21 +12,16 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.control.view
-
-import javafx.scene.Parent
+package mathact.parts.control.view.logging
 
 import akka.actor.Props
 import akka.testkit.TestProbe
 import mathact.parts.UIActorTestSpec
-import mathact.parts.control.view.user.logging.{UserLoggingActor, UserLogUIControllerLike, UserLogUIController}
 import mathact.parts.model.config.UserLoggingConfigLike
 import mathact.parts.model.messages.M
 import org.scalatest.Suite
 
 import scala.concurrent.duration._
-import scalafx.scene.image.Image
-import scalafxml.core.{FXMLLoader, NoDependencyResolver, FXMLView}
 
 
 /** Testing of UserLogging actor
@@ -38,19 +33,20 @@ class UserLoggingTest extends UIActorTestSpec {
   trait TestCase extends Suite{
     //Test config
     def newConfig(showOnErr: Boolean) = new UserLoggingConfigLike{
-      //Load UI
-      val fxmlLoader = new FXMLLoader(
-        getClass.getClassLoader.getResource("mathact/userLog/ui.fxml"),
-        NoDependencyResolver)
-      fxmlLoader.load()
+//      //Load UI
+//      val fxmlLoader = new FXMLLoader(
+//        getClass.getClassLoader.getResource("mathact/userLog/ui.fxml"),
+//        NoDependencyResolver)
+//      fxmlLoader.load()
       //Parameters
+      val uiFxmlPath = "mathact/userLog/ui.fxml"
       val showUIOnError = showOnErr
-      val view = fxmlLoader.getRoot[Parent]
-      val controller = fxmlLoader.getController[UserLogUIControllerLike]
-      val logImgSize = 20
-      val infoImg    = new Image("mathact/userLog/info_img.png", logImgSize, logImgSize, true, true)
-      val warnImg    = new Image("mathact/userLog/warn_img.png", logImgSize, logImgSize, true, true)
-      val errorImg   = new Image("mathact/userLog/error_img.png", logImgSize, logImgSize, true, true)
+//      val view = fxmlLoader.getRoot[Parent]
+//      val controller = fxmlLoader.getController[UserLogUIControllerLike]
+//      val logImgSize = 20
+//      val infoImg    = new Image("mathact/userLog/info_img.png", logImgSize, logImgSize, true, true)
+//      val warnImg    = new Image("mathact/userLog/warn_img.png", logImgSize, logImgSize, true, true)
+//      val errorImg   = new Image("mathact/userLog/error_img.png", logImgSize, logImgSize, true, true)
 
     }
     //Helpers actors

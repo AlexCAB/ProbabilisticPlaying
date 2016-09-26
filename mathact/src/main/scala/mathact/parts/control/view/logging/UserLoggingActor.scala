@@ -12,9 +12,10 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.control.view.user.logging
+package mathact.parts.control.view.logging
 
 import javafx.event.EventHandler
+import javafx.scene.Parent
 import javafx.scene.input.{KeyCodeCombination, KeyEvent}
 
 import akka.actor.{ActorRef, PoisonPill}
@@ -31,6 +32,7 @@ import scalafx.scene.control._
 import scalafx.scene.image.{Image, ImageView}
 import scalafx.scene.input.{Clipboard, ClipboardContent, KeyCode, KeyCombination}
 import scalafx.stage.Stage
+import scalafxml.core.{NoDependencyResolver, FXMLLoader}
 
 
 /** Logging to user UI console
@@ -41,6 +43,9 @@ class UserLoggingActor(
   config: UserLoggingConfigLike,
   workbenchController: ActorRef)
 extends ActorBase with JFXInteraction {
+  //Parameters
+  val windowTitle = "MathAct - Logger"
+
   //Definitions
   private case class LogRow(msgType: Image, toolName: String, message: String){
     val rowImage = new ImageView{image = msgType}
@@ -122,39 +127,39 @@ extends ActorBase with JFXInteraction {
 
 
 
-    val table = new TableView[LogRow]{
-      //Parameters
-      columnResizePolicy = TableView.UnconstrainedResizePolicy
-      //Columns
-      val msgTypeColumn = new TableColumn[LogRow, ImageView] {
-        text = "Type"
-        prefWidth = 50
-        style = "-fx-alignment: CENTER;"
-        cellValueFactory = { d ⇒ new ObjectProperty(d.value, "type",  d.value.rowImage)}
-        cellFactory = { _ ⇒
-          new TableCell[LogRow, ImageView] {
-            item.onChange { (_, _, img) ⇒ graphic = img}}}}
-      val toolNameColumn = new TableColumn[LogRow, String] {
-        text = "Tool Name"
-        prefWidth = 200
-        style = "-fx-font-size: 12; -fx-font-weight: bold; -fx-alignment: CENTER;"
-        cellValueFactory = { d ⇒ new StringProperty(d.value, "toolName",  d.value.toolName)}}
-      val messageColumn = new TableColumn[LogRow, String] {
-        text = "Message"
-        prefWidth = 600
-        style = "-fx-font-size: 12;"
-        cellValueFactory = { d ⇒ new StringProperty(d.value, "message",  d.value.message)}}
-      columns ++= Seq(msgTypeColumn, toolNameColumn, messageColumn)
-      //Copy to clipboard
-      onKeyPressed = new EventHandler[KeyEvent]{
-        val copyCombination = new KeyCodeCombination(KeyCode.C, KeyCombination.ControlAny)
-        def handle(e: KeyEvent): Unit = if(copyCombination.`match`(e)){
-          val item = selectionModel.value.getSelectedItem
-          val clipboard = new ClipboardContent
-          val text = item.toolName + "\t|\t" + item.message
-          clipboard.putString(text)
-          Clipboard.systemClipboard.setContent(clipboard)
-          log.debug("[UserLogging] Copy to clipboard: " + text)}}}
+//    val table = new TableView[LogRow]{
+//      //Parameters
+//      columnResizePolicy = TableView.UnconstrainedResizePolicy
+//      //Columns
+//      val msgTypeColumn = new TableColumn[LogRow, ImageView] {
+//        text = "Type"
+//        prefWidth = 50
+//        style = "-fx-alignment: CENTER;"
+//        cellValueFactory = { d ⇒ new ObjectProperty(d.value, "type",  d.value.rowImage)}
+//        cellFactory = { _ ⇒
+//          new TableCell[LogRow, ImageView] {
+//            item.onChange { (_, _, img) ⇒ graphic = img}}}}
+//      val toolNameColumn = new TableColumn[LogRow, String] {
+//        text = "Tool Name"
+//        prefWidth = 200
+//        style = "-fx-font-size: 12; -fx-font-weight: bold; -fx-alignment: CENTER;"
+//        cellValueFactory = { d ⇒ new StringProperty(d.value, "toolName",  d.value.toolName)}}
+//      val messageColumn = new TableColumn[LogRow, String] {
+//        text = "Message"
+//        prefWidth = 600
+//        style = "-fx-font-size: 12;"
+//        cellValueFactory = { d ⇒ new StringProperty(d.value, "message",  d.value.message)}}
+//      columns ++= Seq(msgTypeColumn, toolNameColumn, messageColumn)
+//      //Copy to clipboard
+//      onKeyPressed = new EventHandler[KeyEvent]{
+//        val copyCombination = new KeyCodeCombination(KeyCode.C, KeyCombination.ControlAny)
+//        def handle(e: KeyEvent): Unit = if(copyCombination.`match`(e)){
+//          val item = selectionModel.value.getSelectedItem
+//          val clipboard = new ClipboardContent
+//          val text = item.toolName + "\t|\t" + item.message
+//          clipboard.putString(text)
+//          Clipboard.systemClipboard.setContent(clipboard)
+//          log.debug("[UserLogging] Copy to clipboard: " + text)}}}
 
 
 
@@ -170,14 +175,24 @@ extends ActorBase with JFXInteraction {
     //TODO
 
 
-
-
-
-
-
-    //UI
-    title = "MathAct - Workbench"
-    scene = new Scene(config.view)
+//    val fxmlLoader = new FXMLLoader(
+//      getClass.getClassLoader.getResource("mathact/userLog/ui.fxml"),
+//      NoDependencyResolver)
+//    fxmlLoader.load()
+//
+//    val view = fxmlLoader.getRoot[Parent]
+//    val controller = fxmlLoader.getController[UserLogUIControllerLike]
+//
+//
+//
+//
+//
+//
+//
+//
+//    //UI
+//    title = "MathAct - Workbench"
+//    scene = new Scene(config.view)
 
 
 
@@ -198,7 +213,7 @@ extends ActorBase with JFXInteraction {
 
 
 
-      table.items = ObservableBuffer(rows)
+//      table.items = ObservableBuffer(rows)
 
 
 
@@ -220,18 +235,44 @@ extends ActorBase with JFXInteraction {
     //TODO Здесь примеение фильтров
 
     //Show rows
-    runAndWait(window.setRows(rowsToShow))
+//    runAndWait(window.setRows(rowsToShow))
 
   }
 
 
 
   //Construction
-  private val window = runNow{
-    val stg = new Window
-    stg.resizable = true
-    stg.sizeToScene()
-    stg}
+  private val (window, controller) = runNow{
+    //Try to load resource
+    Option(getClass.getClassLoader.getResource(config.uiFxmlPath)) match{
+      case Some(conf) ⇒
+        //Load FXML
+        val loader = new FXMLLoader(
+          getClass.getClassLoader.getResource(config.uiFxmlPath),
+          NoDependencyResolver)
+        loader.load()
+        //Get view and controller
+        val view = loader.getRoot[Parent]
+        val controller = loader.getController[UserLogUIControllerLike]
+        //Create stage
+        val stg = new Stage {
+          title = "MathAct - Logger"
+          scene = new Scene(view)}
+        //Set params and return
+        stg.resizable = true
+        stg.sizeToScene()
+        (stg, controller)
+      case None ⇒
+        throw new IllegalArgumentException(
+          s"[UserLoggingActor.<init>] Cannot load FXML by '${config.uiFxmlPath} path.'")}}
+
+
+
+
+
+
+
+
   //Messages handling with logging
   def reaction: PartialFunction[Any, Unit]  = {
     //Show UI
@@ -244,27 +285,27 @@ extends ActorBase with JFXInteraction {
       workbenchController ! M.UserLoggingUIChanged(isShow = false)
     //Log info
     case M.LogInfo(toolId, toolName, message) ⇒
-      //Build row
-      val row = LogRow(config.infoImg, toolName, message)
-      //Add to Log
-      addRow(row)
+//      //Build row
+//      val row = LogRow(config.infoImg, toolName, message)
+//      //Add to Log
+//      addRow(row)
     //Log warning
     case M.LogWarning(toolId, toolName, message) ⇒
       //Build row
-      val row = LogRow(config.warnImg, toolName, message)
-      //Add to Log
-      addRow(row)
+//      val row = LogRow(config.warnImg, toolName, message)
+//      //Add to Log
+//      addRow(row)
     //Log error
     case M.LogError(toolId, toolName, error, message) ⇒
-      //Build row
-      val row = LogRow(config.errorImg, toolName, message + (error match{
-        case Some(e) ⇒
-          "\n" +
-          "Exception message: " + e.getMessage + "\n" +
-          "Stack trace: \n      " + e.getStackTrace.mkString("\n      ")
-        case None ⇒ ""}))
-      //Add to Log
-      addRow(row)
+//      //Build row
+//      val row = LogRow(config.errorImg, toolName, message + (error match{
+//        case Some(e) ⇒
+//          "\n" +
+//          "Exception message: " + e.getMessage + "\n" +
+//          "Stack trace: \n      " + e.getStackTrace.mkString("\n      ")
+//        case None ⇒ ""}))
+//      //Add to Log
+//      addRow(row)
     //Terminate user logging
     case M.TerminateUserLogging ⇒
       runAndWait(window.close())

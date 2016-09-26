@@ -12,12 +12,12 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.control.view
+package mathact.parts.control.view.sketch
 
 import javafx.event.EventHandler
 import javafx.stage.WindowEvent
 
-import akka.actor.{PoisonPill, ActorRef}
+import akka.actor.{ActorRef, PoisonPill}
 import mathact.parts.ActorBase
 import mathact.parts.gui.JFXInteraction
 import mathact.parts.model.config.SketchUIConfigLike
@@ -26,12 +26,12 @@ import mathact.parts.model.messages.M
 
 import scalafx.Includes._
 import scalafx.geometry.{Insets, Pos}
-import scalafx.scene.{Node, Scene}
 import scalafx.scene.control.Button
 import scalafx.scene.image.{Image, ImageView}
 import scalafx.scene.layout._
 import scalafx.scene.paint.Color._
 import scalafx.scene.text.Text
+import scalafx.scene.{Node, Scene}
 import scalafx.stage.Stage
 
 
@@ -39,10 +39,11 @@ import scalafx.stage.Stage
   * Created by CAB on 23.05.2016.
   */
 
-class SketchUI(
+class SketchUIActor(
   config: SketchUIConfigLike,
   workbenchController: ActorRef)
-extends ActorBase with JFXInteraction { import SketchUiElemState._, SketchUIElement._
+extends ActorBase with JFXInteraction { import SketchUIElement._
+ import SketchUiElemState._
   //Window class
   private class Window extends Stage {
     //Definitions

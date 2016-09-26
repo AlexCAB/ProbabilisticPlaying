@@ -12,28 +12,23 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.control.view
+package mathact.parts.control.view.logging
 
-import akka.actor.{Actor, ActorRef}
+import scalafx.scene.control.Button
+import scalafxml.core.macros.sfxml
 
-/** SketchData visualization actor
-  * Created by CAB on 31.08.2016.
+
+/** User log UI presenter
+  * Created by CAB on 24.09.2016.
   */
 
-class Visualization(workbenchController: ActorRef) extends Actor{
+@sfxml
+class UserLogUIController(private val testButton: Button) extends UserLogUIControllerLike{
+  def testClick(): Unit = {
 
-
-  def receive = {
-
-    //TODO По пуличении ToolBuilt динамически отрисовывает новый инструмент, не ожыдая завершения постройки всех инструментов.
-    //TODO
-    //TODO
-
-
-
-    case m ⇒ println("[Visualization] Message: " + m)
-
+    println("testClick")
 
   }
+
 
 }

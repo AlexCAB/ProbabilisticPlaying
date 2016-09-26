@@ -12,13 +12,13 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.control.view
+package mathact.parts.control.view.sketch
 
 import akka.actor.Props
 import akka.testkit.TestProbe
 import mathact.parts.UIActorTestSpec
 import mathact.parts.model.config.SketchUIConfigLike
-import mathact.parts.model.enums.{SketchUiElemState, SketchUIElement}
+import mathact.parts.model.enums.{SketchUIElement, SketchUiElemState}
 import mathact.parts.model.messages.M
 import org.scalatest.Suite
 
@@ -56,13 +56,14 @@ class SketchUITest extends UIActorTestSpec {
     //Helpers actors
     val workbenchController = TestProbe("TestWorkbenchController_" + randomString())
     //UI Actor
-    val ui = system.actorOf(Props(new SketchUI(sketchUIConfig, workbenchController.ref)), "SketchUI_" + randomString())
+    val ui = system.actorOf(Props(new SketchUIActor(sketchUIConfig, workbenchController.ref)), "SketchUI_" + randomString())
     workbenchController.watch(ui)}
   //Testing
   "SketchUI" should{
     "change UI view" in new TestCase {
       //Preparing
-      import SketchUIElement._, SketchUiElemState._
+      import SketchUIElement._
+      import SketchUiElemState._
       //Show UI
       workbenchController.send(ui, M.ShowSketchUI)
       workbenchController.expectMsgType[M.SketchUIChanged].isShow shouldEqual true

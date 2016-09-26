@@ -12,23 +12,13 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.control.view.user.logging
 
-import scalafx.scene.control.Button
-import scalafxml.core.macros.sfxml
+package mathact.parts.control.view.logging
 
-
-/** User log UI presenter
+/** Interface of UserLogUIController
   * Created by CAB on 24.09.2016.
   */
 
-@sfxml
-class UserLogUIController(private val testButton: Button) extends UserLogUIControllerLike{
-  def testClick(): Unit = {
-
-    println("testClick")
-
-  }
-
+trait UserLogUIControllerLike {
 
 }
