@@ -26,6 +26,8 @@ import mathact.parts.{WorkbenchLike, StateActorBase}
   * Created by CAB on 21.05.2016.
   */
 
+//TODO Должен сам создавать sketchUi, userLogging, visualization, pumping так как должен инжектить себя
+//TODO через параметры конструкатора
 class WorkbenchController(
   val config: MainConfigLike,
   val sketchData: SketchData,

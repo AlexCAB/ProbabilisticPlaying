@@ -33,22 +33,8 @@ class UserLoggingTest extends UIActorTestSpec {
   trait TestCase extends Suite{
     //Test config
     def newConfig(showOnErr: Boolean) = new UserLoggingConfigLike{
-//      //Load UI
-//      val fxmlLoader = new FXMLLoader(
-//        getClass.getClassLoader.getResource("mathact/userLog/ui.fxml"),
-//        NoDependencyResolver)
-//      fxmlLoader.load()
-      //Parameters
       val uiFxmlPath = "mathact/userLog/ui.fxml"
-      val showUIOnError = showOnErr
-//      val view = fxmlLoader.getRoot[Parent]
-//      val controller = fxmlLoader.getController[UserLogUIControllerLike]
-//      val logImgSize = 20
-//      val infoImg    = new Image("mathact/userLog/info_img.png", logImgSize, logImgSize, true, true)
-//      val warnImg    = new Image("mathact/userLog/warn_img.png", logImgSize, logImgSize, true, true)
-//      val errorImg   = new Image("mathact/userLog/error_img.png", logImgSize, logImgSize, true, true)
-
-    }
+      val showUIOnError = showOnErr}
     //Helpers actors
     val workbenchController = TestProbe("TestWorkbenchController_" + randomString())
     //UI Actor

@@ -20,5 +20,4 @@ package mathact.parts.control.view.logging
   */
 
 trait UserLogUIControllerLike {
-
-}
+  def setRows(rows: List[LogRow]): Unit}

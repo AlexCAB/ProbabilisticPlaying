@@ -12,12 +12,14 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.model.config
+package mathact.parts.control.view.logging
 
 
-/** User logging config
-  * Created by CAB on 23.09.2016.
+/** Logging message types
+  * Created by CAB on 26.09.2016.
   */
 
-trait UserLoggingConfigLike {
-  val showUIOnError: Boolean}
+object LogMsgType extends Enumeration {
+  val Info = Value
+  val Warn = Value
+  val Error = Value}
