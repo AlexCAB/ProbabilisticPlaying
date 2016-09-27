@@ -38,7 +38,7 @@ class SketchUITest extends UIActorTestSpec {
     //Helpers actors
     val workbenchController = TestProbe("TestWorkbenchController_" + randomString())
     //UI Actor
-    val ui = system.actorOf(Props(new SketchUIActor(sketchUIConfig, workbenchController.ref)), "SketchUI_" + randomString())
+    val ui = system.actorOf(Props(new SketchUI(sketchUIConfig, workbenchController.ref)), "SketchUI_" + randomString())
     workbenchController.watch(ui)}
   //Testing
   "SketchUI" should{

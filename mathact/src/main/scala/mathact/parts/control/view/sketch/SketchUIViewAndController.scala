@@ -101,7 +101,7 @@ extends Stage {
   //Close operation
   delegate.setOnCloseRequest(new EventHandler[WindowEvent]{
     def handle(event: WindowEvent): Unit = {
-      log.debug("[SketchUI.onCloseRequest] Close is hit, call windowClosed.")
+      log.debug("[SketchUI.onCloseRequest] Close is hit, send SketchUIActionTriggered(CloseBtn, Unit).")
       workbenchController ! M.SketchUIActionTriggered(CloseBtn, Unit)
       event.consume()}})
   //UI Components

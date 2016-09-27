@@ -14,7 +14,9 @@
 
 package mathact.parts.control.view.logging
 
+import javafx.event.EventHandler
 import javafx.scene.Parent
+import javafx.stage.WindowEvent
 
 import akka.actor.{ActorRef, PoisonPill}
 import mathact.parts.ActorBase
@@ -32,14 +34,34 @@ import scalafxml.core.{NoDependencyResolver, FXMLLoader}
   * Created by CAB on 26.08.2016.
   */
 
-class UserLoggingActor(
+object UserLogging{
+  //Enums
+  object LogType extends Enumeration {
+    val Info = Value
+    val Warn = Value
+    val Error = Value}
+  type LogType = LogType.Value
+  //Data
+  case class LogRow(msgType: LogType, toolName: String, message: String)
+  //Messages
+  case class DoSearch(text: String)
+  case class SetLogLevel(level: LogType)
+  case class SetLogAmount(amount: Int)
+  case object DoClean}
+
+
+class UserLogging(
   config: UserLoggingConfigLike,
   workbenchController: ActorRef)
-extends ActorBase with JFXInteraction {
+extends ActorBase with JFXInteraction { import UserLogging._
   //Parameters
   val windowTitle = "MathAct - Logger"
   val uiFxmlPath = "mathact/userLog/ui.fxml"
   //Variables
+  private var isShown = false
+  private var searchText = ""
+  private var logLevel = LogType.Info
+  private var logAmount = 10
   private var logRows = List[LogRow]()
   //Construction
   private val (window, controller) = runNow{
@@ -58,76 +80,97 @@ extends ActorBase with JFXInteraction {
         val stg = new Stage {
           title = windowTitle
           scene = new Scene(view)}
+        //Close operation
+        stg.delegate.setOnCloseRequest(new EventHandler[WindowEvent]{
+          def handle(event: WindowEvent): Unit = {
+            log.debug("[UserLogging.onCloseRequest] Close is hit.")
+            //Set states
+            isShown = false
+            stg.hide()
+            //Send message
+            workbenchController ! M.UserLoggingUIChanged(isShown)}})
         //Set params and return
         stg.resizable = true
         stg.sizeToScene()
+        controller.setActor(self)
         (stg, controller)
       case None ⇒
         throw new IllegalArgumentException(
           s"[UserLoggingActor.<init>] Cannot load FXML by '$uiFxmlPath path.'")}}
   //Functions
-  private def addRow(row: LogRow): Unit = {
-    //Add new row
-    logRows +:= row
-    //Preparing rows to show
-    val rowsToShow = logRows.reverse
-
-    //TODO Здесь примеение фильтров
-
-    //Show rows
-    runAndWait(controller.setRows(rowsToShow))
-
-  }
-
-  //TODO Далле:
-  //TODO   1) Реализовать фильтрацию и очитску (соглсно понели инструментоы)
-  //TODO   2) Здесь и в остальных окнах добавить кастомный значёк окна.
-  //TODO   3) Дописать тесты
-  //TODO   4) Исправить WorkbenchController, согласно заментке там.
-  //TODO
-  //TODO
-  //TODO
-  //TODO
-
-
-
-
-
+  private def refreshUi(): Unit = isShown match{
+    case true ⇒
+      //Filter log
+      val clippedLog = logAmount match{
+        case Int.MaxValue ⇒ logRows
+        case amount ⇒ logRows.take(amount)}
+      val filteredLog = logLevel match{
+        case LogType.Info ⇒ clippedLog
+        case LogType.Warn ⇒ clippedLog.filter(r ⇒ r.msgType == LogType.Warn || r.msgType == LogType.Error)
+        case LogType.Error ⇒ clippedLog.filter(r ⇒ r.msgType == LogType.Error)}
+      val searchedLog = searchText match{
+        case "" ⇒ filteredLog
+        case ss ⇒ filteredLog.filter(r ⇒ r.toolName.contains(ss) || r.message.contains(ss))}
+      val resultLog = searchedLog.reverse
+      //Show rows
+      runAndWait(controller.setRows(resultLog))
+    case false ⇒
+      //UI hide
+      log.debug("[UserLogging.refreshUi] UI not show, nothing to refresh.")}
   //Messages handling with logging
   def reaction: PartialFunction[Any, Unit]  = {
+    //Do search
+    case DoSearch(text) ⇒
+      searchText = text
+      refreshUi()
+    //Set log level
+    case SetLogLevel(level) ⇒
+      logLevel = level
+      refreshUi()
+    //Set log amount
+    case SetLogAmount(amount) ⇒
+      logAmount = amount
+      refreshUi()
+    //Do clean
+    case DoClean ⇒
+      logRows = List()
+      refreshUi()
     //Show UI
     case M.ShowUserLoggingUI ⇒
+      isShown = true
+      refreshUi()
       runAndWait(window.show())
-      workbenchController ! M.UserLoggingUIChanged(isShow = true)
+      workbenchController ! M.UserLoggingUIChanged(isShown)
     //Hide UI
     case M.HideUserLoggingUI ⇒
+      isShown = false
+      refreshUi()
       runAndWait(window.hide())
-      workbenchController ! M.UserLoggingUIChanged(isShow = false)
+      workbenchController ! M.UserLoggingUIChanged(isShown)
     //Log info
     case M.LogInfo(toolId, toolName, message) ⇒
       //Build row
-      val row = LogRow(LogMsgType.Info, toolName, message)
-      //Add to Log
-      addRow(row)
+      logRows +:= LogRow(LogType.Info, toolName, message)
+      refreshUi()
     //Log warning
     case M.LogWarning(toolId, toolName, message) ⇒
       //Build row
-      val row = LogRow(LogMsgType.Warn, toolName, message)
-      //Add to Log
-      addRow(row)
+      logRows +:= LogRow(LogType.Warn, toolName, message)
+      refreshUi()
     //Log error
     case M.LogError(toolId, toolName, error, message) ⇒
       //Build row
-      val row = LogRow(LogMsgType.Error, toolName, message + (error match{
+      val row = LogRow(LogType.Error, toolName, message + (error match{
         case Some(e) ⇒
           "\n" +
           "Exception message: " + e.getMessage + "\n" +
           "Stack trace: \n      " + e.getStackTrace.mkString("\n      ")
         case None ⇒ ""}))
       //Add to Log
-      addRow(row)
+      logRows +:= row
+      refreshUi()
     //Terminate user logging
     case M.TerminateUserLogging ⇒
       runAndWait(window.close())
-      workbenchController ! M.SketchUITerminated
+      workbenchController ! M.UserLoggingTerminated
       self ! PoisonPill}}

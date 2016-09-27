@@ -12,11 +12,28 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.control.view.logging
+package mathact.parts.control.view.visualization
 
+import akka.actor.{Actor, ActorRef}
 
-/** Log row
-  * Created by CAB on 26.09.2016.
+/** SketchData visualization actor
+  * Created by CAB on 31.08.2016.
   */
 
-case class LogRow(msgType: LogMsgType.Value, toolName: String, message: String)
+class Visualization(workbenchController: ActorRef) extends Actor{
+
+
+  def receive = {
+
+    //TODO По пуличении ToolBuilt динамически отрисовывает новый инструмент, не ожыдая завершения постройки всех инструментов.
+    //TODO
+    //TODO
+
+
+
+    case m ⇒ println("[Visualization] Message: " + m)
+
+
+  }
+
+}
