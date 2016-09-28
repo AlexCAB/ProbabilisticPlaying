@@ -22,7 +22,6 @@ import mathact.parts.model.data.visualisation.ToolBuiltInfo
 import mathact.parts.model.enums._
 import mathact.parts.plumbing.PumpLike
 import mathact.parts.plumbing.fitting.{Plug, Socket, InPipe, OutPipe}
-import mathact.tools.Workbench
 
 import scala.concurrent.duration.FiniteDuration
 import scalafx.scene.paint.Color

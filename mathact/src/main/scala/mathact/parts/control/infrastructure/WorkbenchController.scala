@@ -26,16 +26,10 @@ import mathact.parts.{WorkbenchLike, StateActorBase}
   * Created by CAB on 21.05.2016.
   */
 
-//TODO Должен сам создавать sketchUi, userLogging, visualization, pumping так как должен инжектить себя
-//TODO через параметры конструкатора
-class WorkbenchController(
+abstract class WorkbenchController(
   val config: MainConfigLike,
   val sketchData: SketchData,
-  val mainController: ActorRef,
-  val sketchUi: ActorRef,
-  val userLogging: ActorRef,
-  val visualization: ActorRef,
-  val pumping: ActorRef)
+  val mainController: ActorRef)
 extends StateActorBase(ActorState.Init) with WorkbenchControllerUIControl
 with WorkbenchControllerLife with WorkbenchControllerUIActions
 { import ActorState._, SketchUIElement._
@@ -48,6 +42,11 @@ with WorkbenchControllerLife with WorkbenchControllerUIActions
   case object SketchDestructed extends StateMsg
   //Variables
   var isShutdown = false
+  //Sub actors
+  val sketchUi: ActorRef
+  val userLogging: ActorRef
+  val visualization: ActorRef
+  val pumping: ActorRef
   //Receives
   /** Reaction on StateMsg'es */
   def onStateMsg: PartialFunction[(StateMsg, ActorState), Unit] = {

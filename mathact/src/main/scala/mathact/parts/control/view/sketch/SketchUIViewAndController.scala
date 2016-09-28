@@ -46,6 +46,7 @@ private [mathact] class SketchUIViewAndController(
   log: LoggingAdapter)
 extends Stage {
   //Params
+  val windowTitle = "MathAct - Workbench"
   val buttonsImageSize = 30
   val runBtnDPath             = "mathact/sketchIU/run_btn_d.png"
   val runBtnEPath             = "mathact/sketchIU/run_btn_e.png"
@@ -137,7 +138,7 @@ extends Stage {
     text = "???"
     style = "-fx-font-size: 11pt;"}
   //UI
-  title = "MathAct - Workbench"
+  title = windowTitle
   scene = new Scene {
     fill = White
     content = new BorderPane{

@@ -12,15 +12,35 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.control.view.visualization
+package mathact.parts.control.infrastructure
+
+import akka.actor.ActorRef
+import mathact.parts.ActorBase
+import mathact.parts.gui.JFXInteraction
+import mathact.parts.model.config.UserLoggingConfigLike
 
 
-/** Visualization object
+/** Control of tool UI layout
   * Created by CAB on 28.09.2016.
   */
 
-object Visualization {
+class LayoutController(
+  config: UserLoggingConfigLike,
+  workbenchController: ActorRef)
+extends ActorBase with JFXInteraction {
 
 
-  //Messages
-  case object DoClose}
+
+
+
+
+  //Messages handling with logging
+  def reaction: PartialFunction[Any, Unit]  = {
+
+
+    case m ⇒ println("[LayoutController] message: " + m)
+
+  }
+
+
+}

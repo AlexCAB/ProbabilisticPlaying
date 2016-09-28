@@ -12,15 +12,16 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.control.view.visualization
+package mathact.parts.control.view.logging
+
+import akka.actor.ActorRef
+import mathact.parts.control.view.logging.UserLogging.LogRow
 
 
-/** Visualization object
+/** User log UI controller interface
   * Created by CAB on 28.09.2016.
   */
 
-object Visualization {
-
-
-  //Messages
-  case object DoClose}
+trait UserLogUIControllerLike {
+  def setActor(actor: ActorRef): Unit
+  def setRows(rows: List[LogRow]): Unit}

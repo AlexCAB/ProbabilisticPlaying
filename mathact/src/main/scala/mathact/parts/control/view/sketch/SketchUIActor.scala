@@ -26,11 +26,10 @@ import mathact.parts.model.messages.M
   * Created by CAB on 23.05.2016.
   */
 
-private [mathact] class SketchUI(
+private [mathact] class SketchUIActor(
   config: SketchUIConfigLike,
   workbenchController: ActorRef)
-extends ActorBase with JFXInteraction { import SketchUIElement._
- import SketchUiElemState._
+extends ActorBase with JFXInteraction { import SketchUIElement._, SketchUiElemState._
   //Construction
   private val window = runNow{
     val stg = new SketchUIViewAndController(config, workbenchController, log)

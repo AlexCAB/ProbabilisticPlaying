@@ -50,4 +50,6 @@ private [mathact] class AppConfig extends MainConfigLike{
   val sketchUI = new SketchUIConfigLike{}
   //Parse user logging
   val userLogging = new UserLoggingConfigLike{
-    val showUIOnError = config.getBoolean("view.logging.show.ui.on.error")}}
+    val showUIOnError = config.getBoolean("view.logging.show.ui.on.error")}
+  //Visualization
+  val visualization = new VisualizationConfigLike{}}

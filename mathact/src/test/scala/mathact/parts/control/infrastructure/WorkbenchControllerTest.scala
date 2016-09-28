@@ -17,17 +17,17 @@ package mathact.parts.control.infrastructure
 import akka.actor.{Actor, ActorRef, Props}
 import akka.pattern.ask
 import akka.testkit.TestProbe
-import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import mathact.parts.bricks.WorkbenchContext
 import mathact.parts.dummies.{TestSketchWithError, TestSketchWithBigTimeout, TestSketchWithSmallTimeout}
 import mathact.parts.model.enums.SketchUIElement._
 import mathact.parts.model.enums.SketchUiElemState._
 import mathact.parts.{WorkbenchLike, ActorTestSpec}
-import mathact.parts.model.config.{MainConfigLike, DriveConfigLike, PumpConfigLike, PumpingConfigLike}
+import mathact.parts.model.config._
 import mathact.parts.model.data.sketch.SketchData
 import mathact.parts.model.messages.M
 import org.scalatest.Suite
+import akka.util.Timeout
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -55,7 +55,8 @@ class WorkbenchControllerTest extends ActorTestSpec {
           val impellerMaxQueueSize = 0
           val uiOperationTimeout = 1.second}}
       val sketchUI = null
-      val userLogging = null}
+      val userLogging = null
+      val visualization = null}
     //Test SketchData
     def newTestSketchData(
       clazz: Class[_] = classOf[TestSketchWithSmallTimeout],
@@ -90,14 +91,11 @@ class WorkbenchControllerTest extends ActorTestSpec {
     lazy val testPumping = TestProbe("TestPumping_" + randomString())
     //WorkbenchController
     def newWorkbenchController(sketch: SketchData): ActorRef = system.actorOf(Props(
-      new WorkbenchController(
-        testMainConfig,
-        sketch,
-        testMainController.ref,
-        testSketchUi.ref,
-        testUserLogging.ref,
-        testVisualization.ref,
-        testPumping.ref)),
+      new WorkbenchController(testMainConfig, sketch, testMainController.ref){
+        val sketchUi = testSketchUi.ref
+        val userLogging = testUserLogging.ref
+        val visualization = testVisualization.ref
+        val pumping = testPumping.ref}),
       "WorkbenchController_" + randomString())
     def newBuiltWorkbenchController(): ActorRef = {
       val controller = newWorkbenchController( newTestSketchData(

@@ -57,6 +57,30 @@ class MainController(doStop: Int⇒Unit, config: AppConfig) extends ActorBase{
   //Variables
   var sketches = List[SketchData]()
   var currentSketch: Option[CurrentSketch] = None
+
+
+
+
+  //TODO Код ниже это конструирование субакторов для WorkbenchController
+  //new WorkbenchController(...){
+  //  val randomName = "_" + sketchData.className + "_" + UUID.randomUUID
+  //  val sketchUi = context.actorOf(Props(
+  //    new SketchUI(config.sketchUI, self)),
+  //    "SketchUI" + randomName)
+  //  val userLogging = context.actorOf(Props(
+  //    new UserLogging(config.userLogging, self)),
+  //    "UserLogging" + randomName)
+  //  val visualization = context.actorOf(Props(
+  //    new Visualization(config.visualization, self)),
+  //    "Visualization" + randomName)
+  //  val pumping = context.actorOf(Props(
+  //    new Pumping(config.pumping, self, sketchName, userLogging, visualization)),
+  //    "Pumping" + randomName)
+  //}
+
+
+
+
   //Functions
   def setCurrentSketchState(newStat: SketchStatus): Unit = ???
 

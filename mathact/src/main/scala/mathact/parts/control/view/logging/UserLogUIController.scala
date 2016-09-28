@@ -33,11 +33,6 @@ import UserLogging._
   * Created by CAB on 24.09.2016.
   */
 
-trait UserLogUIControllerLike {
-  def setActor(actor: ActorRef): Unit
-  def setRows(rows: List[LogRow]): Unit}
-
-
 @sfxml
 class UserLogUIController(
   private val autoScrollBtn: Button,

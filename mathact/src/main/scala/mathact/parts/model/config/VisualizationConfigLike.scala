@@ -12,15 +12,15 @@
  * @                                                                             @ *
 \* *  http://github.com/alexcab  * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-package mathact.parts.control.view.visualization
+package mathact.parts.model.config
 
 
-/** Visualization object
+/** Visualization config
   * Created by CAB on 28.09.2016.
   */
 
-object Visualization {
+trait VisualizationConfigLike {
 
+  //TODO
 
-  //Messages
-  case object DoClose}
+}

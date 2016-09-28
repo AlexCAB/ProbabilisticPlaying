@@ -39,7 +39,7 @@ class UserLoggingTest extends UIActorTestSpec {
     val workbenchController = TestProbe("TestWorkbenchController_" + randomString())
     //UI Actor
     def newUserLog(config: UserLoggingConfigLike) = system.actorOf(
-      Props(new UserLogging(config, workbenchController.ref)),
+      Props(new UserLoggingActor(config, workbenchController.ref)),
       "UserLogging_" + randomString())}
   //Testing
   "UserLogging" should{
